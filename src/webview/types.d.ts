@@ -35,11 +35,13 @@ declare module '*.css' {
   }
   
   // VS Code webview API
-  declare function acquireVsCodeApi(): {
+  interface VsCodeApi<T = any> {
     postMessage(message: any): void;
-    getState(): any;
-    setState(state: any): void;
-  };
+    setState(state: T): void;
+    getState(): T | undefined;
+}
+
+declare function acquireVsCodeApi<T = unknown>(): VsCodeApi<T>;
 
 // Add csp property to React's iframe attributes
 declare namespace React {

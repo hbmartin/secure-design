@@ -1,8 +1,8 @@
-import { streamText, ModelMessage } from 'ai';
+import { streamText, ModelMessage, APICallError } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+import { createOpenRouter, LanguageModelV2 } from '@openrouter/ai-sdk-provider';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -17,6 +17,7 @@ import { createGrepTool } from '../tools/grep-tool';
 import { createThemeTool } from '../tools/theme-tool';
 import { createLsTool } from '../tools/ls-tool';
 import { createMultieditTool } from '../tools/multiedit-tool';
+import { customOllamaFetch } from './customOllamaFetch';
 
 export class CustomAgentService implements AgentService {
     private workingDirectory: string = '';
@@ -78,10 +79,12 @@ export class CustomAgentService implements AgentService {
         }
     }
 
-    private getModel() {
+    private getModel(): LanguageModelV2 {
         const config = vscode.workspace.getConfiguration('securedesign');
         const specificModel = config.get<string>('aiModel');
         const provider = config.get<string>('aiModelProvider', 'anthropic');
+        console.log(`specificModel: ${specificModel}`);
+        console.log(`provider: ${provider}`);
         
         this.outputChannel.appendLine(`Using AI provider: ${provider}`);
         if (specificModel) {
@@ -166,6 +169,7 @@ export class CustomAgentService implements AgentService {
                 const openai = createOpenAI({
                     apiKey: openaiKey,
                     baseURL: openaiUrl,
+                    fetch: customOllamaFetch,  // TODO: only for custom model
                 });
                 
                 // Use specific model if available, otherwise default to gpt-4o
@@ -173,6 +177,13 @@ export class CustomAgentService implements AgentService {
                 this.outputChannel.appendLine(`Using OpenAI model: ${openaiModel}`);
                 return openai(openaiModel);
         }
+    }
+
+    private extractErrorMessage(error: unknown): string {
+          if (APICallError.isInstance(error)) {
+            return error.message || error.responseBody || 'Unknown error occurred'
+          }
+          return 'Unknown error occurred';
     }
 
     private getSystemPrompt(): string {
@@ -712,13 +723,9 @@ I've created the html design, please reveiw and let me know if you need any chan
                         break;
 
                     case 'error':
-                        // Error handling - CoreMessage format
-                        const errorMsg = (chunk as any).error?.message || 'Unknown error occurred';
-                        this.outputChannel.appendLine(`Stream error: ${errorMsg}`);
-                        
                         const errorMessage: ModelMessage = {
                             role: 'assistant',
-                            content: `Error: ${errorMsg}`
+                            content: `Error: ${this.extractErrorMessage(chunk.error)}`
                         };
                         
                         onMessage?.(errorMessage);
