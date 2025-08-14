@@ -12,7 +12,7 @@ import welcomeStyles from '../Welcome/Welcome.css';
 
 interface ChatInterfaceProps {
     layout: WebviewLayout;
-    vscode: any;
+    vscode: VsCodeApi;
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
@@ -1444,6 +1444,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                                         selectedModel={selectedModel}
                                         onModelChange={handleModelChange}
                                         disabled={isLoading || showWelcome}
+                                        vscode={vscode}
                                     />
                                 </div>
                             </div>

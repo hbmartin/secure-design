@@ -5,6 +5,7 @@ interface ModelSelectorProps {
     selectedModel: string;
     onModelChange: (model: string) => void;
     disabled?: boolean;
+    vscode: VsCodeApi;
 }
 
 interface ModelOption {
@@ -14,54 +15,138 @@ interface ModelOption {
     category: string;
 }
 
-const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onModelChange, disabled }) => {
+const getStaticModels = (): ModelOption[] => [
+    // Anthropic
+    { id: 'claude-4-opus-20250514', name: 'Claude 4 Opus', provider: 'Anthropic', category: 'Premium' },
+    { id: 'claude-4-sonnet-20250514', name: 'Claude 4 Sonnet', provider: 'Anthropic', category: 'Balanced' },
+    { id: 'claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet', provider: 'Anthropic', category: 'Balanced' },
+    { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', category: 'Balanced' },
+    // Google (Direct)
+    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google', category: 'Balanced' },
+    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', category: 'Fast' },
+    { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', provider: 'Google', category: 'Fast' },
+    // Google (OpenRouter)
+    { id: 'google/gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'OpenRouter (Google)', category: 'Balanced' },
+    // Meta (OpenRouter)
+    { id: 'meta-llama/llama-4-maverick-17b-128e-instruct', name: 'Llama 4 Maverick 17B', provider: 'OpenRouter (Meta)', category: 'Balanced' },
+    // DeepSeek (OpenRouter)
+    { id: 'deepseek/deepseek-r1', name: 'DeepSeek R1', provider: 'OpenRouter (DeepSeek)', category: 'Balanced' },
+    // Mistral (OpenRouter)
+    { id: 'mistralai/mistral-small-3.2-24b-instruct-2506', name: 'Mistral Small 3.2 24B', provider: 'OpenRouter (Mistral)', category: 'Balanced' },
+    // xAI (OpenRouter)
+    { id: 'x-ai/grok-3', name: 'Grok 3', provider: 'OpenRouter (xAI)', category: 'Balanced' },
+    // Qwen (OpenRouter)
+    { id: 'qwen/qwen3-235b-a22b-04-28', name: 'Qwen3 235B', provider: 'OpenRouter (Qwen)', category: 'Balanced' },
+    // Perplexity (OpenRouter)
+    { id: 'perplexity/sonar-reasoning-pro', name: 'Sonar Reasoning Pro', provider: 'OpenRouter (Perplexity)', category: 'Balanced' },
+    // Microsoft (OpenRouter)
+    { id: 'microsoft/phi-4-reasoning-plus-04-30', name: 'Phi-4 Reasoning Plus', provider: 'OpenRouter (Microsoft)', category: 'Balanced' },
+    // NVIDIA (OpenRouter)
+    { id: 'nvidia/llama-3.3-nemotron-super-49b-v1', name: 'Llama 3.3 Nemotron Super 49B', provider: 'OpenRouter (NVIDIA)', category: 'Balanced' },
+    // Cohere (OpenRouter)
+    { id: 'cohere/command-a-03-2025', name: 'Command A', provider: 'OpenRouter (Cohere)', category: 'Balanced' },
+    // Amazon (OpenRouter)
+    { id: 'amazon/nova-pro-v1', name: 'Nova Pro', provider: 'OpenRouter (Amazon)', category: 'Balanced' },
+    // Inflection (OpenRouter)
+    { id: 'inflection/inflection-3-productivity', name: 'Inflection 3 Productivity', provider: 'OpenRouter (Inflection)', category: 'Balanced' },
+    // Reka (OpenRouter)
+    { id: 'rekaai/reka-flash-3', name: 'Reka Flash 3', provider: 'OpenRouter (Reka)', category: 'Balanced' },
+    // Existing OpenAI (direct)
+    { id: 'gpt-4.1', name: 'GPT-4.1', provider: 'OpenAI', category: 'Balanced' },
+    { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', provider: 'OpenAI', category: 'Fast' }
+];
+
+const getAllModels = async (vscode: VsCodeApi): Promise<ModelOption[]> => {
+    const staticModels = getStaticModels();
+    console.log('[ModelSelector] Starting to load models, static models count:', staticModels.length);
+    
+    try {
+        console.log('[ModelSelector] Requesting Ollama models from extension...');
+        
+        // Request Ollama models from the extension via message passing
+        const response = await new Promise<string[]>((resolve) => {
+            const messageHandler = (event: MessageEvent) => {
+                console.log('[ModelSelector] Received message from extension:', event.data.type, event.data);
+                if (event.data.type === 'ollamaModelsResponse') {
+                    window.removeEventListener('message', messageHandler);
+                    console.log('[ModelSelector] Ollama models received:', event.data.models);
+                    resolve(event.data.models || []);
+                }
+            };
+            
+            window.addEventListener('message', messageHandler);
+            
+            // Send request to extension for Ollama models
+            console.log('[ModelSelector] Sending getOllamaModels request to extension...');
+            vscode.postMessage({
+                command: 'getOllamaModels'
+            });
+            
+            // TODO:  shorten this or remove
+            // Timeout after 3 seconds
+            setTimeout(() => {
+                console.log('[ModelSelector] Timeout waiting for Ollama models, using empty array');
+                window.removeEventListener('message', messageHandler);
+                resolve([]);
+            }, 3000);
+        });
+        
+        console.log('[ModelSelector] Processing Ollama response:', response);
+        const ollamaModels: ModelOption[] = response.map(name => ({
+            id: name,
+            name: name,
+            provider: 'Ollama',
+            category: 'Local'
+        }));
+        
+        console.log('[ModelSelector] Created Ollama models:', ollamaModels);
+        const allModels = [...staticModels, ...ollamaModels];
+        console.log('[ModelSelector] Final model count - static:', staticModels.length, 'ollama:', ollamaModels.length, 'total:', allModels.length);
+        
+        return allModels;
+    } catch (error) {
+        console.error('[ModelSelector] Failed to load Ollama models:', error);
+        return staticModels;
+    }
+};
+
+const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onModelChange, disabled, vscode }) => {    
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+    const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+    const [models, setModels] = useState<ModelOption[]>([]);
     const triggerRef = useRef<HTMLButtonElement>(null);
     const modalRef = useRef<HTMLDivElement>(null);
 
-    const models: ModelOption[] = [
-        // Anthropic
-        { id: 'claude-4-opus-20250514', name: 'Claude 4 Opus', provider: 'Anthropic', category: 'Premium' },
-        { id: 'claude-4-sonnet-20250514', name: 'Claude 4 Sonnet', provider: 'Anthropic', category: 'Balanced' },
-        { id: 'claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet', provider: 'Anthropic', category: 'Balanced' },
-        { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', category: 'Balanced' },
-        // Google (Direct)
-        { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google', category: 'Balanced' },
-        { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', category: 'Fast' },
-        { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', provider: 'Google', category: 'Fast' },
-        // Google (OpenRouter)
-        { id: 'google/gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'OpenRouter (Google)', category: 'Balanced' },
-        // Meta (OpenRouter)
-        { id: 'meta-llama/llama-4-maverick-17b-128e-instruct', name: 'Llama 4 Maverick 17B', provider: 'OpenRouter (Meta)', category: 'Balanced' },
-        // DeepSeek (OpenRouter)
-        { id: 'deepseek/deepseek-r1', name: 'DeepSeek R1', provider: 'OpenRouter (DeepSeek)', category: 'Balanced' },
-        // Mistral (OpenRouter)
-        { id: 'mistralai/mistral-small-3.2-24b-instruct-2506', name: 'Mistral Small 3.2 24B', provider: 'OpenRouter (Mistral)', category: 'Balanced' },
-        // xAI (OpenRouter)
-        { id: 'x-ai/grok-3', name: 'Grok 3', provider: 'OpenRouter (xAI)', category: 'Balanced' },
-        // Qwen (OpenRouter)
-        { id: 'qwen/qwen3-235b-a22b-04-28', name: 'Qwen3 235B', provider: 'OpenRouter (Qwen)', category: 'Balanced' },
-        // Perplexity (OpenRouter)
-        { id: 'perplexity/sonar-reasoning-pro', name: 'Sonar Reasoning Pro', provider: 'OpenRouter (Perplexity)', category: 'Balanced' },
-        // Microsoft (OpenRouter)
-        { id: 'microsoft/phi-4-reasoning-plus-04-30', name: 'Phi-4 Reasoning Plus', provider: 'OpenRouter (Microsoft)', category: 'Balanced' },
-        // NVIDIA (OpenRouter)
-        { id: 'nvidia/llama-3.3-nemotron-super-49b-v1', name: 'Llama 3.3 Nemotron Super 49B', provider: 'OpenRouter (NVIDIA)', category: 'Balanced' },
-        // Cohere (OpenRouter)
-        { id: 'cohere/command-a-03-2025', name: 'Command A', provider: 'OpenRouter (Cohere)', category: 'Balanced' },
-        // Amazon (OpenRouter)
-        { id: 'amazon/nova-pro-v1', name: 'Nova Pro', provider: 'OpenRouter (Amazon)', category: 'Balanced' },
-        // Inflection (OpenRouter)
-        { id: 'inflection/inflection-3-productivity', name: 'Inflection 3 Productivity', provider: 'OpenRouter (Inflection)', category: 'Balanced' },
-        // Reka (OpenRouter)
-        { id: 'rekaai/reka-flash-3', name: 'Reka Flash 3', provider: 'OpenRouter (Reka)', category: 'Balanced' },
-        // Existing OpenAI (direct)
-        { id: 'gpt-4.1', name: 'GPT-4.1', provider: 'OpenAI', category: 'Balanced' },
-        { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', provider: 'OpenAI', category: 'Fast' }
-    ];
+    console.log("[ModelSelector] mounting")
 
+    useEffect(() => {
+        console.log('[ModelSelector] useEffect triggered, calling getAllModels...');
+        getAllModels(vscode).then((models) => {
+            console.log('[ModelSelector] getAllModels completed, setting models:', models.length);
+            setModels(models);
+        }).catch((error) => {
+            console.error('[ModelSelector] getAllModels failed:', error);
+        });
+    }, []);
+
+    /* ---------- derived data ---------- */
+  // distinct provider list (sorted alphabetically)
+  const allProviders = Array.from(
+    new Set(models.map(m => m.provider))
+  ).sort((a, b) => a.localeCompare(b));
+  
+  // filter providers by search (if searchTerm contains provider name)
+  const filteredProviders = allProviders.filter(p =>
+    p.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // models belonging to the currently selected provider (or all if none)
+  const providerModels = selectedProvider
+    ? models.filter(m => m.provider === selectedProvider)
+    : [];
+    
     const filteredModels = models.filter(model =>
         model.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         model.provider.toLowerCase().includes(searchTerm.toLowerCase())
@@ -137,6 +222,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onModelCha
     const handleModelSelect = (modelId: string) => {
         onModelChange(modelId);
         setIsOpen(false);
+        setSelectedProvider(null);
     };
 
     const handleToggleOpen = () => {
@@ -358,6 +444,49 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onModelCha
                         align-items: center;
                         justify-content: center;
                     }
+
+                                        .model-selector-inner {
+                        overflow: hidden;
+                        width: 100%;
+                        height: 150px;
+                        position: relative;
+                    }
+
+                    .model-selector-panels {
+                        display: flex;
+                        width: 480px;
+                        height: 100%;
+                        transition: transform 0.3s ease;
+                    }
+
+                    .model-selector-panel {
+                        width: 240px;
+                        height: 100%;
+                        overflow-y: auto;
+                        flex-shrink: 0;
+                        position: relative;
+                    }
+
+                    .model-selector-back {
+                        position: sticky;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        background: var(--vscode-dropdown-background);
+                        border: none;
+                        border-bottom: 1px solid var(--vscode-dropdown-border);
+                        color: var(--vscode-foreground);
+                        padding: 8px;
+                        cursor: pointer;
+                        font-size: 11px;
+                        text-align: left;
+                        z-index: 1;
+                    }
+
+                    .model-selector-back:hover {
+                        background: var(--vscode-list-hoverBackground);
+                    }
+
                 `}
             </style>
 
@@ -368,9 +497,6 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onModelCha
                     onClick={handleToggleOpen}
                     disabled={disabled}
                 >
-                    <div className="selector-icon model-icon">
-                        <BrainIcon />
-                    </div>
                     <span>{selectedModelName}</span>
                     <svg 
                         className={`model-selector-arrow ${isOpen ? 'open' : ''}`}
@@ -389,53 +515,97 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ selectedModel, onModelCha
                     </svg>
                 </button>
 
-                {isOpen && (
-                    <div className="model-selector-modal">
-                        <div 
-                            className="model-selector-content" 
-                            ref={modalRef}
-                            style={{
-                                top: dropdownPosition.top,
-                                left: dropdownPosition.left
-                            }}
-                        >
-                            <div className="model-selector-header">
-                                <input
-                                    type="text"
-                                    className="model-selector-search"
-                                    placeholder="Search models..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    autoFocus
-                                />
-                            </div>
 
-                            <div className="model-selector-list">
-                                {filteredModels.map((model) => (
-                                    <button
-                                        key={model.id}
-                                        className={`model-option ${model.id === selectedModel ? 'selected' : ''}`}
-                                        onClick={() => handleModelSelect(model.id)}
-                                    >
-                                        <div className="model-icon">
-                                            <BrainIcon />
-                                        </div>
-                                        <div className="model-info">
-                                            <div className="model-name">{model.name}</div>
-                                            <div className="model-provider">{model.provider}</div>
-                                        </div>
-                                        {model.id === selectedModel && (
-                                            <div className="model-check">✓</div>
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
+        {isOpen && (
+          <div className="model-selector-modal">
+            <div
+              className="model-selector-content"
+              ref={modalRef}
+              style={{
+                top: dropdownPosition.top,
+                left: dropdownPosition.left,
+              }}
+            >
+              <div className="model-selector-header">
+                <input
+                  type="text"
+                  className="model-selector-search"
+                  placeholder="Search…"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  autoFocus
+                />
+              </div>
+
+              <div className="model-selector-inner">
+                <div
+                  className="model-selector-panels"
+                  style={{
+                    transform:
+                      selectedProvider !== null
+                        ? 'translateX(-240px)'
+                        : 'translateX(0)',
+                  }}
+                >
+                  {/* Provider panel */}
+                  <div className="model-selector-panel">
+                    {filteredProviders.map(provider => (
+                      <button
+                        key={provider}
+                        className="model-option"
+                        onClick={() => {
+                          setSelectedProvider(provider);
+                          setSearchTerm('');
+                        }}
+                      >
+                        <div className="model-icon">
+                          <BrainIcon />
                         </div>
-                    </div>
-                )}
+                        <div className="model-info">
+                          <div className="model-name">{provider}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* 2⃣ Model panel */}
+                <div className="model-selector-panel">
+                  {/* Back button – positioned absolutely inside the panel */}
+                  <button
+                    className="model-selector-back"
+                    onClick={() => {
+                      // Reset the search so the provider list is shown cleanly
+                      setSearchTerm('');
+                      setSelectedProvider(null);
+                    }}
+                  >
+                    ← Back
+                  </button>
+                    {providerModels.map(model => (
+                      <button
+                        key={model.id}
+                        className={`model-option ${model.id === selectedModel ? 'selected' : ''}`}
+                        onClick={() => handleModelSelect(model.id)}
+                      >
+                        <div className="model-icon">
+                          <BrainIcon />
+                        </div>
+                        <div className="model-info">
+                          <div className="model-name">{model.name}</div>
+                          <div className="model-provider">{model.provider}</div>
+                        </div>
+                        {model.id === selectedModel && <div className="model-check">✓</div>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
-        </>
-    );
+          </div>
+        )}
+      </div>
+    </>
+  );
 };
 
-export default ModelSelector; 
+export default ModelSelector;

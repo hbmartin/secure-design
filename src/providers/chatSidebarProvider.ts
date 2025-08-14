@@ -4,6 +4,7 @@ import { ChatMessageService } from '../services/chatMessageService';
 import { generateWebviewHtml } from '../templates/webviewTemplate';
 import { WebviewContext } from '../types/context';
 import { AgentService } from '../types/agent';
+import { getInstalledModelsAsync } from '../services/customOllamaFetch';
 
 export class ChatSidebarProvider implements vscode.WebviewViewProvider {
     public static readonly VIEW_TYPE = 'securedesign.chatView';
@@ -58,6 +59,8 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
         // Handle messages from the webview
         webviewView.webview.onDidReceiveMessage(
             async (message) => {
+                console.log('[ChatSidebarProvider] Received message:', message);
+                
                 // First try custom message handler for auto-canvas functionality
                 if (this.customMessageHandler) {
                     this.customMessageHandler(message);
@@ -89,6 +92,9 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
                         break;
                     case 'changeProvider':
                         await this.handleChangeProvider(message.model, webviewView.webview);
+                        break;
+                    case 'getOllamaModels':
+                        await this.handleGetOllamaModels(webviewView.webview);
                         break;
                 }
             }
@@ -126,6 +132,7 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
     }
 
     private async handleChangeProvider(model: string, webview: vscode.Webview) {
+        console.log(`handleChangeProvider: ${model}`);
         try {
             const config = vscode.workspace.getConfiguration('securedesign');
             
@@ -348,5 +355,34 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
         };
         
         return modelNames[model] || model;
+    }
+
+    private async handleGetOllamaModels(webview: vscode.Webview) {
+        console.log('[ChatSidebarProvider] Starting to fetch Ollama models...');
+        try {
+            console.log('[ChatSidebarProvider] Calling getInstalledModelsAsync()...');
+            const ollamaModels = await getInstalledModelsAsync();
+            console.log('[ChatSidebarProvider] Successfully got Ollama models:', ollamaModels);
+            
+            webview.postMessage({
+                type: 'ollamaModelsResponse',
+                models: ollamaModels
+            });
+            console.log('[ChatSidebarProvider] Sent ollamaModelsResponse to webview with', ollamaModels.length, 'models');
+        } catch (error) {
+            // If Ollama is not available, send empty array
+            console.warn('[ChatSidebarProvider] Failed to get Ollama models:', error);
+            console.log('[ChatSidebarProvider] Error details:', {
+                message: (error as any)?.message,
+                code: (error as any)?.code,
+                stack: (error as any)?.stack
+            });
+            
+            webview.postMessage({
+                type: 'ollamaModelsResponse',
+                models: []
+            });
+            console.log('[ChatSidebarProvider] Sent empty ollamaModelsResponse due to error');
+        }
     }
 } 
