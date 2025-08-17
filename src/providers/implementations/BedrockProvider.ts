@@ -180,10 +180,7 @@ export class BedrockProvider extends AIProvider {
     }
 
     params.config.outputChannel.appendLine(`AWS region: ${awsRegion}`);
-    params.config.outputChannel.appendLine(
-      `AWS access key found: ${awsAccessKeyId.substring(0, 8)}...`
-    );
-
+    params.config.outputChannel.appendLine('AWS credentials are configured');
     const bedrock = createAmazonBedrock({
       region: awsRegion,
       accessKeyId: awsAccessKeyId,
