@@ -8,6 +8,109 @@ import Welcome from '../Welcome';
 import ThemePreviewCard from './ThemePreviewCard';
 import ModelSelector from './ModelSelector';
 import chatStyles from './ChatInterface.css';
+
+// Type definitions based on AI SDK CoreMessage structure
+interface ToolCallPart {
+    type: 'tool-call';
+    toolCallId: string;
+    toolName: string;
+    input: Record<string, any>;
+    metadata?: {
+        is_loading?: boolean;
+        estimated_duration?: number;
+        elapsed_time?: number;
+        progress_percentage?: number;
+        [key: string]: any;
+    };
+}
+
+interface ToolResultPart {
+    type: 'tool-result';
+    toolCallId: string;
+    toolName: string;
+    output: string | object;
+    result?: string | object | null;
+    isError?: boolean;
+}
+
+interface ToolInput {
+    description?: string | null;
+    command?: string | null;
+    prompt?: string | null;
+    [key: string]: any;
+}
+
+// Safe string utility with detailed error reporting via chat messages
+let errorReported = false; // Prevent spam of error messages
+let chatHistorySetter: React.Dispatch<React.SetStateAction<ChatMessage[]>> | null = null;
+
+const safeSubstring = (value: unknown, start: number, max: number, context: string, setChatHistory?: React.Dispatch<React.SetStateAction<ChatMessage[]>>): string => {
+    if (setChatHistory) {
+        chatHistorySetter = setChatHistory;
+    }
+    
+    if (value === null || value === undefined) {
+        const errorType = value === null ? 'null' : 'undefined';
+        const errorMsg = `❌ Substring Error: ${context} is ${errorType}`;
+        console.error(errorMsg);
+        
+        // Add error as chat message for user visibility (once per session)
+        if (chatHistorySetter && !errorReported) {
+            errorReported = true;
+            setTimeout(() => {
+                const errorDetails = `❌ **Data Processing Error**\n\n**Issue**: ${context} is ${errorType}\n\n**Possible causes:**\n- Tool execution failed\n- AI provider returned incomplete data\n- Network connection interrupted\n\n**Suggestion**: Try running the command again or restart the chat.`;
+                
+                const errorMessage: ChatMessage = {
+                    role: 'assistant',
+                    content: errorDetails,
+                    metadata: {
+                        timestamp: Date.now(),
+                        is_error: true,
+                        error_context: context
+                    }
+                };
+                
+                chatHistorySetter(prev => [...prev, errorMessage]);
+            }, 100); // Small delay to ensure proper message ordering
+        }
+        
+        return `[${context} unavailable - ${errorType} value]`;
+    }
+    
+    const str = typeof value === 'string' ? value : String(value);
+    if (str.length === 0) {
+        console.warn(`⚠️ Warning: ${context} is empty string`);
+        return `[${context} empty]`;
+    }
+    
+    try {
+        return str.substring(start, max);
+    } catch (error) {
+        console.error(`❌ Substring Error: Failed to substring ${context}:`, error);
+        
+        // Add processing error as chat message (once per session)
+        if (chatHistorySetter && !errorReported) {
+            errorReported = true;
+            setTimeout(() => {
+                const errorDetails = `❌ **String Processing Error**\n\n**Issue**: Failed to process ${context}\n**Error**: ${error instanceof Error ? error.message : String(error)}\n\n**This usually indicates:**\n- Corrupted tool response data\n- Memory issues\n- Invalid characters in response\n\n**Suggestion**: Try the operation again.`;
+                
+                const errorMessage: ChatMessage = {
+                    role: 'assistant',
+                    content: errorDetails,
+                    metadata: {
+                        timestamp: Date.now(),
+                        is_error: true,
+                        error_context: context
+                    }
+                };
+                
+                chatHistorySetter(prev => [...prev, errorMessage]);
+            }, 100);
+        }
+        
+        return `[${context} processing failed]`;
+    }
+};
 import welcomeStyles from '../Welcome/Welcome.css';
 
 interface ChatInterfaceProps {
@@ -1066,9 +1169,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
             const showFullInput = showFullContent[`${uniqueKey}_input`] || false;
             const showFullPrompt = showFullContent[`${uniqueKey}_prompt`] || false;
 
-            const description = toolInput.description || '';
-            const command = toolInput.command || '';
-            const prompt = toolInput.prompt || '';
+            const description: string = safeSubstring(toolInput.description, 0, Number.MAX_SAFE_INTEGER, 'tool description', setChatHistory) || '';
+            const command: string = safeSubstring(toolInput.command, 0, Number.MAX_SAFE_INTEGER, 'tool command', setChatHistory) || '';
+            const prompt: string = safeSubstring(toolInput.prompt, 0, Number.MAX_SAFE_INTEGER, 'tool prompt', setChatHistory) || '';
 
             // Tool result data - find from separate tool message
             const toolCallId = toolCallPart.toolCallId;
@@ -1079,11 +1182,25 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
             // Tool is loading if we don't have a result yet, or if metadata indicates loading
             const isLoading = !hasResult || toolCallPart.metadata?.is_loading || false;
 
-            const toolResult = toolResultPart
-                ? typeof toolResultPart.result === 'string'
-                    ? toolResultPart.result
-                    : JSON.stringify(toolResultPart.result, null, 2)
-                : '';
+            const toolResult: string = (() => {
+                if (!toolResultPart) {
+                    console.warn('⚠️ Warning: toolResultPart is undefined for tool call', toolCallId);
+                    return '';
+                }
+                
+                const result = toolResultPart.result || toolResultPart.output;
+                if (result === null || result === undefined) {
+                    console.warn('⚠️ Warning: tool result and output are both null/undefined for tool:', toolResultPart.toolName);
+                    return '';
+                }
+                
+                try {
+                    return typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+                } catch (error) {
+                    console.error('❌ Error: Failed to stringify tool result for tool:', toolResultPart.toolName, error);
+                    return '[Tool result serialization failed]';
+                }
+            })();
 
             // Tool is complete when it has finished (regardless of errors)
             const toolComplete = hasResult && !isLoading;
@@ -1257,27 +1374,31 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
             // Determine if content needs truncation
             const MAX_PREVIEW = 300;
 
-            // Result truncation
+            // Result truncation with safe substring
             const resultNeedsTruncation = toolResult.length > MAX_PREVIEW;
-            const displayResult =
-                resultNeedsTruncation && !showFullResult
-                    ? `${toolResult.substring(0, MAX_PREVIEW)}...`
-                    : toolResult;
+            const displayResult = resultNeedsTruncation && !showFullResult
+                ? `${safeSubstring(toolResult, 0, MAX_PREVIEW, 'tool result', setChatHistory)}...`
+                : toolResult;
 
-            // Input truncation
-            const inputString = JSON.stringify(toolInput, null, 2);
+            // Input truncation with safe handling
+            const inputString: string = (() => {
+                try {
+                    return JSON.stringify(toolInput, null, 2);
+                } catch (error) {
+                    console.error('❌ Error: Failed to stringify tool input for tool:', toolCallPart.toolName, error);
+                    return '[Tool input serialization failed]';
+                }
+            })();
             const inputNeedsTruncation = inputString.length > MAX_PREVIEW;
-            const displayInput =
-                inputNeedsTruncation && !showFullInput
-                    ? `${inputString.substring(0, MAX_PREVIEW)}...`
-                    : inputString;
+            const displayInput = inputNeedsTruncation && !showFullInput
+                ? `${safeSubstring(inputString, 0, MAX_PREVIEW, 'tool input', setChatHistory)}...`
+                : inputString;
 
-            // Prompt truncation
+            // Prompt truncation with safe substring
             const promptNeedsTruncation = prompt.length > MAX_PREVIEW;
-            const displayPrompt =
-                promptNeedsTruncation && !showFullPrompt
-                    ? `${prompt.substring(0, MAX_PREVIEW)}...`
-                    : prompt;
+            const displayPrompt = promptNeedsTruncation && !showFullPrompt
+                ? `${safeSubstring(prompt, 0, MAX_PREVIEW, 'tool prompt', setChatHistory)}...`
+                : prompt;
 
             return (
                 <div

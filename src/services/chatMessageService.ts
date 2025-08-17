@@ -4,6 +4,46 @@ import type { AgentService } from '../types/agent';
 import type { CoreMessage } from 'ai';
 import { Logger } from './logger';
 
+// Type definitions for message parts
+interface TextPart {
+    type: 'text';
+    text?: string | null;
+}
+
+interface ToolCallPart {
+    type: 'tool-call';
+    toolName: string;
+    [key: string]: any;
+}
+
+interface ToolResultPart {
+    type: 'tool-result';
+    toolName: string;
+    [key: string]: any;
+}
+
+type MessagePart = TextPart | ToolCallPart | ToolResultPart | { type: string; [key: string]: any };
+
+// Safe string utility for logging
+const safeSubstring = (value: unknown, start: number, max: number, context: string): string => {
+    if (value === null || value === undefined) {
+        Logger.warn(`${context} is ${value === null ? 'null' : 'undefined'}`);
+        return `[${context} unavailable]`;
+    }
+    
+    const str = typeof value === 'string' ? value : String(value);
+    if (str.length === 0) {
+        return `[${context} empty]`;
+    }
+    
+    try {
+        return str.substring(start, max);
+    } catch (error) {
+        Logger.error(`Failed to substring ${context}:`, error);
+        return `[${context} processing failed]`;
+    }
+};
+
 export class ChatMessageService {
     private currentRequestController?: AbortController;
 
@@ -28,7 +68,7 @@ export class ChatMessageService {
                 Logger.info(`Structured content: ${messageContent.length} parts`);
                 messageContent.forEach((part, index) => {
                     if (part.type === 'text') {
-                        Logger.info(`  [${index}] text: "${part.text?.substring(0, 100)}..."`);
+                        Logger.info(`  [${index}] text: "${safeSubstring(part.text, 0, 100, 'message text')}..."`);
                     } else if (part.type === 'image') {
                         Logger.info(
                             `  [${index}] image: ${part.mimeType || 'unknown type'} (${part.image?.length || 0} chars)`
@@ -36,7 +76,7 @@ export class ChatMessageService {
                     }
                 });
             } else {
-                Logger.info(`Simple text content: ${String(messageContent).substring(0, 100)}...`);
+                Logger.info(`Simple text content: ${safeSubstring(messageContent, 0, 100, 'message content')}...`);
             }
 
             // Create new AbortController for this request
@@ -61,7 +101,7 @@ export class ChatMessageService {
                           ? msg.content
                                 .map(part =>
                                     part.type === 'text'
-                                        ? `${part.text?.substring(0, 50)}...`
+                                        ? `${safeSubstring(part.text, 0, 50, 'part text')}...`
                                         : part.type === 'tool-call'
                                           ? `[tool-call: ${part.toolName}]`
                                           : part.type === 'tool-result'
@@ -72,7 +112,7 @@ export class ChatMessageService {
                           : '[complex content]';
 
                 this.outputChannel.appendLine(
-                    `  [${index}] ${msg.role}: "${content.substring(0, 100)}..."`
+                    `  [${index}] ${msg.role}: "${safeSubstring(content, 0, 100, 'message content')}..."`
                 );
             });
 
@@ -286,7 +326,7 @@ export class ChatMessageService {
                             : JSON.stringify(part.result, null, 2);
 
                     Logger.debug(
-                        `Tool result for ${part.toolCallId}: "${content.substring(0, 200)}..."`
+                        `Tool result for ${part.toolCallId}: "${safeSubstring(content, 0, 200, 'tool result content')}..."`
                     );
 
                     // Send tool result to frontend
@@ -401,7 +441,7 @@ export class ChatMessageService {
                 }
             }
 
-            Logger.debug(`Extracted result content: "${content.substring(0, 200)}..."`);
+            Logger.debug(`Extracted result content: "${safeSubstring(content, 0, 200, 'extracted result content')}..."`);
 
             if (content.trim()) {
                 webview.postMessage({

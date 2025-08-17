@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { CoreMessage } from 'ai';
+import type { ModelMessage } from 'ai';
 
 // Additional metadata for UI state
 interface MessageMetadata {
@@ -29,7 +29,7 @@ interface MessageMetadata {
 }
 
 // Message with metadata for UI
-export type ChatMessage = CoreMessage & {
+export type ChatMessage = ModelMessage & {
     metadata?: MessageMetadata;
 };
 
