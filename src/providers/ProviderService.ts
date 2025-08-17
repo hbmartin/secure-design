@@ -44,43 +44,13 @@ export class ProviderService implements IProviderService {
     }
 
     /**
-     * Initialize all available providers
-     */
-    private initializeProviders(): void {
-        try {
-            // Register all provider implementations
-            this.registry.register(new AnthropicProvider());
-            this.registry.register(new OpenAIProvider());
-            this.registry.register(new OpenRouterProvider());
-            this.registry.register(new GoogleProvider());
-            this.registry.register(new BedrockProvider());
-            this.registry.register(new MoonshotProvider());
-
-            // Validate registry
-            const validationErrors = this.registry.validate();
-            if (validationErrors.length > 0) {
-                console.warn('Provider registry validation issues:', validationErrors);
-            }
-        } catch (error) {
-            console.error('Failed to initialize providers:', error);
-            throw new Error(`Provider initialization failed: ${error}`);
-        }
-    }
-
-    /**
      * Create a model instance for the given model string
      */
-    createModel(model: string, config: ProviderConfig): any {
-        // Get current provider setting for fallback
-        const currentProvider = config.config.get<string>('aiModelProvider') as ProviderId;
-
-        const provider = this.registry.getProviderForModel({
-            model,
-            currentProvider,
-        });
+    createModel(model: string, providerId: ProviderId, config: ProviderConfig): any {
+        const provider = this.registry.getProvider(providerId);
 
         if (!provider) {
-            throw new Error(`No provider found for model: ${model}`);
+            throw new Error(`Provider not found: ${providerId}`);
         }
 
         // Validate credentials before creating instance
@@ -92,36 +62,17 @@ export class ProviderService implements IProviderService {
         return provider.createInstance({ model, config });
     }
 
-    /**
-     * Get provider metadata for a model
-     */
-    getProviderForModel(model: string): ProviderMetadata | undefined {
-        const config = vscode.workspace.getConfiguration('securedesign');
-        const currentProvider = config.get<string>('aiModelProvider') as ProviderId;
-
-        const provider = this.registry.getProviderForModel({
-            model,
-            currentProvider,
-        });
-
-        return provider?.metadata;
-    }
 
     /**
-     * Validate credentials for a specific model
+     * Validate credentials for a specific provider
      */
-    validateCredentialsForModel(model: string, config: ProviderConfig): ValidationResult {
-        const currentProvider = config.config.get<string>('aiModelProvider') as ProviderId;
-
-        const provider = this.registry.getProviderForModel({
-            model,
-            currentProvider,
-        });
+    validateCredentialsForProvider(providerId: ProviderId, config: ProviderConfig): ValidationResult {
+        const provider = this.registry.getProvider(providerId);
 
         if (!provider) {
             return {
                 isValid: false,
-                error: `No provider found for model: ${model}`,
+                error: `Provider not found: ${providerId}`,
             };
         }
 
@@ -129,16 +80,10 @@ export class ProviderService implements IProviderService {
     }
 
     /**
-     * Get display name for a model
+     * Get display name for a model from a specific provider
      */
-    getModelDisplayName(model: string): string {
-        const config = vscode.workspace.getConfiguration('securedesign');
-        const currentProvider = config.get<string>('aiModelProvider') as ProviderId;
-
-        const provider = this.registry.getProviderForModel({
-            model,
-            currentProvider,
-        });
+    getModelDisplayName(model: string, providerId: ProviderId): string {
+        const provider = this.registry.getProvider(providerId);
 
         if (!provider) {
             return model; // Fallback to model ID
@@ -174,7 +119,7 @@ export class ProviderService implements IProviderService {
      */
     getModelsForProvider(providerId: ProviderId): ModelConfig[] {
         const provider = this.registry.getProvider(providerId);
-        return provider?.models || [];
+        return provider?.models ?? [];
     }
 
     /**
@@ -209,17 +154,6 @@ export class ProviderService implements IProviderService {
         return this.registry;
     }
 
-    /**
-     * Detect provider from model string
-     * This is the main entry point that replaces the scattered detection logic
-     */
-    detectProviderFromModel(model: string, currentProvider?: ProviderId): ProviderId | undefined {
-        const provider = this.registry.getProviderForModel({
-            model,
-            currentProvider,
-        });
-        return provider?.metadata.id;
-    }
 
     /**
      * Get error message for missing credentials
@@ -270,7 +204,31 @@ export class ProviderService implements IProviderService {
         return {
             providerCount: this.registry.getProviderCount(),
             modelCount: allModels.length,
-            visionCapableModels: allModels.filter(model => model.supportsVision).length,
+            visionCapableModels: allModels.filter(model => model.supportsVision === true).length,
         };
+    }
+
+    /**
+     * Initialize all available providers
+     */
+    private initializeProviders(): void {
+        try {
+            // Register all provider implementations
+            this.registry.register(new AnthropicProvider());
+            this.registry.register(new OpenAIProvider());
+            this.registry.register(new OpenRouterProvider());
+            this.registry.register(new GoogleProvider());
+            this.registry.register(new BedrockProvider());
+            this.registry.register(new MoonshotProvider());
+
+            // Validate registry
+            const validationErrors = this.registry.validate();
+            if (validationErrors.length > 0) {
+                console.warn('Provider registry validation issues:', validationErrors);
+            }
+        } catch (error) {
+            console.error('Failed to initialize providers:', error);
+            throw new Error(`Provider initialization failed: ${error}`);
+        }
     }
 }

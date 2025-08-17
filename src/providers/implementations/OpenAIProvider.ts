@@ -10,7 +10,6 @@ import {
     type ModelConfig,
     type ProviderConfig,
     type ValidationResult,
-    type ModelDetectionParams,
     type ProviderInstanceParams,
 } from '../types';
 
@@ -77,10 +76,6 @@ export class OpenAIProvider extends AIProvider {
         },
     ];
 
-    detectFromModel(params: ModelDetectionParams): boolean {
-        // OpenAI models typically start with 'gpt-' and don't contain '/' (which indicates OpenRouter)
-        return params.model.startsWith('gpt-') && !params.model.includes('/');
-    }
 
     createInstance(params: ProviderInstanceParams): any {
         const apiKey = params.config.config.get<string>(this.metadata.apiKeyConfigKey);

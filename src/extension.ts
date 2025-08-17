@@ -1328,7 +1328,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     const configureAWSBedrockDisposable = vscode.commands.registerCommand(
-        'superdesign.configureAWSBedrock',
+        'securedesign.configureAWSBedrock',
         async () => {
             await configureAWSBedrock();
         }
@@ -1341,7 +1341,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     const configureMoonshotApiKeyDisposable = vscode.commands.registerCommand(
-        'superdesign.configureMoonshotApiKey',
+        'securedesign.configureMoonshotApiKey',
         async () => {
             await configureMoonshotApiKey();
         }

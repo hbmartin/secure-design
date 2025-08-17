@@ -10,7 +10,6 @@ import {
     type ModelConfig,
     type ProviderConfig,
     type ValidationResult,
-    type ModelDetectionParams,
     type ProviderInstanceParams,
 } from '../types';
 
@@ -19,7 +18,7 @@ export class MoonshotProvider extends AIProvider {
         id: 'moonshot',
         name: 'Moonshot AI',
         apiKeyConfigKey: 'moonshotApiKey',
-        configureCommand: 'superdesign.configureMoonshotApiKey',
+        configureCommand: 'securedesign.configureMoonshotApiKey',
         description: 'Moonshot AI Kimi models with long context capabilities',
         documentationUrl: 'https://platform.moonshot.cn/docs',
     };
@@ -52,13 +51,6 @@ export class MoonshotProvider extends AIProvider {
         },
     ];
 
-    detectFromModel(params: ModelDetectionParams): boolean {
-        return (
-            params.model.includes('kimi') ||
-            params.model.includes('moonshot') ||
-            params.model.includes('k2')
-        );
-    }
 
     createInstance(params: ProviderInstanceParams): any {
         const apiKey = params.config.config.get<string>(this.metadata.apiKeyConfigKey);

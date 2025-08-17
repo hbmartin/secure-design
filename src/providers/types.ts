@@ -82,15 +82,6 @@ export interface ProviderInstanceParams {
     options?: Record<string, any>;
 }
 
-/**
- * Model detection parameters
- */
-export interface ModelDetectionParams {
-    /** The model string to analyze */
-    model: string;
-    /** Current provider setting (for fallback) */
-    currentProvider?: ProviderId;
-}
 
 /**
  * Abstract base class for AI providers
@@ -103,12 +94,6 @@ export abstract class AIProvider {
     /** Available models for this provider */
     abstract readonly models: ModelConfig[];
 
-    /**
-     * Detect if this provider should handle the given model
-     * @param params Model detection parameters
-     * @returns true if this provider handles the model
-     */
-    abstract detectFromModel(params: ModelDetectionParams): boolean;
 
     /**
      * Create an AI SDK model instance
@@ -186,6 +171,7 @@ export abstract class AIProvider {
 /**
  * Provider registry interface
  */
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface IProviderRegistry {
     /**
      * Register a provider
@@ -200,12 +186,6 @@ export interface IProviderRegistry {
      */
     getProvider(providerId: ProviderId): AIProvider | undefined;
 
-    /**
-     * Get provider that should handle the given model
-     * @param params Model detection parameters
-     * @returns Provider instance or undefined
-     */
-    getProviderForModel(params: ModelDetectionParams): AIProvider | undefined;
 
     /**
      * Get all registered providers
@@ -223,36 +203,33 @@ export interface IProviderRegistry {
 /**
  * Provider service interface for high-level operations
  */
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface IProviderService {
     /**
      * Create a model instance for the given model string
      * @param model Model identifier
+     * @param providerId Provider identifier
      * @param config Provider configuration
      * @returns AI SDK model instance
      */
-    createModel(model: string, config: ProviderConfig): any;
+    createModel(model: string, providerId: ProviderId, config: ProviderConfig): any;
+
 
     /**
-     * Get provider metadata for a model
-     * @param model Model identifier
-     * @returns Provider metadata
-     */
-    getProviderForModel(model: string): ProviderMetadata | undefined;
-
-    /**
-     * Validate credentials for a specific model
-     * @param model Model identifier
+     * Validate credentials for a specific provider
+     * @param providerId Provider identifier
      * @param config Provider configuration
      * @returns Validation result
      */
-    validateCredentialsForModel(model: string, config: ProviderConfig): ValidationResult;
+    validateCredentialsForProvider(providerId: ProviderId, config: ProviderConfig): ValidationResult;
 
     /**
-     * Get display name for a model
+     * Get display name for a model from a specific provider
      * @param model Model identifier
+     * @param providerId Provider identifier
      * @returns Human-readable model name
      */
-    getModelDisplayName(model: string): string;
+    getModelDisplayName(model: string, providerId: ProviderId): string;
 
     /**
      * Get all available providers

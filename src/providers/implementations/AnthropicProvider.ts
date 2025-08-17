@@ -10,7 +10,6 @@ import {
     type ModelConfig,
     type ProviderConfig,
     type ValidationResult,
-    type ModelDetectionParams,
     type ProviderInstanceParams,
 } from '../types';
 

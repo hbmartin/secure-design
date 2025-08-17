@@ -10,7 +10,6 @@ import {
     type ModelConfig,
     type ProviderConfig,
     type ValidationResult,
-    type ModelDetectionParams,
     type ProviderInstanceParams,
 } from '../types';
 
@@ -70,9 +69,6 @@ export class GoogleProvider extends AIProvider {
         },
     ];
 
-    detectFromModel(params: ModelDetectionParams): boolean {
-        return params.model.startsWith('gemini-');
-    }
 
     createInstance(params: ProviderInstanceParams): any {
         const apiKey = params.config.config.get<string>(this.metadata.apiKeyConfigKey);

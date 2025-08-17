@@ -10,7 +10,6 @@ import {
     type ModelConfig,
     type ProviderConfig,
     type ValidationResult,
-    type ModelDetectionParams,
     type ProviderInstanceParams,
 } from '../types';
 
@@ -19,7 +18,7 @@ export class BedrockProvider extends AIProvider {
         id: 'bedrock',
         name: 'AWS Bedrock',
         apiKeyConfigKey: 'awsAccessKeyId',
-        configureCommand: 'superdesign.configureAWSBedrock',
+        configureCommand: 'securedesign.configureAWSBedrock',
         additionalConfigKeys: ['awsSecretAccessKey', 'awsRegion'],
         description: 'AWS Bedrock unified API for multiple foundation models',
         documentationUrl: 'https://docs.aws.amazon.com/bedrock/',
@@ -160,17 +159,6 @@ export class BedrockProvider extends AIProvider {
         },
     ];
 
-    detectFromModel(params: ModelDetectionParams): boolean {
-        return (
-            params.model.startsWith('anthropic.') ||
-            params.model.startsWith('us.anthropic.') ||
-            params.model.startsWith('amazon.') ||
-            params.model.startsWith('meta.') ||
-            params.model.startsWith('ai21.') ||
-            params.model.startsWith('cohere.') ||
-            params.model.startsWith('mistral.')
-        );
-    }
 
     createInstance(params: ProviderInstanceParams): any {
         const awsAccessKeyId = params.config.config.get<string>('awsAccessKeyId');

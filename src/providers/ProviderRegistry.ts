@@ -8,7 +8,6 @@ import type {
     IProviderRegistry,
     ProviderId,
     ModelConfig,
-    ModelDetectionParams,
 } from './types';
 
 /**
@@ -38,34 +37,10 @@ export class ProviderRegistry implements IProviderRegistry {
      * @param providerId The provider identifier
      * @returns Provider instance or undefined if not found
      */
-    getProvider(providerId: ProviderId): AIProvider | undefined {
+    getProvider(providerId: ProviderId): AIProvider {
         return this.providers.get(providerId);
     }
 
-    /**
-     * Find the appropriate provider for a given model
-     * Uses provider detection logic to determine which provider should handle the model
-     * @param params Model detection parameters
-     * @returns Provider instance or undefined if no provider can handle the model
-     */
-    getProviderForModel(params: ModelDetectionParams): AIProvider | undefined {
-        // First, try explicit provider if specified
-        if (params.currentProvider) {
-            const explicitProvider = this.providers.get(params.currentProvider);
-            if (explicitProvider?.detectFromModel(params)) {
-                return explicitProvider;
-            }
-        }
-
-        // Otherwise, find provider through detection
-        for (const provider of this.providers.values()) {
-            if (provider.detectFromModel(params)) {
-                return provider;
-            }
-        }
-
-        return undefined;
-    }
 
     /**
      * Get all registered providers
@@ -150,7 +125,7 @@ export class ProviderRegistry implements IProviderRegistry {
      */
     getVisionCapableProviders(): AIProvider[] {
         return this.findProvidersByFeature(provider =>
-            provider.models.some(model => model.supportsVision)
+            provider.models.some(model => model.supportsVision === true)
         );
     }
 
@@ -190,7 +165,7 @@ export class ProviderRegistry implements IProviderRegistry {
             }
 
             // Check if provider has a default model
-            const hasDefault = provider.models.some(model => model.isDefault);
+            const hasDefault = provider.models.some(model => model.isDefault === true);
             if (!hasDefault) {
                 errors.push(`Provider '${provider.metadata.id}' has no default model`);
             }

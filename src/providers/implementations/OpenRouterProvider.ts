@@ -10,7 +10,6 @@ import {
     type ModelConfig,
     type ProviderConfig,
     type ValidationResult,
-    type ModelDetectionParams,
     type ProviderInstanceParams,
 } from '../types';
 
@@ -177,10 +176,6 @@ export class OpenRouterProvider extends AIProvider {
         },
     ];
 
-    detectFromModel(params: ModelDetectionParams): boolean {
-        // OpenRouter models contain '/' separator (e.g., "anthropic/claude-3-5-sonnet")
-        return params.model.includes('/');
-    }
 
     createInstance(params: ProviderInstanceParams): any {
         const apiKey = params.config.config.get<string>(this.metadata.apiKeyConfigKey);
