@@ -80,12 +80,10 @@ export class AnthropicProvider extends AIProvider {
       throw new Error(this.getCredentialsErrorMessage());
     }
 
-    params.config.outputChannel.appendLine(
-      `Anthropic API key found: ${apiKey.substring(0, 12)}...`
-    );
+    params.config.outputChannel.appendLine('Anthropic API key is configured.');
 
     const anthropic = createAnthropic({
-      apiKey: apiKey
+      apiKey
     });
 
     params.config.outputChannel.appendLine(`Using Anthropic model: ${params.model}`);
