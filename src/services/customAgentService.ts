@@ -1,14 +1,11 @@
 import { streamText, type ModelMessage } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
-import { createAnthropic } from '@ai-sdk/anthropic';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { createAmazonBedrock } from '@ai-sdk/amazon-bedrock';
-import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import type { AgentService, ExecutionContext } from '../types/agent';
+import type { ProviderConfig } from '../providers/types';
+import { ProviderService } from '../providers/ProviderService';
 import { createReadTool } from '../tools/read-tool';
 import { createWriteTool } from '../tools/write-tool';
 import { createBashTool } from '../tools/bash-tool';
@@ -22,10 +19,12 @@ import { createMultieditTool } from '../tools/multiedit-tool';
 export class CustomAgentService implements AgentService {
     private workingDirectory: string = '';
     private readonly outputChannel: vscode.OutputChannel;
+    private readonly providerService: ProviderService;
     private isInitialized = false;
 
     constructor(outputChannel: vscode.OutputChannel) {
         this.outputChannel = outputChannel;
+        this.providerService = ProviderService.getInstance();
         this.outputChannel.appendLine('CustomAgentService constructor called');
         this.setupWorkingDirectory();
     }
@@ -101,170 +100,27 @@ export class CustomAgentService implements AgentService {
             this.outputChannel.appendLine(`Using specific AI model: ${specificModel}`);
         }
 
-        // Determine provider from model name if specific model is set
-        let effectiveProvider = provider;
+        // Determine which model to use
+        let modelToUse: string;
         if (specificModel) {
-            if (specificModel.includes('/')) {
-                effectiveProvider = 'openrouter';
-            } else if (specificModel.startsWith('claude-')) {
-                effectiveProvider = 'anthropic';
-            } else if (specificModel.startsWith('gemini-')) {
-                effectiveProvider = 'google';
-            } else if (
-                specificModel.startsWith('anthropic.') ||
-                specificModel.startsWith('us.anthropic.') ||
-                specificModel.startsWith('amazon.') ||
-                specificModel.startsWith('meta.') ||
-                specificModel.startsWith('ai21.') ||
-                specificModel.startsWith('cohere.') ||
-                specificModel.startsWith('mistral.')
-            ) {
-                effectiveProvider = 'bedrock';
-            } else if (specificModel.includes('kimi') || specificModel.includes('moonshot')) {
-                effectiveProvider = 'moonshot';
-            } else {
-                effectiveProvider = 'openai';
+            modelToUse = specificModel;
+        } else {
+            // Get default model for the configured provider
+            const defaultModel = this.providerService.getDefaultModelForProvider(provider as any);
+            if (!defaultModel) {
+                throw new Error(`No default model found for provider: ${provider}`);
             }
+            modelToUse = defaultModel.id;
         }
 
-        switch (effectiveProvider) {
-            case 'google':
-                const googleKey = config.get<string>('googleApiKey');
-                if (!googleKey) {
-                    throw new Error(
-                        'Google API key not configured. Please run "Configure Google API Key" command.'
-                    );
-                }
+        // Create provider configuration
+        const providerConfig: ProviderConfig = {
+            config: config,
+            outputChannel: this.outputChannel
+        };
 
-                this.outputChannel.appendLine(`Google API key found.`);
-
-                const google = createGoogleGenerativeAI({
-                    apiKey: googleKey,
-                });
-
-                const googleModel = specificModel || 'gemini-2.5-pro';
-                this.outputChannel.appendLine(`Using Google model: ${googleModel}`);
-                return google(googleModel);
-
-            case 'openrouter':
-                const openrouterKey = config.get<string>('openrouterApiKey');
-                if (!openrouterKey) {
-                    throw new Error(
-                        'OpenRouter API key not configured. Please run "Configure OpenRouter API Key" command.'
-                    );
-                }
-
-                this.outputChannel.appendLine(
-                    `OpenRouter API key found: ${openrouterKey.substring(0, 12)}...`
-                );
-
-                const openrouter = createOpenRouter({
-                    apiKey: openrouterKey,
-                });
-
-                // Use specific model if available, otherwise default to Claude 3.7 Sonnet via OpenRouter
-                const openrouterModel = specificModel || 'anthropic/claude-3-7-sonnet-20250219';
-                this.outputChannel.appendLine(`Using OpenRouter model: ${openrouterModel}`);
-                return openrouter.chat(openrouterModel);
-
-            case 'bedrock':
-                const awsRegion = config.get<string>('awsRegion') || 'us-east-1';
-                const awsAccessKeyId = config.get<string>('awsAccessKeyId');
-                const awsSecretAccessKey = config.get<string>('awsSecretAccessKey');
-
-                if (!awsAccessKeyId || !awsSecretAccessKey) {
-                    throw new Error(
-                        'AWS credentials not configured. Please run "Configure AWS Bedrock" command.'
-                    );
-                }
-
-                this.outputChannel.appendLine(`AWS region: ${awsRegion}`);
-                this.outputChannel.appendLine(
-                    `AWS access key found: ${awsAccessKeyId.substring(0, 8)}...`
-                );
-
-                const bedrock = createAmazonBedrock({
-                    region: awsRegion,
-                    accessKeyId: awsAccessKeyId,
-                    secretAccessKey: awsSecretAccessKey,
-                });
-
-                // Use specific model if available, otherwise default to Claude 3.5 Sonnet on Bedrock
-                const bedrockModel =
-                    specificModel || 'us.anthropic.claude-3-5-sonnet-20241022-v2:0';
-                this.outputChannel.appendLine(`Using Bedrock model: ${bedrockModel}`);
-                return bedrock(bedrockModel);
-
-            case 'moonshot':
-                const moonshotKey = config.get<string>('moonshotApiKey');
-                if (!moonshotKey) {
-                    throw new Error(
-                        'Moonshot API key not configured. Please run "Configure Moonshot API Key" command.'
-                    );
-                }
-
-                this.outputChannel.appendLine(
-                    `Moonshot API key found: ${moonshotKey.substring(0, 12)}...`
-                );
-                this.outputChannel.appendLine(
-                    `Using Moonshot API baseURL: https://api.moonshot.ai/v1`
-                );
-
-                const moonshot = createOpenAI({
-                    apiKey: moonshotKey,
-                    baseURL: 'https://api.moonshot.ai/v1',
-                });
-
-                // Use specific model if available, otherwise default to kimi-k2-0711-preview
-                const moonshotModel = specificModel || 'kimi-k2-0711-preview';
-                this.outputChannel.appendLine(`Using Moonshot model: ${moonshotModel}`);
-                return moonshot(moonshotModel);
-
-            case 'anthropic':
-                const anthropicKey = config.get<string>('anthropicApiKey');
-                if (!anthropicKey) {
-                    throw new Error(
-                        'Anthropic API key not configured. Please run "Configure Anthropic API Key" command.'
-                    );
-                }
-
-                this.outputChannel.appendLine(
-                    `Anthropic API key found: ${anthropicKey.substring(0, 12)}...`
-                );
-
-                const anthropic = createAnthropic({
-                    apiKey: anthropicKey,
-                });
-
-                // Use specific model if available, otherwise default to claude-3-5-sonnet
-                const anthropicModel = specificModel || 'claude-3-5-sonnet-20241022';
-                this.outputChannel.appendLine(`Using Anthropic model: ${anthropicModel}`);
-                return anthropic(anthropicModel);
-
-            case 'openai':
-            default:
-                const openaiKey = config.get<string>('openaiApiKey');
-                const openaiUrl = config.get<string>('openaiUrl');
-                if (!openaiKey) {
-                    throw new Error(
-                        'OpenAI API key not configured. Please run "Configure OpenAI API Key" command.'
-                    );
-                }
-
-                this.outputChannel.appendLine(
-                    `OpenAI API key found: ${openaiKey.substring(0, 7)}...`
-                );
-
-                const openai = createOpenAI({
-                    apiKey: openaiKey,
-                    baseURL: openaiUrl,
-                });
-
-                // Use specific model if available, otherwise default to gpt-4o
-                const openaiModel = specificModel || 'gpt-4o';
-                this.outputChannel.appendLine(`Using OpenAI model: ${openaiModel}`);
-                return openai(openaiModel);
-        }
+        // Use provider service to create model instance
+        return this.providerService.createModel(modelToUse, providerConfig);
     }
 
     private getSystemPrompt(): string {
@@ -277,26 +133,9 @@ export class CustomAgentService implements AgentService {
         if (specificModel) {
             modelName = specificModel;
         } else {
-            // Use defaults based on provider
-            switch (provider) {
-                case 'openai':
-                    modelName = 'gpt-4o';
-                    break;
-                case 'openrouter':
-                    modelName = 'anthropic/claude-3-7-sonnet-20250219';
-                    break;
-                case 'google':
-                    modelName = 'gemini-2.5-pro';
-                case 'bedrock':
-                    modelName = 'us.anthropic.claude-3-5-sonnet-20241022-v2:0';
-                case 'moonshot':
-                    modelName = 'kimi-k2-0711-preview';
-                    break;
-                case 'anthropic':
-                default:
-                    modelName = 'claude-3-5-sonnet-20241022';
-                    break;
-            }
+            // Get default model from provider service
+            const defaultModel = this.providerService.getDefaultModelForProvider(provider as any);
+            modelName = defaultModel?.id || 'claude-3-5-sonnet-20241022';
         }
 
         return `# Role
@@ -1017,48 +856,18 @@ I've created the html design, please reveiw and let me know if you need any chan
         const specificModel = config.get<string>('aiModel');
         const provider = config.get<string>('aiModelProvider', 'anthropic');
 
-        // Determine provider from model name if specific model is set
-        let effectiveProvider = provider;
-        if (specificModel) {
-            if (specificModel.includes('/')) {
-                effectiveProvider = 'openrouter';
-            } else if (specificModel.startsWith('claude-')) {
-                effectiveProvider = 'anthropic';
-            } else if (
-                specificModel.startsWith('anthropic.') ||
-                specificModel.startsWith('us.anthropic.') ||
-                specificModel.startsWith('amazon.') ||
-                specificModel.startsWith('meta.') ||
-                specificModel.startsWith('ai21.') ||
-                specificModel.startsWith('cohere.') ||
-                specificModel.startsWith('mistral.')
-            ) {
-                effectiveProvider = 'bedrock';
-            } else if (specificModel.includes('kimi') || specificModel.includes('k2')) {
-                effectiveProvider = 'moonshot';
-            } else {
-                effectiveProvider = 'openai';
-            }
-        }
+        // Determine which model we're checking for
+        const modelToCheck = specificModel || this.providerService.getDefaultModelForProvider(provider as any)?.id || 'claude-3-5-sonnet-20241022';
 
-        switch (effectiveProvider) {
-            case 'openrouter':
-                return !!config.get<string>('openrouterApiKey');
-            case 'bedrock':
-                return (
-                    !!config.get<string>('awsAccessKeyId') &&
-                    !!config.get<string>('awsSecretAccessKey')
-                );
-            case 'anthropic':
-                return !!config.get<string>('anthropicApiKey');
-            case 'google':
-                return !!config.get<string>('googleApiKey');
-            case 'moonshot':
-                return !!config.get<string>('moonshotApiKey');
-            case 'openai':
-            default:
-                return !!config.get<string>('openaiApiKey');
-        }
+        // Create provider configuration
+        const providerConfig: ProviderConfig = {
+            config: config,
+            outputChannel: this.outputChannel
+        };
+
+        // Use provider service to check credentials
+        const validation = this.providerService.validateCredentialsForModel(modelToCheck, providerConfig);
+        return validation.isValid;
     }
 
     isApiKeyAuthError(errorMessage: string): boolean {
