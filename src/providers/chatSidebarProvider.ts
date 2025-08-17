@@ -139,17 +139,24 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
             const displayName = `${providerMetadata.name} (${this.providerService.getModelDisplayName(model)})`;
 
             // Update both provider and specific model
-            await config.update('aiModelProvider', providerMetadata.id, vscode.ConfigurationTarget.Global);
+            await config.update(
+                'aiModelProvider',
+                providerMetadata.id,
+                vscode.ConfigurationTarget.Global
+            );
             await config.update('aiModel', model, vscode.ConfigurationTarget.Global);
 
             // Check if credentials are configured
             const providerConfig: ProviderConfig = {
                 config: config,
-                outputChannel: this.outputChannel
+                outputChannel: this.outputChannel,
             };
 
-            const validation = this.providerService.validateCredentialsForModel(model, providerConfig);
-            
+            const validation = this.providerService.validateCredentialsForModel(
+                model,
+                providerConfig
+            );
+
             if (!validation.isValid) {
                 const result = await vscode.window.showWarningMessage(
                     `${displayName} selected, but credentials are not configured. Would you like to configure them now?`,

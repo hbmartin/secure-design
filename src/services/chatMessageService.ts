@@ -49,7 +49,8 @@ export class ChatMessageService {
                         : Array.isArray(msg.content)
                           ? msg.content
                                 .map(part =>
-                                    part.type === 'text' ? part.text
+                                    part.type === 'text'
+                                        ? part.text
                                         : part.type === 'tool-call'
                                           ? `[tool-call: ${part.toolName}]`
                                           : part.type === 'tool-result'
@@ -59,9 +60,7 @@ export class ChatMessageService {
                                 .join(', ')
                           : '[complex content]';
 
-                this.outputChannel.appendLine(
-                    `  [${index}] ${msg.role}: ${content}`
-                );
+                this.outputChannel.appendLine(`  [${index}] ${msg.role}: ${content}`);
             });
 
             this.outputChannel.appendLine('=== END CHAT HISTORY DEBUG ===');
@@ -136,8 +135,9 @@ export class ChatMessageService {
                 const provider = config.get<string>('aiModelProvider', 'anthropic') as ProviderId;
 
                 // Determine which model we're working with
-                const modelToCheck = specificModel || 
-                    this.providerService.getDefaultModelForProvider(provider)?.id || 
+                const modelToCheck =
+                    specificModel ||
+                    this.providerService.getDefaultModelForProvider(provider)?.id ||
                     'claude-3-5-sonnet-20241022';
 
                 // Get provider metadata
@@ -155,7 +155,10 @@ export class ChatMessageService {
                     command: 'chatErrorWithActions',
                     error: displayMessage,
                     actions: [
-                        { text: `Configure ${providerMetadata.name} API Key`, command: providerMetadata.configureCommand },
+                        {
+                            text: `Configure ${providerMetadata.name} API Key`,
+                            command: providerMetadata.configureCommand,
+                        },
                         {
                             text: 'Open Settings',
                             command: 'workbench.action.openSettings',
@@ -248,9 +251,7 @@ export class ChatMessageService {
                             ? part.result
                             : JSON.stringify(part.result, null, 2);
 
-                    Logger.debug(
-                        `Tool result for ${part.toolCallId}: ${content}`
-                    );
+                    Logger.debug(`Tool result for ${part.toolCallId}: ${content}`);
 
                     // Send tool result to frontend
                     webview.postMessage({

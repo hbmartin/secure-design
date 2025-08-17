@@ -407,7 +407,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
         console.log('Add Context clicked');
     };
 
-
     const handleWelcomeGetStarted = () => {
         setShowWelcome(false);
         markAsReturningUser();
@@ -1260,7 +1259,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                 try {
                     return JSON.stringify(toolInput, null, 2);
                 } catch (error) {
-                    console.error('❌ Error: Failed to stringify tool input for tool:', toolCallPart.toolName, error);
+                    console.error(
+                        '❌ Error: Failed to stringify tool input for tool:',
+                        toolCallPart.toolName,
+                        error
+                    );
                     return '[Tool input serialization failed]';
                 }
             })();

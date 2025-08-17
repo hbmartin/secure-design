@@ -106,7 +106,9 @@ export class CustomAgentService implements AgentService {
             modelToUse = specificModel;
         } else {
             // Get default model for the configured provider
-            const defaultModel = this.providerService.getDefaultModelForProvider(provider as ProviderId);
+            const defaultModel = this.providerService.getDefaultModelForProvider(
+                provider as ProviderId
+            );
             if (!defaultModel) {
                 throw new Error(`No default model found for provider: ${provider}`);
             }
@@ -116,7 +118,7 @@ export class CustomAgentService implements AgentService {
         // Create provider configuration
         const providerConfig: ProviderConfig = {
             config: config,
-            outputChannel: this.outputChannel
+            outputChannel: this.outputChannel,
         };
 
         // Use provider service to create model instance
@@ -857,16 +859,22 @@ I've created the html design, please reveiw and let me know if you need any chan
         const provider = config.get<string>('aiModelProvider', 'anthropic');
 
         // Determine which model we're checking for
-        const modelToCheck = specificModel || this.providerService.getDefaultModelForProvider(provider as any)?.id || 'claude-3-5-sonnet-20241022';
+        const modelToCheck =
+            specificModel ||
+            this.providerService.getDefaultModelForProvider(provider as any)?.id ||
+            'claude-3-5-sonnet-20241022';
 
         // Create provider configuration
         const providerConfig: ProviderConfig = {
             config: config,
-            outputChannel: this.outputChannel
+            outputChannel: this.outputChannel,
         };
 
         // Use provider service to check credentials
-        const validation = this.providerService.validateCredentialsForModel(modelToCheck, providerConfig);
+        const validation = this.providerService.validateCredentialsForModel(
+            modelToCheck,
+            providerConfig
+        );
         return validation.isValid;
     }
 
