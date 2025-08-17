@@ -100,12 +100,17 @@ export class AnthropicProvider extends AIProvider {
       };
     }
 
+    // Anthropic API key prefix validation is now a warning, not a blocker.
+    // See Anthropic documentation for current formats: https://docs.anthropic.com/claude/reference/authentication
+    let warning: string | undefined;
     if (!apiKey.startsWith('sk-ant-')) {
-      return {
-        isValid: false,
-        error: 'Anthropic API keys should start with "sk-ant-"'
-      };
+      warning = 'Warning: Anthropic API keys usually start with "sk-ant-". Please verify your key format with the official documentation.';
     }
+    // Validation passes, but may include a warning.
+    return {
+      isValid: true,
+      warning
+    };
 
     if (apiKey.length < 20) {
       return {
