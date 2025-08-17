@@ -12,9 +12,10 @@ import {
     type ValidationResult,
     type ProviderInstanceParams,
 } from '../types';
+import type { LanguageModel } from 'ai';
 
 export class OpenAIProvider extends AIProvider {
-    readonly metadata: ProviderMetadata = {
+    static readonly metadata: ProviderMetadata = {
         id: 'openai',
         name: 'OpenAI',
         apiKeyConfigKey: 'openaiApiKey',
@@ -76,9 +77,8 @@ export class OpenAIProvider extends AIProvider {
         },
     ];
 
-
-    createInstance(params: ProviderInstanceParams): any {
-        const apiKey = params.config.config.get<string>(this.metadata.apiKeyConfigKey);
+    createInstance(params: ProviderInstanceParams): LanguageModel {
+        const apiKey = params.config.config.get<string>(OpenAIProvider.metadata.apiKeyConfigKey);
         const baseURL = params.config.config.get<string>('openaiUrl');
 
         if (!apiKey) {
@@ -103,7 +103,7 @@ export class OpenAIProvider extends AIProvider {
     }
 
     validateCredentials(config: ProviderConfig): ValidationResult {
-        const apiKey = config.config.get<string>(this.metadata.apiKeyConfigKey);
+        const apiKey = config.config.get<string>(OpenAIProvider.metadata.apiKeyConfigKey);
         const baseURL = config.config.get<string>('openaiUrl');
 
         if (!apiKey) {

@@ -12,9 +12,10 @@ import {
     type ValidationResult,
     type ProviderInstanceParams,
 } from '../types';
+import type { LanguageModel } from 'ai';
 
 export class AnthropicProvider extends AIProvider {
-    readonly metadata: ProviderMetadata = {
+    static readonly metadata: ProviderMetadata = {
         id: 'anthropic',
         name: 'Anthropic',
         apiKeyConfigKey: 'anthropicApiKey',
@@ -69,10 +70,9 @@ export class AnthropicProvider extends AIProvider {
         },
     ];
 
-
-    createInstance(params: ProviderInstanceParams): any {
-        const apiKey = params.config.config.get<string>(this.metadata.apiKeyConfigKey);
-        if (!apiKey) {
+    createInstance(params: ProviderInstanceParams): LanguageModel {
+        const apiKey = params.config.config.get<string>(AnthropicProvider.metadata.apiKeyConfigKey);
+        if (apiKey === undefined) {
             throw new Error(this.getCredentialsErrorMessage());
         }
 
@@ -87,9 +87,9 @@ export class AnthropicProvider extends AIProvider {
     }
 
     validateCredentials(config: ProviderConfig): ValidationResult {
-        const apiKey = config.config.get<string>(this.metadata.apiKeyConfigKey);
+        const apiKey = config.config.get<string>(AnthropicProvider.metadata.apiKeyConfigKey);
 
-        if (!apiKey) {
+        if (apiKey === undefined) {
             return {
                 isValid: false,
                 error: 'Anthropic API key is not configured',
@@ -107,17 +107,6 @@ export class AnthropicProvider extends AIProvider {
         return {
             isValid: true,
             warning,
-        };
-
-        if (apiKey.length < 20) {
-            return {
-                isValid: false,
-                error: 'Anthropic API key appears to be too short',
-            };
-        }
-
-        return {
-            isValid: true,
         };
     }
 }

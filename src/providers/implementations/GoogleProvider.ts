@@ -12,9 +12,10 @@ import {
     type ValidationResult,
     type ProviderInstanceParams,
 } from '../types';
+import type { LanguageModel } from 'ai';
 
 export class GoogleProvider extends AIProvider {
-    readonly metadata: ProviderMetadata = {
+    static readonly metadata: ProviderMetadata = {
         id: 'google',
         name: 'Google',
         apiKeyConfigKey: 'googleApiKey',
@@ -69,9 +70,8 @@ export class GoogleProvider extends AIProvider {
         },
     ];
 
-
-    createInstance(params: ProviderInstanceParams): any {
-        const apiKey = params.config.config.get<string>(this.metadata.apiKeyConfigKey);
+    createInstance(params: ProviderInstanceParams): LanguageModel {
+        const apiKey = params.config.config.get<string>(GoogleProvider.metadata.apiKeyConfigKey);
         if (!apiKey) {
             throw new Error(this.getCredentialsErrorMessage());
         }
@@ -87,7 +87,7 @@ export class GoogleProvider extends AIProvider {
     }
 
     validateCredentials(config: ProviderConfig): ValidationResult {
-        const apiKey = config.config.get<string>(this.metadata.apiKeyConfigKey);
+        const apiKey = config.config.get<string>(GoogleProvider.metadata.apiKeyConfigKey);
 
         if (!apiKey) {
             return {

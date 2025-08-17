@@ -126,24 +126,16 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
         });
     }
 
-    private async handleChangeProvider(model: string, webview: vscode.Webview) {
+    private async handleChangeProvider(providerId: ProviderId, model: string, webview: vscode.Webview) {
         try {
             const config = vscode.workspace.getConfiguration('securedesign');
 
             // Get provider for this model
-            const providerMetadata = this.providerService.getProviderForModel(model);
-            if (!providerMetadata) {
-                throw new Error(`No provider found for model: ${model}`);
-            }
-
-            const displayName = `${providerMetadata.name} (${this.providerService.getModelDisplayName(model)})`;
+            const providerMetadata = this.providerService.getProviderMetadata(providerId);
+            const displayName = `${providerMetadata.name} (${this.providerService.getModelDisplayName(model, providerId)})`;
 
             // Update both provider and specific model
-            await config.update(
-                'aiModelProvider',
-                providerMetadata.id,
-                vscode.ConfigurationTarget.Global
-            );
+            await config.update('aiModelProvider', providerId, vscode.ConfigurationTarget.Global);
             await config.update('aiModel', model, vscode.ConfigurationTarget.Global);
 
             // Check if credentials are configured
@@ -152,8 +144,8 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
                 outputChannel: this.outputChannel,
             };
 
-            const validation = this.providerService.validateCredentialsForModel(
-                model,
+            const validation = this.providerService.validateCredentialsForProvider(
+                providerId,
                 providerConfig
             );
 
@@ -333,9 +325,5 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
             },
         });
         vscode.window.showInformationMessage('Canvas content added as context');
-    }
-
-    private getModelDisplayName(model: string): string {
-        return this.providerService.getModelDisplayName(model);
     }
 }

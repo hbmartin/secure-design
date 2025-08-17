@@ -18,7 +18,9 @@ import type {
     ValidationResult,
     ModelConfig,
     ProviderId,
+    AIProvider,
 } from './types';
+import type { LanguageModel } from 'ai';
 
 /**
  * High-level service for AI provider operations
@@ -46,7 +48,7 @@ export class ProviderService implements IProviderService {
     /**
      * Create a model instance for the given model string
      */
-    createModel(model: string, providerId: ProviderId, config: ProviderConfig): any {
+    createModel(model: string, providerId: ProviderId, config: ProviderConfig): LanguageModel {
         const provider = this.registry.getProvider(providerId);
 
         if (!provider) {
@@ -62,11 +64,13 @@ export class ProviderService implements IProviderService {
         return provider.createInstance({ model, config });
     }
 
-
     /**
      * Validate credentials for a specific provider
      */
-    validateCredentialsForProvider(providerId: ProviderId, config: ProviderConfig): ValidationResult {
+    validateCredentialsForProvider(
+        providerId: ProviderId,
+        config: ProviderConfig
+    ): ValidationResult {
         const provider = this.registry.getProvider(providerId);
 
         if (!provider) {
@@ -84,11 +88,6 @@ export class ProviderService implements IProviderService {
      */
     getModelDisplayName(model: string, providerId: ProviderId): string {
         const provider = this.registry.getProvider(providerId);
-
-        if (!provider) {
-            return model; // Fallback to model ID
-        }
-
         return provider.getModelDisplayName(model);
     }
 
@@ -96,7 +95,9 @@ export class ProviderService implements IProviderService {
      * Get all available providers
      */
     getAvailableProviders(): ProviderMetadata[] {
-        return this.registry.getAllProviders().map(provider => provider.metadata);
+        return this.registry
+            .getAllProviders()
+            .map(provider => (provider.constructor as typeof AIProvider).metadata);
     }
 
     /**
@@ -109,9 +110,9 @@ export class ProviderService implements IProviderService {
     /**
      * Get provider by ID
      */
-    getProvider(providerId: ProviderId): ProviderMetadata | undefined {
+    getProviderMetadata(providerId: ProviderId): ProviderMetadata {
         const provider = this.registry.getProvider(providerId);
-        return provider?.metadata;
+        return (provider.constructor as typeof AIProvider).metadata;
     }
 
     /**
@@ -144,7 +145,9 @@ export class ProviderService implements IProviderService {
      * Get providers that support vision/multimodal capabilities
      */
     getVisionCapableProviders(): ProviderMetadata[] {
-        return this.registry.getVisionCapableProviders().map(provider => provider.metadata);
+        return this.registry
+            .getVisionCapableProviders()
+            .map(provider => (provider.constructor as typeof AIProvider).metadata);
     }
 
     /**
@@ -153,7 +156,6 @@ export class ProviderService implements IProviderService {
     getRegistry(): ProviderRegistry {
         return this.registry;
     }
-
 
     /**
      * Get error message for missing credentials
@@ -181,9 +183,10 @@ export class ProviderService implements IProviderService {
         }> = [];
 
         for (const provider of this.registry.getAllProviders()) {
+            const metadata = (provider.constructor as typeof AIProvider).metadata;
             results.push({
-                providerId: provider.metadata.id,
-                providerName: provider.metadata.name,
+                providerId: metadata.id,
+                providerName: metadata.name,
                 validation: provider.validateCredentials(config),
             });
         }

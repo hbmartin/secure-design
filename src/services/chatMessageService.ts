@@ -141,10 +141,7 @@ export class ChatMessageService {
                     'claude-3-5-sonnet-20241022';
 
                 // Get provider metadata
-                const providerMetadata = this.providerService.getProviderForModel(modelToCheck);
-                if (!providerMetadata) {
-                    throw new Error(`No provider found for model: ${modelToCheck}`);
-                }
+                const providerMetadata = this.providerService.getProviderMetadata(provider);
 
                 const hasApiKey = this.agentService.hasApiKey();
                 const displayMessage = hasApiKey

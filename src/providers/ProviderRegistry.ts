@@ -3,12 +3,7 @@
  * Central registry for managing AI providers using the Strategy pattern
  */
 
-import type {
-    AIProvider,
-    IProviderRegistry,
-    ProviderId,
-    ModelConfig,
-} from './types';
+import type { AIProvider, IProviderRegistry, ProviderId, ModelConfig } from './types';
 
 /**
  * Central registry for AI providers
@@ -23,7 +18,8 @@ export class ProviderRegistry implements IProviderRegistry {
      * @throws Error if provider ID is already registered
      */
     register(provider: AIProvider): void {
-        const providerId = provider.metadata.id;
+        const metadata = (provider.constructor as typeof AIProvider).metadata;
+        const providerId = metadata.id;
 
         if (this.providers.has(providerId)) {
             throw new Error(`Provider with ID '${providerId}' is already registered`);
@@ -38,9 +34,12 @@ export class ProviderRegistry implements IProviderRegistry {
      * @returns Provider instance or undefined if not found
      */
     getProvider(providerId: ProviderId): AIProvider {
-        return this.providers.get(providerId);
+        const provider = this.providers.get(providerId)
+        if (provider === undefined) {
+          throw new Error(`Could not find ${providerId} in the registry`);
+        }
+        return provider;
     }
-
 
     /**
      * Get all registered providers
@@ -58,10 +57,11 @@ export class ProviderRegistry implements IProviderRegistry {
         const allModels: Array<ModelConfig & { providerId: ProviderId }> = [];
 
         for (const provider of this.providers.values()) {
+            const metadata = (provider.constructor as typeof AIProvider).metadata;
             for (const model of provider.models) {
                 allModels.push({
                     ...model,
-                    providerId: provider.metadata.id,
+                    providerId: metadata.id,
                 });
             }
         }
@@ -159,22 +159,23 @@ export class ProviderRegistry implements IProviderRegistry {
         }
 
         for (const provider of this.providers.values()) {
+            const metadata = (provider.constructor as typeof AIProvider).metadata;
             // Check if provider has at least one model
             if (provider.models.length === 0) {
-                errors.push(`Provider '${provider.metadata.id}' has no models defined`);
+                errors.push(`Provider '${metadata.id}' has no models defined`);
             }
 
             // Check if provider has a default model
             const hasDefault = provider.models.some(model => model.isDefault === true);
             if (!hasDefault) {
-                errors.push(`Provider '${provider.metadata.id}' has no default model`);
+                errors.push(`Provider '${metadata.id}' has no default model`);
             }
 
             // Check for duplicate model IDs within provider
             const modelIds = provider.models.map(m => m.id);
             const uniqueIds = new Set(modelIds);
             if (modelIds.length !== uniqueIds.size) {
-                errors.push(`Provider '${provider.metadata.id}' has duplicate model IDs`);
+                errors.push(`Provider '${metadata.id}' has duplicate model IDs`);
             }
         }
 

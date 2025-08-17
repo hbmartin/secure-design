@@ -1,10 +1,10 @@
-import { streamText, type ModelMessage } from 'ai';
+import { streamText, type LanguageModel, type ModelMessage } from 'ai';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import type { AgentService, ExecutionContext } from '../types/agent';
-import type { ProviderConfig } from '../providers/types';
+import type { ProviderConfig, ProviderId } from '../providers/types';
 import { ProviderService } from '../providers/ProviderService';
 import { createReadTool } from '../tools/read-tool';
 import { createWriteTool } from '../tools/write-tool';
@@ -15,6 +15,7 @@ import { createGrepTool } from '../tools/grep-tool';
 import { createThemeTool } from '../tools/theme-tool';
 import { createLsTool } from '../tools/ls-tool';
 import { createMultieditTool } from '../tools/multiedit-tool';
+import { AnthropicProvider } from '../providers';
 
 export class CustomAgentService implements AgentService {
     private workingDirectory: string = '';
@@ -35,7 +36,7 @@ export class CustomAgentService implements AgentService {
             const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
             this.outputChannel.appendLine(`Workspace root detected: ${workspaceRoot}`);
 
-            if (workspaceRoot) {
+            if (workspaceRoot !== undefined) {
                 // Create .superdesign folder in workspace root
                 const superdesignDir = path.join(workspaceRoot, '.superdesign');
                 this.outputChannel.appendLine(
@@ -90,29 +91,18 @@ export class CustomAgentService implements AgentService {
         }
     }
 
-    private getModel() {
+    private getModel(): LanguageModel {
         const config = vscode.workspace.getConfiguration('securedesign');
-        const specificModel = config.get<string>('aiModel');
-        const provider = config.get<string>('aiModelProvider', 'anthropic');
+        const provider = config.get<string>('aiModelProvider', AnthropicProvider.metadata.id);
 
         this.outputChannel.appendLine(`Using AI provider: ${provider}`);
-        if (specificModel) {
-            this.outputChannel.appendLine(`Using specific AI model: ${specificModel}`);
-        }
 
-        // Determine which model to use
-        let modelToUse: string;
-        if (specificModel) {
-            modelToUse = specificModel;
-        } else {
-            // Get default model for the configured provider
-            const defaultModel = this.providerService.getDefaultModelForProvider(
-                provider as ProviderId
-            );
-            if (!defaultModel) {
-                throw new Error(`No default model found for provider: ${provider}`);
-            }
-            modelToUse = defaultModel.id;
+        const modelToUse =
+            config.get<string>('aiModel') ||
+            this.providerService.getDefaultModelForProvider(provider as ProviderId)?.id;
+
+        if (modelToUse === undefined) {
+            throw new Error('No model configured');
         }
 
         // Create provider configuration
@@ -122,21 +112,23 @@ export class CustomAgentService implements AgentService {
         };
 
         // Use provider service to create model instance
-        return this.providerService.createModel(modelToUse, providerConfig);
+        return this.providerService.createModel(modelToUse, provider as ProviderId, providerConfig);
     }
 
     private getSystemPrompt(): string {
         const config = vscode.workspace.getConfiguration('securedesign');
         const specificModel = config.get<string>('aiModel');
-        const provider = config.get<string>('aiModelProvider', 'anthropic');
+        const provider = config.get<string>('aiModelProvider', AnthropicProvider.metadata.id);
 
         // Determine the actual model name being used
         let modelName: string;
-        if (specificModel) {
+        if (specificModel !== undefined) {
             modelName = specificModel;
         } else {
             // Get default model from provider service
-            const defaultModel = this.providerService.getDefaultModelForProvider(provider as any);
+            const defaultModel = this.providerService.getDefaultModelForProvider(
+                provider as ProviderId
+            );
             modelName = defaultModel?.id || 'claude-3-5-sonnet-20241022';
         }
 
@@ -516,6 +508,7 @@ I've created the html design, please reveiw and let me know if you need any chan
 `;
     }
 
+    // eslint-disable-next-line @typescript-eslint/member-ordering
     async query(
         prompt?: string,
         conversationHistory?: ModelMessage[],
@@ -532,7 +525,7 @@ I've created the html design, please reveiw and let me know if you need any chan
             this.outputChannel.appendLine(
                 `Query using conversation history: ${conversationHistory.length} messages`
             );
-        } else if (prompt) {
+        } else if (prompt !== undefined) {
             this.outputChannel.appendLine(`Query prompt: ${prompt.substring(0, 200)}...`);
         } else {
             throw new Error('Either prompt or conversationHistory must be provided');
@@ -856,12 +849,12 @@ I've created the html design, please reveiw and let me know if you need any chan
     hasApiKey(): boolean {
         const config = vscode.workspace.getConfiguration('securedesign');
         const specificModel = config.get<string>('aiModel');
-        const provider = config.get<string>('aiModelProvider', 'anthropic');
+        const provider = config.get<string>('aiModelProvider', AnthropicProvider.metadata.id);
 
         // Determine which model we're checking for
         const modelToCheck =
             specificModel ||
-            this.providerService.getDefaultModelForProvider(provider as any)?.id ||
+            this.providerService.getDefaultModelForProvider(provider as ProviderId)?.id ||
             'claude-3-5-sonnet-20241022';
 
         // Create provider configuration
@@ -871,8 +864,8 @@ I've created the html design, please reveiw and let me know if you need any chan
         };
 
         // Use provider service to check credentials
-        const validation = this.providerService.validateCredentialsForModel(
-            modelToCheck,
+        const validation = this.providerService.validateCredentialsForProvider(
+            provider as ProviderId,
             providerConfig
         );
         return validation.isValid;

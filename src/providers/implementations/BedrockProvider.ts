@@ -12,9 +12,10 @@ import {
     type ValidationResult,
     type ProviderInstanceParams,
 } from '../types';
+import type { LanguageModel } from 'ai';
 
 export class BedrockProvider extends AIProvider {
-    readonly metadata: ProviderMetadata = {
+    static readonly metadata: ProviderMetadata = {
         id: 'bedrock',
         name: 'AWS Bedrock',
         apiKeyConfigKey: 'awsAccessKeyId',
@@ -159,8 +160,7 @@ export class BedrockProvider extends AIProvider {
         },
     ];
 
-
-    createInstance(params: ProviderInstanceParams): any {
+    createInstance(params: ProviderInstanceParams): LanguageModel {
         const awsAccessKeyId = params.config.config.get<string>('awsAccessKeyId');
         const awsSecretAccessKey = params.config.config.get<string>('awsSecretAccessKey');
         const awsRegion = params.config.config.get<string>('awsRegion') || 'us-east-1';

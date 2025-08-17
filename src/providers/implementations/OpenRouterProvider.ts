@@ -12,9 +12,10 @@ import {
     type ValidationResult,
     type ProviderInstanceParams,
 } from '../types';
+import type { LanguageModel } from 'ai';
 
 export class OpenRouterProvider extends AIProvider {
-    readonly metadata: ProviderMetadata = {
+    static readonly metadata: ProviderMetadata = {
         id: 'openrouter',
         name: 'OpenRouter',
         apiKeyConfigKey: 'openrouterApiKey',
@@ -176,9 +177,10 @@ export class OpenRouterProvider extends AIProvider {
         },
     ];
 
-
-    createInstance(params: ProviderInstanceParams): any {
-        const apiKey = params.config.config.get<string>(this.metadata.apiKeyConfigKey);
+    createInstance(params: ProviderInstanceParams): LanguageModel {
+        const apiKey = params.config.config.get<string>(
+            OpenRouterProvider.metadata.apiKeyConfigKey
+        );
         if (!apiKey) {
             throw new Error(this.getCredentialsErrorMessage());
         }
@@ -196,7 +198,7 @@ export class OpenRouterProvider extends AIProvider {
     }
 
     validateCredentials(config: ProviderConfig): ValidationResult {
-        const apiKey = config.config.get<string>(this.metadata.apiKeyConfigKey);
+        const apiKey = config.config.get<string>(OpenRouterProvider.metadata.apiKeyConfigKey);
 
         if (!apiKey) {
             return {

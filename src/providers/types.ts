@@ -4,6 +4,7 @@
  */
 
 import type * as vscode from 'vscode';
+import type { LanguageModel } from 'ai';
 
 /**
  * Supported AI provider identifiers
@@ -82,32 +83,16 @@ export interface ProviderInstanceParams {
     options?: Record<string, any>;
 }
 
-
 /**
  * Abstract base class for AI providers
  * Implements the Strategy pattern for different AI service providers
  */
 export abstract class AIProvider {
     /** Provider metadata */
-    abstract readonly metadata: ProviderMetadata;
+    static readonly metadata: ProviderMetadata;
 
     /** Available models for this provider */
     abstract readonly models: ModelConfig[];
-
-
-    /**
-     * Create an AI SDK model instance
-     * @param params Provider instance parameters
-     * @returns AI SDK model instance
-     */
-    abstract createInstance(params: ProviderInstanceParams): any;
-
-    /**
-     * Validate provider credentials
-     * @param config Provider configuration
-     * @returns Validation result
-     */
-    abstract validateCredentials(config: ProviderConfig): ValidationResult;
 
     /**
      * Get the default model for this provider
@@ -115,8 +100,9 @@ export abstract class AIProvider {
      */
     getDefaultModel(): ModelConfig {
         const defaultModel = this.models.find(m => m.isDefault);
+        const metadata = (this.constructor as typeof AIProvider).metadata;
         if (!defaultModel) {
-            throw new Error(`No default model defined for provider ${this.metadata.id}`);
+            throw new Error(`No default model defined for provider ${metadata.id}`);
         }
         return defaultModel;
     }
@@ -137,7 +123,7 @@ export abstract class AIProvider {
      */
     getModelDisplayName(modelId: string): string {
         const model = this.getModel(modelId);
-        return model?.displayName || modelId;
+        return model ? model.displayName : modelId;
     }
 
     /**
@@ -146,14 +132,15 @@ export abstract class AIProvider {
      * @returns true if credentials are present
      */
     hasCredentials(config: ProviderConfig): boolean {
-        const primaryKey = config.config.get<string>(this.metadata.apiKeyConfigKey);
+        const metadata = (this.constructor as typeof AIProvider).metadata;
+        const primaryKey = config.config.get<string>(metadata.apiKeyConfigKey);
         if (!primaryKey) {
             return false;
         }
 
         // Check additional config keys if any
-        if (this.metadata.additionalConfigKeys) {
-            return this.metadata.additionalConfigKeys.every(key => config.config.get<string>(key));
+        if (metadata.additionalConfigKeys) {
+            return metadata.additionalConfigKeys.every(key => config.config.get<string>(key));
         }
 
         return true;
@@ -164,8 +151,23 @@ export abstract class AIProvider {
      * @returns Error message string
      */
     getCredentialsErrorMessage(): string {
-        return `${this.metadata.name} credentials not configured. Please run "${this.metadata.configureCommand}" command.`;
+        const metadata = (this.constructor as typeof AIProvider).metadata;
+        return `${metadata.name} credentials not configured. Please run "${metadata.configureCommand}" command.`;
     }
+
+    /**
+     * Create an AI SDK model instance
+     * @param params Provider instance parameters
+     * @returns AI SDK model instance
+     */
+    abstract createInstance(params: ProviderInstanceParams): LanguageModel;
+
+    /**
+     * Validate provider credentials
+     * @param config Provider configuration
+     * @returns Validation result
+     */
+    abstract validateCredentials(config: ProviderConfig): ValidationResult;
 }
 
 /**
@@ -185,7 +187,6 @@ export interface IProviderRegistry {
      * @returns Provider instance or undefined
      */
     getProvider(providerId: ProviderId): AIProvider | undefined;
-
 
     /**
      * Get all registered providers
@@ -212,8 +213,7 @@ export interface IProviderService {
      * @param config Provider configuration
      * @returns AI SDK model instance
      */
-    createModel(model: string, providerId: ProviderId, config: ProviderConfig): any;
-
+    createModel(model: string, providerId: ProviderId, config: ProviderConfig): LanguageModel;
 
     /**
      * Validate credentials for a specific provider
@@ -221,7 +221,10 @@ export interface IProviderService {
      * @param config Provider configuration
      * @returns Validation result
      */
-    validateCredentialsForProvider(providerId: ProviderId, config: ProviderConfig): ValidationResult;
+    validateCredentialsForProvider(
+        providerId: ProviderId,
+        config: ProviderConfig
+    ): ValidationResult;
 
     /**
      * Get display name for a model from a specific provider
