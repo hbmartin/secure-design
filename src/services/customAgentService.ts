@@ -106,7 +106,7 @@ export class CustomAgentService implements AgentService {
             modelToUse = specificModel;
         } else {
             // Get default model for the configured provider
-            const defaultModel = this.providerService.getDefaultModelForProvider(provider as any);
+            const defaultModel = this.providerService.getDefaultModelForProvider(provider as ProviderId);
             if (!defaultModel) {
                 throw new Error(`No default model found for provider: ${provider}`);
             }
