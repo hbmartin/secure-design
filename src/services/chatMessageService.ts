@@ -203,12 +203,13 @@ export class ChatMessageService {
                         const _command = isUpdate ? 'chatToolUpdate' : 'chatResponseChunk';
                         const _messageType = isUpdate ? undefined : 'tool-call';
 
+                        const toolInput = toolPart.args ?? toolPart.input ?? toolPart.params;
                         if (isUpdate) {
                             // Send tool parameter update
                             webview.postMessage({
                                 command: 'chatToolUpdate',
                                 tool_use_id: toolPart.toolCallId,
-                                tool_input: toolPart.args ?? toolPart.input,
+                                tool_input: toolInput,
                             });
                         } else {
                             // Send new tool call message
@@ -219,7 +220,7 @@ export class ChatMessageService {
                                 metadata: {
                                     tool_name: toolPart.toolName,
                                     tool_id: toolPart.toolCallId,
-                                    tool_input: toolPart.args ?? toolPart.input,
+                                    tool_input: toolInput,
                                 },
                             });
                         }

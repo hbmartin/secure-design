@@ -138,7 +138,7 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
             case undefined:
             default:
                 promptText = `${file.content}\n\nAbove is the design implementation, please use that as a reference`;
-                platformName = 'Unknown Platform';
+                platformName = '';
         }
 
         try {

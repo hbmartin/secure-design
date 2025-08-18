@@ -26,10 +26,7 @@ const ColorPalette: React.FC<ColorPaletteProps> = ({ colors }) => {
                             onClick={() => handleColorCopy(color)}
                             title={`${name}: ${color}`}
                         >
-                            <div
-                                className='color-preview'
-                                style={{ backgroundColor: color }}
-                            />
+                            <div className='color-preview' style={{ backgroundColor: color }} />
                             <div className='color-info'>
                                 <span className='color-name'>{name}</span>
                                 <span className='color-value'>{color}</span>

@@ -162,7 +162,10 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
                 let frameCount = 0;
 
                 designFiles.forEach(_file => {
-                    const viewportDimensions = currentConfig.viewports[viewport];
+                    const viewportDimensions = currentConfig.viewports[viewport] ?? {
+                        width: currentConfig.frameSize.width,
+                        height: currentConfig.frameSize.height,
+                    };
                     totalWidth += viewportDimensions.width;
                     totalHeight += viewportDimensions.height + 50; // Add header space
                     frameCount++;

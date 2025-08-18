@@ -275,7 +275,7 @@ export function useChat(vscode: any): ChatHookResult {
                                             ...msg.metadata,
                                             is_loading: false,
                                             progress_percentage: 100,
-                                            elapsed_time: msg.metadata.estimated_duration || 90,
+                                            elapsed_time: msg.metadata.estimated_duration ?? 90,
                                         },
                                     };
                                     break;

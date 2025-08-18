@@ -551,7 +551,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                                 (resultPart as any).toolCallId === toolCallId
                         )
                 );
-            return !hasResult || toolCallPart.metadata?.is_loading ?? false;
+            return !hasResult || (toolCallPart.metadata?.is_loading ?? false);
         },
         [chatHistory]
     );
@@ -917,10 +917,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                                     } else {
                                         // Single image - show just filename
                                         displayFileName = contextFile.includes('.superdesign')
-                                            ? contextFile.split('.superdesign/')[1] ??
+                                            ? (contextFile.split('.superdesign/')[1] ??
                                               contextFile.split('/').pop() ??
-                                              contextFile
-                                            : contextFile.split('/').pop() ?? contextFile;
+                                              contextFile)
+                                            : (contextFile.split('/').pop() ?? contextFile);
                                     }
 
                                     return (
@@ -998,7 +998,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                 const resultIsError = toolResultPart?.isError ?? false;
 
                 // Tool is loading if we don't have a result yet, or if metadata indicates loading
-                const isLoading = !hasResult || toolCallPart.metadata?.is_loading ?? false;
+                const isLoading = !hasResult || (toolCallPart.metadata?.is_loading ?? false);
 
                 // Extract theme data from tool input
                 const themeName = toolInput.theme_name ?? 'Untitled Theme';
@@ -1057,7 +1057,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
             const resultIsError = toolResultPart?.isError ?? false;
 
             // Tool is loading if we don't have a result yet, or if metadata indicates loading
-            const isLoading = !hasResult || toolCallPart.metadata?.is_loading ?? false;
+            const isLoading = !hasResult || (toolCallPart.metadata?.is_loading ?? false);
 
             const toolResult = toolResultPart
                 ? typeof toolResultPart.result === 'string'
@@ -1491,11 +1491,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                                     {currentContext.type === 'images'
                                         ? `${currentContext.fileName.split(', ').length} images in moodboard`
                                         : currentContext.fileName.includes('.superdesign')
-                                          ? currentContext.fileName.split('.superdesign/')[1] ??
+                                          ? (currentContext.fileName.split('.superdesign/')[1] ??
                                             currentContext.fileName.split('/').pop() ??
-                                            currentContext.fileName
-                                          : currentContext.fileName.split('/').pop() ??
-                                            currentContext.fileName}
+                                            currentContext.fileName)
+                                          : (currentContext.fileName.split('/').pop() ??
+                                            currentContext.fileName)}
                                 </span>
                                 <button
                                     className='context-clear-btn'
