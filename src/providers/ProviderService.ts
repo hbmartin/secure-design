@@ -1,9 +1,3 @@
-/**
- * Provider Service Implementation
- * High-level service for managing AI providers and model operations
- */
-
-import * as vscode from 'vscode';
 import { ProviderRegistry } from './ProviderRegistry';
 import { AnthropicProvider } from './implementations/AnthropicProvider';
 import { OpenAIProvider } from './implementations/OpenAIProvider';
@@ -22,12 +16,8 @@ import type {
 } from './types';
 import type { LanguageModel } from 'ai';
 
-/**
- * High-level service for AI provider operations
- * Provides a unified interface for working with different AI providers
- */
 export class ProviderService implements IProviderService {
-    private static instance: ProviderService;
+    private static instance: ProviderService | undefined;
     private readonly registry: ProviderRegistry;
 
     private constructor() {
@@ -39,26 +29,20 @@ export class ProviderService implements IProviderService {
      * Get singleton instance
      */
     public static getInstance(): ProviderService {
-        if (!ProviderService.instance) {
-            ProviderService.instance = new ProviderService();
-        }
+        ProviderService.instance ??= new ProviderService();
         return ProviderService.instance;
     }
 
     /**
-     * Create a model instance for the given model string
+     * Create a model instance for the given model and provider
      */
     createModel(model: string, providerId: ProviderId, config: ProviderConfig): LanguageModel {
         const provider = this.registry.getProvider(providerId);
 
-        if (!provider) {
-            throw new Error(`Provider not found: ${providerId}`);
-        }
-
         // Validate credentials before creating instance
         const validation = provider.validateCredentials(config);
         if (!validation.isValid) {
-            throw new Error(validation.error || 'Invalid credentials');
+            throw new Error(validation.error ?? 'Invalid credentials');
         }
 
         return provider.createInstance({ model, config });

@@ -96,7 +96,7 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
                     await this.handleGetCurrentProvider(webviewView.webview);
                     break;
                 case 'changeProvider':
-                    await this.handleChangeProvider(message.model, webviewView.webview);
+                    await this.handleChangeProvider(message.providerId, message.model, webviewView.webview);
                     break;
                 case 'showContextPicker':
                     await this.handleShowContextPicker(webviewView.webview);

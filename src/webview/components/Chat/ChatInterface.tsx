@@ -11,6 +11,7 @@ import chatStyles from './ChatInterface.css';
 
 import welcomeStyles from '../Welcome/Welcome.css';
 import { ChangeProvider } from '../../types/command.types';
+import { ProviderService } from '../../../providers';
 
 interface ChatInterfaceProps {
     layout: WebviewLayout;
@@ -90,10 +91,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
         return () => window.removeEventListener('message', handleMessage);
     }, [vscode]);
 
-    const handleModelChange = (model: string, providerId: string) => {
-        // Send model change request to extension
-        vscode.postMessage(ChangeProvider(model, providerId));
-        
+    const handleModelChange = (providerId: string, model: string) => {
+        vscode.postMessage(ChangeProvider(providerId, model));
     };
 
     const handleNewConversation = useCallback(() => {
@@ -1613,6 +1612,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                                         selectedModel={selectedModel}
                                         onModelChange={handleModelChange}
                                         disabled={isLoading || showWelcome}
+                                        models={ProviderService.getInstance().getAvailableModels()}
                                     />
                                 </div>
                             </div>

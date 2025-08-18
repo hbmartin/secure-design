@@ -8,7 +8,7 @@ export interface ChangeProvider extends Command {
     providerId: string;
 }
 
-export function ChangeProvider(model: string, providerId: string): ChangeProvider {
+export function ChangeProvider(providerId: string, model: string): ChangeProvider {
     return {
         command: 'changeProvider',
         model,
