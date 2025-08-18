@@ -18,8 +18,8 @@ export class ChatMessageService {
 
     async handleChatMessage(message: any, webview: vscode.Webview): Promise<void> {
         try {
-            const chatHistory: ModelMessage[] = message.chatHistory || [];
-            const latestMessage = message.message || '';
+            const chatHistory: ModelMessage[] = message.chatHistory ?? [];
+            const latestMessage = message.message ?? '';
 
             Logger.debug(`chatHistory size=${chatHistory.length}`);
 
@@ -208,7 +208,7 @@ export class ChatMessageService {
                             webview.postMessage({
                                 command: 'chatToolUpdate',
                                 tool_use_id: toolPart.toolCallId,
-                                tool_input: toolPart.args,
+                                tool_input: toolPart.args ?? toolPart.input,
                             });
                         } else {
                             // Send new tool call message
@@ -219,7 +219,7 @@ export class ChatMessageService {
                                 metadata: {
                                     tool_name: toolPart.toolName,
                                     tool_id: toolPart.toolCallId,
-                                    tool_input: toolPart.args,
+                                    tool_input: toolPart.args ?? toolPart.input,
                                 },
                             });
                         }
@@ -248,7 +248,7 @@ export class ChatMessageService {
                         metadata: {
                             tool_id: part.toolCallId,
                             tool_name: part.toolName,
-                            is_error: part.isError || false,
+                            is_error: part.isError ?? false,
                         },
                     });
 
@@ -257,7 +257,7 @@ export class ChatMessageService {
                         command: 'chatToolResult',
                         tool_use_id: part.toolCallId,
                         content: content,
-                        is_error: part.isError || false,
+                        is_error: part.isError ?? false,
                     });
                 }
             }

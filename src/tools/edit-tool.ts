@@ -115,7 +115,7 @@ function calculateEdit(
     }
 
     // Count occurrences
-    const occurrences = (currentContent.match(new RegExp(escapeRegExp(old_string), 'g')) || [])
+    const occurrences = (currentContent.match(new RegExp(escapeRegExp(old_string), 'g')) ?? [])
         .length;
 
     // Validate occurrence count

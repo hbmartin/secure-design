@@ -257,12 +257,12 @@ async function configureGoogleApiKey() {
 
 // Function to configure AWS Bedrock credentials
 async function configureAWSBedrock() {
-    const config = vscode.workspace.getConfiguration('superdesign');
+    const config = vscode.workspace.getConfiguration('securedesign');
 
     // Get current values
     const currentAccessKeyId = config.get<string>('awsAccessKeyId');
     const currentSecretAccessKey = config.get<string>('awsSecretAccessKey');
-    const currentRegion = config.get<string>('awsRegion') || 'us-east-1';
+    const currentRegion = config.get<string>('awsRegion') ?? 'us-east-1';
 
     // Configure Access Key ID
     const accessKeyInput = await vscode.window.showInputBox({
@@ -380,7 +380,7 @@ async function configureAWSBedrock() {
 }
 async function configureMoonshotApiKey() {
     const currentKey = vscode.workspace
-        .getConfiguration('superdesign')
+        .getConfiguration('securedesign')
         .get<string>('moonshotApiKey');
 
     const input = await vscode.window.showInputBox({
@@ -408,7 +408,7 @@ async function configureMoonshotApiKey() {
         if (input !== '••••••••••••••••') {
             try {
                 await vscode.workspace
-                    .getConfiguration('superdesign')
+                    .getConfiguration('securedesign')
                     .update('moonshotApiKey', input.trim(), vscode.ConfigurationTarget.Global);
                 vscode.window.showInformationMessage(
                     '✅ Moonshot API key configured successfully!'

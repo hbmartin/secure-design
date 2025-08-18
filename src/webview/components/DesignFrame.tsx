@@ -177,7 +177,6 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
         }
     };
 
-
     const handleCopyDesignPath = async (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();

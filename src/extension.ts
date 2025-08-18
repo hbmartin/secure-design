@@ -244,7 +244,6 @@ async function initializeSecuredesignProject() {
     const workspaceRoot = workspaceFolder.uri;
     const superdesignFolder = vscode.Uri.joinPath(workspaceRoot, '.superdesign');
 
-
     const designRuleContent = `When asked to design UI & frontend interface
 When asked to design UI & frontend interface
 # Role

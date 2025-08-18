@@ -20,8 +20,8 @@ const ConnectionLines: React.FC<ConnectionLinesProps> = ({
 
     // Adjust line styling based on zoom level
     const getLineStyle = (connection: ConnectionLine) => ({
-        stroke: connection.color || 'var(--vscode-textLink-foreground)',
-        strokeWidth: (connection.width || 2) / zoomLevel, // Thinner lines when zoomed out
+        stroke: connection.color ?? 'var(--vscode-textLink-foreground)',
+        strokeWidth: (connection.width ?? 2) / zoomLevel, // Thinner lines when zoomed out
         strokeDasharray: zoomLevel < 0.5 ? '5,5' : 'none', // Dashed when very zoomed out
         opacity: Math.max(0.3, Math.min(1, zoomLevel)), // More transparent when zoomed out
         markerEnd: 'url(#arrowhead)',

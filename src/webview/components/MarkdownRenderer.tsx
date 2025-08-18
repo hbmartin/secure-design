@@ -11,14 +11,14 @@ interface MarkdownRendererProps {
 
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className }) => {
     return (
-        <div className={`markdown-content ${className || ''}`}>
+        <div className={`markdown-content ${className ?? ''}`}>
             <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[rehypeHighlight]}
                 components={{
                     // Custom rendering for code blocks
                     code: ({ className, children, ...props }: any) => {
-                        const match = /language-(\w+)/.exec(className || '');
+                        const match = /language-(\w+)/.exec(className ?? '');
                         const inline = !className?.includes('language-');
                         return !inline && match ? (
                             <pre className={`language-${match[1]} hljs`}>
@@ -27,7 +27,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
                                 </code>
                             </pre>
                         ) : (
-                            <code className={`inline-code ${className || ''}`} {...props}>
+                            <code className={`inline-code ${className ?? ''}`} {...props}>
                                 {children}
                             </code>
                         );

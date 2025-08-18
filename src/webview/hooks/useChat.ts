@@ -137,9 +137,9 @@ export function useChat(vscode: any): ChatHookResult {
                             // Handle tool calls - append to existing assistant message
                             const toolCallPart = {
                                 type: 'tool-call' as const,
-                                toolCallId: message.metadata?.tool_id || 'unknown',
-                                toolName: message.metadata?.tool_name || 'unknown',
-                                input: message.metadata?.tool_input || {},
+                                toolCallId: message.metadata?.tool_id ?? 'unknown',
+                                toolName: message.metadata?.tool_name ?? 'unknown',
+                                input: message.metadata?.tool_input ?? {},
                             };
 
                             // Find the last assistant message and append tool call to it
@@ -193,9 +193,9 @@ export function useChat(vscode: any): ChatHookResult {
                             // Add separate tool result message (correct CoreMessage structure)
                             const toolResultPart = {
                                 type: 'tool-result' as const,
-                                toolCallId: message.metadata?.tool_id || 'unknown',
-                                toolName: message.metadata?.tool_name || 'unknown',
-                                output: message.content || '',
+                                toolCallId: message.metadata?.tool_id ?? 'unknown',
+                                toolName: message.metadata?.tool_name ?? 'unknown',
+                                output: message.content ?? '',
                             };
 
                             newHistory.push({
@@ -303,7 +303,7 @@ export function useChat(vscode: any): ChatHookResult {
                         metadata: {
                             timestamp: Date.now(),
                             is_error: true,
-                            actions: message.actions || [],
+                            actions: message.actions ?? [],
                         },
                     };
 

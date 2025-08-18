@@ -71,7 +71,7 @@ function applySingleEdit(content: string, edit: SingleEdit): EditResult {
 
     // Count occurrences
     const regex = new RegExp(escapeRegExp(edit.old_string), 'g');
-    const matches = content.match(regex) || [];
+    const matches = content.match(regex) ?? [];
     const occurrences = matches.length;
 
     // Validate occurrence count

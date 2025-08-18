@@ -59,7 +59,9 @@ export class CustomAgentService implements AgentService {
                         );
                     } else {
                         // Log and rethrow other unexpected errors
-                        this.outputChannel.appendLine(`Error setting up working directory at ${superdesignUri.fsPath}: ${error}`);
+                        this.outputChannel.appendLine(
+                            `Error setting up working directory at ${superdesignUri.fsPath}: ${error}`
+                        );
                         throw error;
                     }
                 }
@@ -648,7 +650,7 @@ I've created the html design, please reveiw and let me know if you need any chan
 
                     case 'error':
                         // Error handling - CoreMessage format
-                        const errorMsg = (chunk as any).error?.message || 'Unknown error occurred';
+                        const errorMsg = (chunk as any).error?.message ?? 'Unknown error occurred';
                         this.outputChannel.appendLine(`Stream error: ${errorMsg}`);
 
                         const errorMessage: ModelMessage = {

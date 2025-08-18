@@ -112,7 +112,7 @@ const ThemePreviewCard: React.FC<ThemePreviewCardProps> = ({
                 } catch (error) {
                     console.warn('Failed to load CSS from file, falling back to cssSheet:', error);
                     setCssLoadError(error instanceof Error ? error.message : 'Failed to load CSS');
-                    setCurrentCssContent(cssSheet || '');
+                    setCurrentCssContent(cssSheet ?? '');
                 } finally {
                     setIsLoadingCss(false);
                 }
@@ -431,9 +431,7 @@ const ThemePreviewCard: React.FC<ThemePreviewCardProps> = ({
                                             </div>
 
                                             {/* Color Palette */}
-                                            <ColorPalette
-                                                colors={getGroupedColors(parsedTheme)}
-                                            />
+                                            <ColorPalette colors={getGroupedColors(parsedTheme)} />
                                         </>
                                     )}
 

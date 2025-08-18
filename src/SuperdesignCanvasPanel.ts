@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { Logger } from './services/logger';
 import type { ChatSidebarProvider } from './providers/chatSidebarProvider';
+import path from 'path';
 
 export class SuperdesignCanvasPanel {
     public static currentPanel: SuperdesignCanvasPanel | undefined;
@@ -23,7 +24,7 @@ export class SuperdesignCanvasPanel {
         const panel = vscode.window.createWebviewPanel(
             SuperdesignCanvasPanel.viewType,
             'SecureDesign Canvas',
-            column || vscode.ViewColumn.One,
+            column ?? vscode.ViewColumn.One,
             {
                 enableScripts: true,
                 localResourceRoots: [
@@ -127,7 +128,7 @@ export class SuperdesignCanvasPanel {
             this._panel.webview.postMessage({
                 command: 'fileChanged',
                 data: {
-                    fileName: uri.fsPath.split('/').pop() || '',
+                    fileName: path.basename(uri.fsPath) ?? '',
                     changeType: 'created',
                 },
             });
@@ -139,7 +140,7 @@ export class SuperdesignCanvasPanel {
             this._panel.webview.postMessage({
                 command: 'fileChanged',
                 data: {
-                    fileName: uri.fsPath.split('/').pop() || '',
+                    fileName: path.basename(uri.fsPath) ?? '',
                     changeType: 'modified',
                 },
             });
@@ -151,7 +152,7 @@ export class SuperdesignCanvasPanel {
             this._panel.webview.postMessage({
                 command: 'fileChanged',
                 data: {
-                    fileName: uri.fsPath.split('/').pop() || '',
+                    fileName: path.basename(uri.fsPath) ?? '',
                     changeType: 'deleted',
                 },
             });
@@ -159,7 +160,7 @@ export class SuperdesignCanvasPanel {
     }
 
     private _update() {
-        const webview = this._panel.webview;
+        const { webview } = this._panel;
         this._panel.webview.html = this._getHtmlForWebview(webview);
     }
 
@@ -261,7 +262,9 @@ export class SuperdesignCanvasPanel {
                 } catch (createError) {
                     this._panel.webview.postMessage({
                         command: 'error',
-                        data: { error: `Failed to create design_files directory: ${createError}` },
+                        data: {
+                            error: `Failed to create design_iterations directory: ${createError}`,
+                        },
                     });
                     return;
                 }

@@ -114,9 +114,9 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
     ): GridPosition => {
         // Get current transform state from the TransformWrapper
         const transformState = transformRef.current?.instance?.transformState;
-        const currentScale = transformState?.scale || 1;
-        const currentTranslateX = transformState?.positionX || 0;
-        const currentTranslateY = transformState?.positionY || 0;
+        const currentScale = transformState?.scale ?? 1;
+        const currentTranslateX = transformState?.positionX ?? 0;
+        const currentTranslateY = transformState?.positionY ?? 0;
 
         // Calculate mouse position relative to canvas, then adjust for zoom and pan
         const rawMouseX = clientX - canvasRect.left;

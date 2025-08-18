@@ -177,10 +177,10 @@ export function buildHierarchyTree(designs: DesignFile[]): HierarchyTree {
         const node: HierarchyNode = {
             fileName: design.name,
             position: { x: 0, y: 0 }, // Will be calculated later
-            generation: design.generation || 0,
-            branchIndex: design.branchIndex || 0,
+            generation: design.generation ?? 0,
+            branchIndex: design.branchIndex ?? 0,
             parent: design.parentDesign,
-            children: design.children || [],
+            children: design.children ?? [],
         };
 
         nodes.set(design.name, node);
@@ -222,8 +222,8 @@ export function calculateHierarchyPositions(
 ): HierarchyTree {
     const { verticalSpacing } = config.hierarchy;
     // Use actual frame dimensions if provided, otherwise fall back to config or defaults
-    const frameWidth = actualFrameDimensions?.width || Math.max(config.frameSize.width, 400);
-    const frameHeight = actualFrameDimensions?.height || Math.max(config.frameSize.height, 550);
+    const frameWidth = actualFrameDimensions?.width ?? Math.max(config.frameSize.width, 400);
+    const frameHeight = actualFrameDimensions?.height ?? Math.max(config.frameSize.height, 550);
 
     // Position root nodes first with generous spacing
     let currentRootY = 100; // Start with some padding
@@ -437,7 +437,6 @@ export function detectDesignRelationships(designs: DesignFile[]): DesignFile[] {
 
     // Auto-detect versions and relationships
     updatedDesigns.forEach(design => {
-
         // Set version (current level version)
         design.version = getCurrentLevelVersion(design.name);
 
@@ -452,9 +451,7 @@ export function detectDesignRelationships(designs: DesignFile[]): DesignFile[] {
                 design.parentDesign = parentDesign.name;
 
                 // Add this design as a child to parent
-                if (!parentDesign.children) {
-                    parentDesign.children = [];
-                }
+                parentDesign.children ??= [];
                 if (!parentDesign.children.includes(design.name)) {
                     parentDesign.children.push(design.name);
                 }

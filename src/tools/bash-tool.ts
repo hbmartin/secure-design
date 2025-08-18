@@ -198,7 +198,7 @@ export function createBashTool(context: ExecutionContext) {
                 }
 
                 // Resolve execution directory
-                const workingDir = directory || '.';
+                const workingDir = directory ?? '.';
 
                 // Security check for workspace boundary
                 const pathError = validateWorkspacePath(workingDir, context);
