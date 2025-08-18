@@ -30,7 +30,7 @@ const ConnectionLines: React.FC<ConnectionLinesProps> = ({
     // Calculate curve path for organic looking connections
     const createCurvePath = (from: { x: number; y: number }, to: { x: number; y: number }) => {
         const dx = to.x - from.x;
-        const dy = to.y - from.y;
+        const _dy = to.y - from.y;
 
         // Create a smooth curve with control points
         const cp1x = from.x + dx * 0.6;

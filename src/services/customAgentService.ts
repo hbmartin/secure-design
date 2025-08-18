@@ -611,6 +611,7 @@ I've created the html design, please reveiw and let me know if you need any chan
 
                 this.outputChannel.appendLine(`Received chunk type: ${chunk.type}`);
 
+                // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check
                 switch (chunk.type) {
                     case 'text-delta':
                         // Handle streaming text (assistant message chunks) - CoreMessage format

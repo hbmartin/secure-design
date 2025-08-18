@@ -4,6 +4,7 @@ import ColorPalette from './ColorPalette';
 import ThemePreview from './ThemePreview';
 import ModeToggle from './ModeToggle';
 import { parseThemeCSS, extractColorPalette, type ParsedTheme } from '../../utils/themeParser';
+import type { GroupedColors } from './types';
 
 interface ThemePreviewCardProps {
     themeName: string;

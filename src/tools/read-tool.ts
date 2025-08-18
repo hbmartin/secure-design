@@ -200,7 +200,7 @@ async function processMediaFile(
     fileType: 'image' | 'pdf'
 ): Promise<{ content: string; metadata: Partial<FileReadResult> }> {
     const buffer = await fs.promises.readFile(filePath);
-    const base64Data = buffer.toString('base64');
+    const _base64Data = buffer.toString('base64');
     const mimeType = mime.lookup(filePath) || 'application/octet-stream';
 
     // For SuperDesign, we'll return a descriptive message rather than raw base64

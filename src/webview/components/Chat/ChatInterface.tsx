@@ -29,7 +29,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
     const [inputMessage, setInputMessage] = useState('');
     const [selectedModel, setSelectedModel] = useState<string>('claude-3-5-sonnet-20241022');
     const [expandedTools, setExpandedTools] = useState<Record<string, boolean>>({});
-    const [showFullContent, setShowFullContent] = useState<{ [key: string]: boolean }>({});
     const [currentContext, setCurrentContext] = useState<{ fileName: string; type: string } | null>(
         null
     );
@@ -614,6 +613,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                             delete timerIntervals.current[uniqueKey];
                         }
                         setToolTimers(prev => {
+                            // eslint-disable-next-line unused-imports/no-unused-vars
                             const { [uniqueKey]: removed, ...rest } = prev;
                             return rest;
                         });
@@ -1046,9 +1046,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
 
             // Continue with existing generic tool rendering for other tools
             const isExpanded = expandedTools[uniqueKey] || false;
-            const showFullResult = showFullContent[uniqueKey] || false;
-            const showFullInput = showFullContent[`${uniqueKey}_input`] || false;
-            const showFullPrompt = showFullContent[`${uniqueKey}_prompt`] || false;
 
             const description = toolInput.description || '';
             const command = toolInput.command || '';
@@ -1078,7 +1075,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
             // Enhanced loading data
             const estimatedDuration = toolCallPart.metadata?.estimated_duration || 90;
             const elapsedTime = toolCallPart.metadata?.elapsed_time || 0;
-            const progressPercentage = toolCallPart.metadata?.progress_percentage || 0;
             // Use timer state for remaining time, fallback to calculated if timer not started yet
             const remainingTime = isLoading
                 ? timerRemaining > 0
@@ -1217,26 +1213,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                 }));
             };
 
-            const toggleShowFullResult = () => {
-                setShowFullContent(prev => ({
-                    ...prev,
-                    [uniqueKey]: !prev[uniqueKey],
-                }));
-            };
 
-            const toggleShowFullInput = () => {
-                setShowFullContent(prev => ({
-                    ...prev,
-                    [`${uniqueKey}_input`]: !prev[`${uniqueKey}_input`],
-                }));
-            };
 
-            const toggleShowFullPrompt = () => {
-                setShowFullContent(prev => ({
-                    ...prev,
-                    [`${uniqueKey}_prompt`]: !prev[`${uniqueKey}_prompt`],
-                }));
-            };
 
             // Input truncation with safe handling
             const inputString: string = (() => {
@@ -1491,12 +1469,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                         <Welcome onGetStarted={handleWelcomeGetStarted} />
                     ) : hasConversationMessages() ? (
                         <>
-                            {chatHistory
-                                .filter(msg => {
-                                    // All messages are now displayed since we use CoreMessage format
-                                    return true;
-                                })
-                                .map(renderChatMessage)}
+                            {chatHistory.map(renderChatMessage)}
                         </>
                     ) : (
                         renderPlaceholder()

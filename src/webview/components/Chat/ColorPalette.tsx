@@ -1,4 +1,5 @@
 import React from 'react';
+import type { GroupedColors } from './types';
 
 interface ColorPaletteProps {
     colors: GroupedColors;

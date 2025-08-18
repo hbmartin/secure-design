@@ -42,25 +42,6 @@ export interface ChatHookResult {
     setChatHistory: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
 }
 
-// Tool time estimation map (in seconds)
-const TOOL_TIME_ESTIMATES: { [key: string]: number } = {
-    'mcp_taskmaster-ai_initialize_project': 45,
-    'mcp_taskmaster-ai_parse_prd': 180,
-    'mcp_taskmaster-ai_analyze_project_complexity': 120,
-    'mcp_taskmaster-ai_expand_task': 90,
-    'mcp_taskmaster-ai_expand_all': 200,
-    'mcp_taskmaster-ai_update_task': 60,
-    'mcp_taskmaster-ai_update_subtask': 45,
-    'mcp_taskmaster-ai_add_task': 75,
-    'mcp_taskmaster-ai_research': 150,
-    codebase_search: 30,
-    read_file: 15,
-    edit_file: 45,
-    run_terminal_cmd: 60,
-    default: 90,
-};
-
-
 export function useChat(vscode: any): ChatHookResult {
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>(() => {
         // Initialize with persisted chat history from localStorage

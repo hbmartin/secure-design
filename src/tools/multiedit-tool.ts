@@ -180,7 +180,6 @@ export function createMultieditTool(context: ExecutionContext) {
 
                 const newLines = currentContent.split('\n').length;
                 const newSize = Buffer.byteLength(currentContent, 'utf8');
-                const hasErrors = editResults.some(r => !r.success);
 
                 console.log(
                     `Multi-edit completed: ${successCount}/${edits.length} edits successful, ${totalReplacements} total replacements`
