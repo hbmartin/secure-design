@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { tool } from 'ai';
 import { spawn, type ChildProcess } from 'child_process';
-import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import type { ExecutionContext } from '../types/agent';

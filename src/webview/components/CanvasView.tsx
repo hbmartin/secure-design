@@ -6,9 +6,6 @@ import {
 } from 'react-zoom-pan-pinch';
 import DesignFrame from './DesignFrame';
 import {
-    calculateGridPosition,
-    calculateFitToView,
-    getGridMetrics,
     generateResponsiveConfig,
     buildHierarchyTree,
     calculateHierarchyPositions,
@@ -28,7 +25,6 @@ import type {
     LayoutMode,
     HierarchyTree,
     ConnectionLine,
-    CanvasState,
 } from '../types/canvas.types';
 import ConnectionLines from './ConnectionLines';
 import {

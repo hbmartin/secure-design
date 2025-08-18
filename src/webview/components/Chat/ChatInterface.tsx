@@ -3,7 +3,7 @@ import { useChat, type ChatMessage } from '../../hooks/useChat';
 import { useFirstTimeUser } from '../../hooks/useFirstTimeUser';
 import type { WebviewLayout } from '../../../types/context';
 import MarkdownRenderer from '../MarkdownRenderer';
-import { TaskIcon, ClockIcon, CheckIcon, LightBulbIcon, GroupIcon, BrainIcon } from '../Icons';
+import { TaskIcon, ClockIcon, CheckIcon, LightBulbIcon } from '../Icons';
 import Welcome from '../Welcome';
 import ThemePreviewCard from './ThemePreviewCard';
 import ModelSelector from './ModelSelector';

@@ -1,8 +1,6 @@
 import * as vscode from 'vscode';
-import { ClaudeCodeService } from './claudeCodeService';
 import type { AgentService } from '../types/agent';
 import type { ModelMessage } from 'ai';
-import type { VsCodeConfiguration, ProviderId } from '../providers/types';
 import { ProviderService } from '../providers/ProviderService';
 import { Logger } from './logger';
 import { getProvider } from '../providers/VsCodeConfiguration';

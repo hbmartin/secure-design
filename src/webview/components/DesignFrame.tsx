@@ -4,16 +4,10 @@ import type {
     GridPosition,
     FrameDimensions,
     ViewportMode,
-    WebviewMessage,
 } from '../types/canvas.types';
 import { MobileIcon, TabletIcon, DesktopIcon, GlobeIcon } from './Icons';
 
 // Import logo images
-import cursorLogo from '../../assets/cursor_logo.png';
-import windsurfLogo from '../../assets/windsurf_logo.png';
-import claudeCodeLogo from '../../assets/claude_code_logo.png';
-import lovableLogo from '../../assets/lovable_logo.png';
-import boltLogo from '../../assets/bolt_logo.jpg';
 
 interface DesignFrameProps {
     file: DesignFile;

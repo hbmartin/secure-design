@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { tool } from 'ai';
 import * as fs from 'fs';
-import * as path from 'path';
 import type { ExecutionContext } from '../types/agent';
 import {
     handleToolError,

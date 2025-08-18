@@ -2,7 +2,7 @@ import { streamText, type ModelMessage } from 'ai';
 import type { LanguageModelV2 } from '@ai-sdk/provider';
 import * as vscode from 'vscode';
 import type { AgentService, ExecutionContext } from '../types/agent';
-import type { VsCodeConfiguration, ProviderId } from '../providers/types';
+import type { VsCodeConfiguration } from '../providers/types';
 import { ProviderService } from '../providers/ProviderService';
 import { createReadTool } from '../tools/read-tool';
 import { createWriteTool } from '../tools/write-tool';
@@ -13,7 +13,6 @@ import { createGrepTool } from '../tools/grep-tool';
 import { createThemeTool } from '../tools/theme-tool';
 import { createLsTool } from '../tools/ls-tool';
 import { createMultieditTool } from '../tools/multiedit-tool';
-import { AnthropicProvider } from '../providers/implementations/AnthropicProvider';
 import { getModel, getProvider } from '../providers/VsCodeConfiguration';
 import * as os from 'os';
 
