@@ -101,7 +101,7 @@ export class OpenAIProvider extends AIProvider {
         const apiKey = config.config.get<string>(OpenAIProvider.metadata.apiKeyConfigKey);
         const baseURL = config.config.get<string>('openaiUrl');
 
-        if (!apiKey) {
+        if (apiKey === undefined) {
             return {
                 isValid: false,
                 error: 'OpenAI API key is not configured',

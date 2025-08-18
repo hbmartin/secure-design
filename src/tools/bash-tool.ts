@@ -139,13 +139,13 @@ async function executeCommand(
                         if (child.pid && !child.killed) {
                             try {
                                 process.kill(-child.pid, 'SIGKILL');
-                            } catch (e) {
+                            } catch {
                                 // Process might already be dead
                             }
                         }
                     }, 1000);
                 }
-            } catch (error) {
+            } catch {
                 // Process might already be dead
             }
         }
