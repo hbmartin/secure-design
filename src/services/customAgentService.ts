@@ -14,7 +14,7 @@ import { createThemeTool } from '../tools/theme-tool';
 import { createLsTool } from '../tools/ls-tool';
 import { createMultieditTool } from '../tools/multiedit-tool';
 import { AnthropicProvider } from '../providers/implementations/AnthropicProvider';
-import { getProvider } from '../providers/VsCodeConfiguration';
+import { getModel, getProvider } from '../providers/VsCodeConfiguration';
 import * as os from 'os';
 
 export class CustomAgentService implements AgentService {
@@ -100,13 +100,7 @@ export class CustomAgentService implements AgentService {
 
     private getModel(): LanguageModelV2 {
         const config = vscode.workspace.getConfiguration('securedesign');
-        const provider = getProvider();
-
-        this.outputChannel.appendLine(`Using AI provider: ${provider}`);
-
-        const modelToUse =
-            config.get<string>('aiModel') ||
-            this.providerService.getDefaultModelForProvider(provider)?.id;
+        const modelToUse = getModel();
 
         if (modelToUse === undefined) {
             throw new Error('No model configured');
@@ -119,10 +113,14 @@ export class CustomAgentService implements AgentService {
         };
 
         // Use provider service to create model instance
-        return this.providerService.createModel(modelToUse, provider, providerConfig);
+        return this.providerService.createModel(
+            modelToUse.id,
+            modelToUse.providerId,
+            providerConfig
+        );
     }
 
-    private getSystemPrompt(): string { 
+    private getSystemPrompt(): string {
         return `# Role
 You are superdesign, a senior frontend designer integrated into VS Code as part of the Super Design extension.
 Your goal is to help user generate amazing design using code
@@ -516,7 +514,7 @@ I've created the html design, please reveiw and let me know if you need any chan
                 `Query using conversation history: ${conversationHistory.length} messages`
             );
         } else if (prompt !== undefined) {
-            this.outputChannel.appendLine(`Query prompt: ${prompt.substring(0, 200)}...`);
+            this.outputChannel.appendLine(`Query prompt: ${prompt}...`);
         } else {
             throw new Error('Either prompt or conversationHistory must be provided');
         }
@@ -582,17 +580,13 @@ I've created the html design, please reveiw and let me know if you need any chan
                 conversationHistory.forEach((msg, index) => {
                     const content =
                         typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
-                    this.outputChannel.appendLine(
-                        `  [${index}] ${msg.role}: "${content.substring(0, 150)}..."`
-                    );
+                    this.outputChannel.appendLine(`  [${index}] ${msg.role}: "${content}..."`);
                 });
                 this.outputChannel.appendLine('=== END AI SDK MESSAGES DEBUG ===');
             } else {
                 // Use single prompt
                 streamTextConfig.prompt = prompt;
-                this.outputChannel.appendLine(
-                    `Using single prompt: ${prompt!.substring(0, 100)}...`
-                );
+                this.outputChannel.appendLine(`Using single prompt: ${prompt}...`);
             }
 
             console.log('========streamTextConfig', streamTextConfig);
@@ -768,7 +762,7 @@ I've created the html design, please reveiw and let me know if you need any chan
                         if ((chunk as any).type === 'tool-result') {
                             const toolResult = chunk as any;
                             this.outputChannel.appendLine(
-                                `Tool result received for ID: ${toolResult.toolCallId}: ${JSON.stringify(toolResult.result).substring(0, 200)}...`
+                                `Tool result received for ID: ${toolResult.toolCallId}: ${JSON.stringify(toolResult.result)}...`
                             );
 
                             // Send tool result in CoreToolMessage format
@@ -837,13 +831,11 @@ I've created the html design, please reveiw and let me know if you need any chan
     }
 
     hasApiKey(): boolean {
-        const config = vscode.workspace.getConfiguration('securedesign');
-        const specificModel = config.get<string>('aiModel');
         const provider = getProvider();
 
         // Create provider configuration
         const providerConfig: VsCodeConfiguration = {
-            config: config,
+            config: vscode.workspace.getConfiguration('securedesign'),
             outputChannel: this.outputChannel,
         };
 

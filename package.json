@@ -71,12 +71,12 @@
       {
         "command": "securedesign.configureAWSBedrock",
         "title": "Configure AWS Bedrock",
-        "category": "Superdesign"
+        "category": "Securedesign"
       },
       {
         "command": "securedesign.configureMoonshotApiKey",
         "title": "Configure Moonshot API Key",
-        "category": "Superdesign"
+        "category": "Securedesign"
       },
       {
         "command": "securedesign.showChatSidebar",
@@ -180,15 +180,6 @@
         },
         "securedesign.aiModelProvider": {
           "type": "string",
-          "enum": [
-            "openai",
-            "anthropic",
-            "openrouter",
-            "google",
-            "bedrock",
-            "moonshot"
-          ],
-          "default": "anthropic",
           "description": "AI model provider for custom agent",
           "scope": "application"
         },

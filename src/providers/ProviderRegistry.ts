@@ -34,6 +34,7 @@ export class ProviderRegistry implements IProviderRegistry {
      * Get provider by its ID
      * @param providerId The provider identifier
      * @returns Provider instance or undefined if not found
+     * @throws Error if provider is not found
      */
     getProvider(providerId: ProviderId): AIProvider {
         const provider = this.providers.get(providerId);

@@ -99,7 +99,9 @@ export interface ProviderMetadataWithApiKey extends ProviderMetadata {
  * @param metadata Provider metadata to check
  * @returns true if metadata has apiKeyConfigKey property
  */
-export function isProviderMetadataWithApiKey(metadata: ProviderMetadata): metadata is ProviderMetadataWithApiKey {
+export function isProviderMetadataWithApiKey(
+    metadata: ProviderMetadata
+): metadata is ProviderMetadataWithApiKey {
     return 'apiKeyConfigKey' in metadata && typeof (metadata as any).apiKeyConfigKey === 'string';
 }
 
@@ -131,9 +133,9 @@ export abstract class AIProvider {
      * @returns Default model configuration
      */
     getDefaultModel(): ModelConfig {
-        const defaultModel = this.models.find(m => m.isDefault);
-        const metadata = (this.constructor as typeof AIProvider).metadata;
+        const defaultModel = this.models.find(m => m.isDefault === true);
         if (!defaultModel) {
+            const metadata = (this.constructor as typeof AIProvider).metadata;
             throw new Error(`No default model defined for provider ${metadata.id}`);
         }
         return defaultModel;
@@ -170,7 +172,11 @@ export abstract class AIProvider {
             return true;
         }
         const primaryKey = config.config.get<string>(metadata.apiKeyConfigKey);
-        if (primaryKey === undefined) {
+        if (
+            primaryKey === undefined ||
+            typeof primaryKey !== 'string' ||
+            primaryKey.trim().length === 0
+        ) {
             return false;
         }
 
@@ -234,5 +240,5 @@ export interface IProviderRegistry {
      * Get all available models across all providers
      * @returns Array of all model configurations
      */
-    getAllModels(): ModelConfig[];
+    getAllModels(): ModelConfigWithProvider[];
 }

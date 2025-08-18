@@ -101,8 +101,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
         };
     }, [isOpen]);
 
-    const handleModelSelect = (providerId: string, modelId: string) => {
-        onModelChange(providerId as ProviderId, modelId);
+    const handleModelSelect = (providerId: ProviderId, modelId: string) => {
+        onModelChange(providerId, modelId);
         setIsOpen(false);
     };
 

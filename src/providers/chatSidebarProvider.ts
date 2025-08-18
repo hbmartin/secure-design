@@ -6,7 +6,7 @@ import type { WebviewContext } from '../types/context';
 import type { AgentService } from '../types/agent';
 import type { VsCodeConfiguration, ProviderId } from './types';
 import { ProviderService } from './ProviderService';
-import { getProvider } from './VsCodeConfiguration';
+import { getModel } from './VsCodeConfiguration';
 
 export class ChatSidebarProvider implements vscode.WebviewViewProvider {
     public static readonly VIEW_TYPE = 'securedesign.chatView';
@@ -116,17 +116,12 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
     }
 
     private async handleGetCurrentProvider(webview: vscode.Webview) {
-        const config = vscode.workspace.getConfiguration('securedesign');
-        const currentProvider = getProvider();
-        const currentModel = config.get<string>('aiModel');
-
-        // If no specific model is set, get default from provider service
-        const modelToUse = currentModel ?? this.providerService.getDefaultModelForProvider(currentProvider);
+        const modelToUse = getModel();
 
         await webview.postMessage({
             command: 'currentProviderResponse',
-            provider: currentProvider,
-            model: modelToUse,
+            provider: modelToUse?.providerId,
+            model: modelToUse?.id,
         });
     }
 

@@ -103,11 +103,21 @@ export abstract class BaseProviderService {
         return provider?.models ?? [];
     }
 
+    getModelForProvider(providerId: ProviderId, model: string): ModelConfigWithProvider {
+        const models = this.getModelsForProvider(providerId);
+        const found = models.find(m => m.id === model);
+        if (found === undefined) {
+            throw new Error(`Could not find ${model} for ${providerId}.`);
+        }
+        return { ...found, providerId: providerId };
+    }
+
     /**
      * Get default model for a provider
      */
-    getDefaultModelForProvider(providerId: ProviderId): ModelConfig | undefined {
-        return this.registry.getDefaultModelForProvider(providerId);
+    getDefaultModelForProvider(providerId: ProviderId): ModelConfigWithProvider | undefined {
+        const found = this.registry.getDefaultModelForProvider(providerId);
+        return found !== undefined ? { ...found, providerId: providerId } : undefined;
     }
 
     /**

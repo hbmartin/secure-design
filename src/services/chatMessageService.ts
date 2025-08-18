@@ -24,7 +24,7 @@ export class ChatMessageService {
             const latestMessage = message.message || '';
             const messageContent = message.messageContent || latestMessage;
 
-            console.log('========chatHistory', chatHistory);
+            Logger.debug(`chatHistory size=${chatHistory.length}`);
 
             Logger.info(`Chat message received with ${chatHistory.length} history messages`);
             Logger.info(`Latest message: ${latestMessage}`);
