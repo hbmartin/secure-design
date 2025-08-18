@@ -1,11 +1,10 @@
 import React from 'react';
 
 interface ColorPaletteProps {
-    colors: any;
-    isDarkMode: boolean;
+    colors: GroupedColors;
 }
 
-const ColorPalette: React.FC<ColorPaletteProps> = ({ colors, isDarkMode }) => {
+const ColorPalette: React.FC<ColorPaletteProps> = ({ colors }) => {
     const handleColorCopy = (color: string) => {
         void navigator.clipboard.writeText(color);
     };

@@ -716,7 +716,7 @@ I've created the html design, please reveiw and let me know if you need any chan
                                 };
 
                                 onMessage?.(updateMessage);
-                            } catch (parseError) {
+                            } catch {
                                 // JSON not complete yet, continue buffering
                                 if (toolCallBuffer.length % 100 === 0) {
                                     this.outputChannel.appendLine(

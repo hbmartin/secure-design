@@ -60,29 +60,6 @@ const TOOL_TIME_ESTIMATES: { [key: string]: number } = {
     default: 90,
 };
 
-function getToolTimeEstimate(toolName: string): number {
-    if (TOOL_TIME_ESTIMATES[toolName]) {
-        return TOOL_TIME_ESTIMATES[toolName];
-    }
-
-    for (const [key, value] of Object.entries(TOOL_TIME_ESTIMATES)) {
-        if (toolName.includes(key) || key.includes(toolName)) {
-            return value;
-        }
-    }
-
-    if (toolName.includes('taskmaster') || toolName.includes('task')) {
-        return 120;
-    }
-    if (toolName.includes('search') || toolName.includes('grep')) {
-        return 30;
-    }
-    if (toolName.includes('file') || toolName.includes('read') || toolName.includes('write')) {
-        return 25;
-    }
-
-    return TOOL_TIME_ESTIMATES.default;
-}
 
 export function useChat(vscode: any): ChatHookResult {
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>(() => {

@@ -103,8 +103,10 @@ async function getBase64Image(filePath: string, sidebarProvider: ChatSidebarProv
             case 'bmp':
                 mimeType = 'image/bmp';
                 break;
+            case undefined:
             default:
                 mimeType = 'image/png'; // Default fallback
+                break;
         }
 
         // Convert to base64
@@ -242,9 +244,6 @@ async function initializeSecuredesignProject() {
     const workspaceRoot = workspaceFolder.uri;
     const superdesignFolder = vscode.Uri.joinPath(workspaceRoot, '.superdesign');
 
-    // Detect OS for correct keyboard shortcut
-    const isWindows = process.platform === 'win32';
-    const shortcut = isWindows ? 'Ctrl+Shift+P' : 'Command+Shift+P';
 
     const designRuleContent = `When asked to design UI & frontend interface
 When asked to design UI & frontend interface

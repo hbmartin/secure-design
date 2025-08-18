@@ -20,7 +20,6 @@ export class ChatMessageService {
         try {
             const chatHistory: ModelMessage[] = message.chatHistory || [];
             const latestMessage = message.message || '';
-            const messageContent = message.messageContent || latestMessage;
 
             Logger.debug(`chatHistory size=${chatHistory.length}`);
 
@@ -173,7 +172,7 @@ export class ChatMessageService {
 
         // Check if this is an update to existing message
         const isUpdate = (message as any)._isUpdate;
-        const updateToolId = (message as any)._updateToolId;
+        const _updateToolId = (message as any)._updateToolId;
 
         // Handle assistant messages
         if (message.role === 'assistant') {
@@ -201,8 +200,8 @@ export class ChatMessageService {
                     } else if (part.type === 'tool-call') {
                         // Send tool call or update
                         const toolPart = part as any;
-                        const command = isUpdate ? 'chatToolUpdate' : 'chatResponseChunk';
-                        const messageType = isUpdate ? undefined : 'tool-call';
+                        const _command = isUpdate ? 'chatToolUpdate' : 'chatResponseChunk';
+                        const _messageType = isUpdate ? undefined : 'tool-call';
 
                         if (isUpdate) {
                             // Send tool parameter update

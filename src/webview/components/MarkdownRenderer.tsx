@@ -17,7 +17,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
                 rehypePlugins={[rehypeHighlight]}
                 components={{
                     // Custom rendering for code blocks
-                    code: ({ node, className, children, ...props }: any) => {
+                    code: ({ className, children, ...props }: any) => {
                         const match = /language-(\w+)/.exec(className || '');
                         const inline = !className?.includes('language-');
                         return !inline && match ? (
@@ -33,19 +33,19 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
                         );
                     },
                     // Custom rendering for links to open externally
-                    a: ({ node, children, href, ...props }) => (
+                    a: ({ children, href, ...props }) => (
                         <a href={href} target='_blank' rel='noopener noreferrer' {...props}>
                             {children}
                         </a>
                     ),
                     // Custom rendering for tables
-                    table: ({ node, children, ...props }) => (
+                    table: ({ children, ...props }) => (
                         <div className='table-wrapper'>
                             <table {...props}>{children}</table>
                         </div>
                     ),
                     // Custom rendering for blockquotes
-                    blockquote: ({ node, children, ...props }) => (
+                    blockquote: ({ children, ...props }) => (
                         <blockquote className='markdown-blockquote' {...props}>
                             {children}
                         </blockquote>

@@ -1019,7 +1019,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                     >
                         <ThemePreviewCard
                             themeName={themeName}
-                            reasoning={reasoning}
                             cssSheet={cssFilePath ? null : cssSheet}
                             cssFilePath={cssFilePath}
                             isLoading={isLoading}

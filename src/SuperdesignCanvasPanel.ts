@@ -253,7 +253,7 @@ export class SuperdesignCanvasPanel {
             // Check if the design_files folder exists
             try {
                 await vscode.workspace.fs.stat(designFolder);
-            } catch (error) {
+            } catch {
                 // Folder doesn't exist, create it
                 try {
                     await vscode.workspace.fs.createDirectory(designFolder);

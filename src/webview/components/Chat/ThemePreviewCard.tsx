@@ -7,7 +7,6 @@ import { parseThemeCSS, extractColorPalette, type ParsedTheme } from '../../util
 
 interface ThemePreviewCardProps {
     themeName: string;
-    reasoning?: string;
     cssSheet?: string | null;
     cssFilePath?: string | null;
     isLoading?: boolean;
@@ -16,7 +15,6 @@ interface ThemePreviewCardProps {
 
 const ThemePreviewCard: React.FC<ThemePreviewCardProps> = ({
     themeName,
-    reasoning,
     cssSheet,
     cssFilePath,
     isLoading = false,
@@ -150,7 +148,7 @@ const ThemePreviewCard: React.FC<ThemePreviewCardProps> = ({
     };
 
     // Convert parsed theme to grouped colors format
-    const getGroupedColors = (theme: ParsedTheme) => {
+    const getGroupedColors = (theme: ParsedTheme): GroupedColors => {
         const palette = extractColorPalette(theme);
         return palette.reduce(
             (acc, color) => {
@@ -434,7 +432,6 @@ const ThemePreviewCard: React.FC<ThemePreviewCardProps> = ({
                                             {/* Color Palette */}
                                             <ColorPalette
                                                 colors={getGroupedColors(parsedTheme)}
-                                                isDarkMode={isDarkMode}
                                             />
                                         </>
                                     )}

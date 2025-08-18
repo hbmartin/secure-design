@@ -93,7 +93,7 @@ export class ClaudeCodeService {
                                 importSucceeded = true;
                                 break;
                             }
-                        } catch (pathError) {
+                        } catch {
                             continue;
                         }
                     }
@@ -101,7 +101,7 @@ export class ClaudeCodeService {
                     if (!importSucceeded) {
                         throw new Error('All local import paths failed');
                     }
-                } catch (localImportError) {
+                } catch {
                     // Fallback to standard import
                     try {
                         claudeCodeModule = await import('@anthropic-ai/claude-code');

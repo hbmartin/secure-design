@@ -220,7 +220,7 @@ export function calculateHierarchyPositions(
     config: CanvasConfig,
     actualFrameDimensions?: { width: number; height: number }
 ): HierarchyTree {
-    const { horizontalSpacing, verticalSpacing } = config.hierarchy;
+    const { verticalSpacing } = config.hierarchy;
     // Use actual frame dimensions if provided, otherwise fall back to config or defaults
     const frameWidth = actualFrameDimensions?.width || Math.max(config.frameSize.width, 400);
     const frameHeight = actualFrameDimensions?.height || Math.max(config.frameSize.height, 550);
@@ -235,7 +235,7 @@ export function calculateHierarchyPositions(
         };
 
         // Calculate subtree height to determine spacing for next root
-        const subtreeHeight = calculateSubtreeHeight(rootNode, tree.nodes, config, {
+        calculateSubtreeHeight(rootNode, tree.nodes, config, {
             width: frameWidth,
             height: frameHeight,
         });
@@ -437,7 +437,6 @@ export function detectDesignRelationships(designs: DesignFile[]): DesignFile[] {
 
     // Auto-detect versions and relationships
     updatedDesigns.forEach(design => {
-        const nameWithoutExt = design.name.replace(/\.[^/.]+$/, '');
 
         // Set version (current level version)
         design.version = getCurrentLevelVersion(design.name);

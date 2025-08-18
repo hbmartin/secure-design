@@ -135,9 +135,10 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                 promptText = `${file.content}\n\nAbove is the design implementation. Please create a similar UI using this as reference. Make it production-ready with proper styling.`;
                 platformName = 'Bolt';
                 break;
+            case undefined:
             default:
                 promptText = `${file.content}\n\nAbove is the design implementation, please use that as a reference`;
-                platformName = '';
+                platformName = 'Unknown Platform';
         }
 
         try {
@@ -176,16 +177,6 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
         }
     };
 
-    const handleCopyDropdownToggle = (e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        console.log(
-            'Dropdown toggle clicked. Current context:',
-            (window as any).__WEBVIEW_CONTEXT__
-        );
-        console.log('Logo URIs available:', (window as any).__WEBVIEW_CONTEXT__?.logoUris);
-        setShowCopyDropdown(!showCopyDropdown);
-    };
 
     const handleCopyDesignPath = async (e: React.MouseEvent) => {
         e.preventDefault();

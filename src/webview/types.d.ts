@@ -1,3 +1,5 @@
+type GroupedColors = Record<string, Record<string, string>>;
+
 declare module '*.css' {
     const content: string;
     export default content;
