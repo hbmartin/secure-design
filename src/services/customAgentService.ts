@@ -1,9 +1,6 @@
 import { streamText, type ModelMessage } from 'ai';
 import type { LanguageModelV2 } from '@ai-sdk/provider';
 import * as vscode from 'vscode';
-import * as path from 'path';
-import * as fs from 'fs';
-import * as os from 'os';
 import type { AgentService, ExecutionContext } from '../types/agent';
 import type { VsCodeConfiguration, ProviderId } from '../providers/types';
 import { ProviderService } from '../providers/ProviderService';
@@ -16,7 +13,9 @@ import { createGrepTool } from '../tools/grep-tool';
 import { createThemeTool } from '../tools/theme-tool';
 import { createLsTool } from '../tools/ls-tool';
 import { createMultieditTool } from '../tools/multiedit-tool';
-import { AnthropicProvider } from '../providers';
+import { AnthropicProvider } from '../providers/implementations/AnthropicProvider';
+import { getProvider } from '../providers/VsCodeConfiguration';
+import * as os from 'os';
 
 export class CustomAgentService implements AgentService {
     private workingDirectory: string = '';
@@ -28,49 +27,56 @@ export class CustomAgentService implements AgentService {
         this.outputChannel = outputChannel;
         this.providerService = ProviderService.getInstance();
         this.outputChannel.appendLine('CustomAgentService constructor called');
-        this.setupWorkingDirectory();
+        this.setupWorkingDirectory().catch(error => {
+            this.outputChannel.appendLine(`Error in setupWorkingDirectory: ${error}`);
+        });
     }
 
-    private setupWorkingDirectory() {
+    private async setupWorkingDirectory() {
         try {
             // Try to get workspace root first
-            const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-            this.outputChannel.appendLine(`Workspace root detected: ${workspaceRoot}`);
+            const workspaceRootUri = vscode.workspace.workspaceFolders?.[0]?.uri;
+            this.outputChannel.appendLine(`Workspace root detected: ${workspaceRootUri?.fsPath}`);
 
-            if (workspaceRoot !== undefined) {
+            if (workspaceRootUri) {
                 // Create .superdesign folder in workspace root
-                const superdesignDir = path.join(workspaceRoot, '.superdesign');
+                const superdesignUri = vscode.Uri.joinPath(workspaceRootUri, '.superdesign');
                 this.outputChannel.appendLine(
-                    `Setting up .superdesign directory at: ${superdesignDir}`
+                    `Setting up .superdesign directory at: ${superdesignUri.fsPath}`
                 );
 
-                // Create directory if it doesn't exist
-                if (!fs.existsSync(superdesignDir)) {
-                    fs.mkdirSync(superdesignDir, { recursive: true });
+                try {
+                    // Check if directory exists
+                    await vscode.workspace.fs.stat(superdesignUri);
                     this.outputChannel.appendLine(
-                        `Created .superdesign directory: ${superdesignDir}`
+                        `.superdesign directory already exists: ${superdesignUri.fsPath}`
                     );
-                } else {
+                } catch (error) {
+                    // Directory doesn't exist, create it
+                    await vscode.workspace.fs.createDirectory(superdesignUri);
                     this.outputChannel.appendLine(
-                        `.superdesign directory already exists: ${superdesignDir}`
+                        `Created .superdesign directory: ${superdesignUri.fsPath}`
                     );
                 }
 
-                this.workingDirectory = superdesignDir;
+                this.workingDirectory = superdesignUri.fsPath;
                 this.outputChannel.appendLine(`Working directory set to: ${this.workingDirectory}`);
             } else {
                 this.outputChannel.appendLine('No workspace root found, using fallback');
                 // Fallback to OS temp directory if no workspace
-                const tempDir = path.join(os.tmpdir(), 'superdesign-custom');
+                const tempDir = vscode.Uri.file(os.tmpdir());
+                const tempSuperdesignUri = vscode.Uri.joinPath(tempDir, 'superdesign-custom');
 
-                if (!fs.existsSync(tempDir)) {
-                    fs.mkdirSync(tempDir, { recursive: true });
+                try {
+                    await vscode.workspace.fs.stat(tempSuperdesignUri);
+                } catch (error) {
+                    await vscode.workspace.fs.createDirectory(tempSuperdesignUri);
                     this.outputChannel.appendLine(
-                        `Created temporary superdesign directory: ${tempDir}`
+                        `Created temporary superdesign directory: ${tempSuperdesignUri.fsPath} because of ${error}`
                     );
                 }
 
-                this.workingDirectory = tempDir;
+                this.workingDirectory = tempSuperdesignUri.fsPath;
                 this.outputChannel.appendLine(
                     `Working directory set to (fallback): ${this.workingDirectory}`
                 );
@@ -94,7 +100,7 @@ export class CustomAgentService implements AgentService {
 
     private getModel(): LanguageModelV2 {
         const config = vscode.workspace.getConfiguration('securedesign');
-        const provider = config.get<string>('aiModelProvider', AnthropicProvider.metadata.id) as ProviderId;
+        const provider = getProvider();
 
         this.outputChannel.appendLine(`Using AI provider: ${provider}`);
 
@@ -116,30 +122,13 @@ export class CustomAgentService implements AgentService {
         return this.providerService.createModel(modelToUse, provider, providerConfig);
     }
 
-    private getSystemPrompt(): string {
-        const config = vscode.workspace.getConfiguration('securedesign');
-        const specificModel = config.get<string>('aiModel');
-        const provider = config.get<string>('aiModelProvider', AnthropicProvider.metadata.id);
-
-        // Determine the actual model name being used
-        let modelName: string;
-        if (specificModel !== undefined) {
-            modelName = specificModel;
-        } else {
-            // Get default model from provider service
-            const defaultModel = this.providerService.getDefaultModelForProvider(
-                provider as ProviderId
-            );
-            modelName = defaultModel?.id || 'claude-3-5-sonnet-20241022';
-        }
-
+    private getSystemPrompt(): string { 
         return `# Role
 You are superdesign, a senior frontend designer integrated into VS Code as part of the Super Design extension.
 Your goal is to help user generate amazing design using code
 
 # Current Context
 - Extension: Super Design (Design Agent for VS Code)
-- AI Model: ${modelName}
 - Working directory: ${this.workingDirectory}
 
 # Instructions
@@ -536,7 +525,7 @@ I've created the html design, please reveiw and let me know if you need any chan
         this.outputChannel.appendLine(`Streaming enabled: ${!!onMessage}`);
 
         if (!this.isInitialized) {
-            this.setupWorkingDirectory();
+            await this.setupWorkingDirectory();
         }
 
         const responseMessages: any[] = [];
@@ -836,9 +825,9 @@ I've created the html design, please reveiw and let me know if you need any chan
         return this.isInitialized;
     }
 
-    waitForInitialization(): boolean {
+    async waitForInitialization(): Promise<boolean> {
         if (!this.isInitialized) {
-            this.setupWorkingDirectory();
+            await this.setupWorkingDirectory();
         }
         return this.isInitialized;
     }
@@ -850,13 +839,7 @@ I've created the html design, please reveiw and let me know if you need any chan
     hasApiKey(): boolean {
         const config = vscode.workspace.getConfiguration('securedesign');
         const specificModel = config.get<string>('aiModel');
-        const provider = config.get<string>('aiModelProvider', AnthropicProvider.metadata.id);
-
-        // Determine which model we're checking for
-        const modelToCheck =
-            specificModel ||
-            this.providerService.getDefaultModelForProvider(provider as ProviderId)?.id ||
-            'claude-3-5-sonnet-20241022';
+        const provider = getProvider();
 
         // Create provider configuration
         const providerConfig: VsCodeConfiguration = {
@@ -866,7 +849,7 @@ I've created the html design, please reveiw and let me know if you need any chan
 
         // Use provider service to check credentials
         const validation = this.providerService.validateCredentialsForProvider(
-            provider as ProviderId,
+            provider,
             providerConfig
         );
         return validation.isValid;

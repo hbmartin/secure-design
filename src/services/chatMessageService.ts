@@ -5,6 +5,7 @@ import type { ModelMessage } from 'ai';
 import type { VsCodeConfiguration, ProviderId } from '../providers/types';
 import { ProviderService } from '../providers/ProviderService';
 import { Logger } from './logger';
+import { getProvider } from '../providers/VsCodeConfiguration';
 
 export class ChatMessageService {
     private currentRequestController?: AbortController;
@@ -130,15 +131,7 @@ export class ChatMessageService {
                 !this.agentService.hasApiKey()
             ) {
                 // Get current provider information
-                const config = vscode.workspace.getConfiguration('securedesign');
-                const specificModel = config.get<string>('aiModel');
-                const provider = config.get<string>('aiModelProvider', 'anthropic') as ProviderId;
-
-                // Determine which model we're working with
-                const modelToCheck =
-                    specificModel ||
-                    this.providerService.getDefaultModelForProvider(provider)?.id ||
-                    'claude-3-5-sonnet-20241022';
+                const provider = getProvider();
 
                 // Get provider metadata
                 const providerMetadata = this.providerService.getProviderMetadata(provider);
