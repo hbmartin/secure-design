@@ -52,11 +52,17 @@ export class CustomAgentService implements AgentService {
                         `.superdesign directory already exists: ${superdesignUri.fsPath}`
                     );
                 } catch (error) {
-                    // Directory doesn't exist, create it
-                    await vscode.workspace.fs.createDirectory(superdesignUri);
-                    this.outputChannel.appendLine(
-                        `Created .superdesign directory: ${superdesignUri.fsPath}`
-                    );
+                    if (error instanceof vscode.FileSystemError && error.code === 'FileNotFound') {
+                        // Directory doesn't exist, create it
+                        await vscode.workspace.fs.createDirectory(superdesignUri);
+                        this.outputChannel.appendLine(
+                            `Created .superdesign directory: ${superdesignUri.fsPath}`
+                        );
+                    } else {
+                        // Log and rethrow other unexpected errors
+                        this.outputChannel.appendLine(`Error setting up working directory at ${superdesignUri.fsPath}: ${error}`);
+                        throw error;
+                    }
                 }
 
                 this.workingDirectory = superdesignUri.fsPath;
