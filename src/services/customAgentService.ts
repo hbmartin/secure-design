@@ -1,10 +1,11 @@
-import { streamText, type LanguageModel, type ModelMessage } from 'ai';
+import { streamText, type ModelMessage } from 'ai';
+import type { LanguageModelV2 } from '@ai-sdk/provider';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import type { AgentService, ExecutionContext } from '../types/agent';
-import type { ProviderConfig, ProviderId } from '../providers/types';
+import type { VsCodeConfiguration, ProviderId } from '../providers/types';
 import { ProviderService } from '../providers/ProviderService';
 import { createReadTool } from '../tools/read-tool';
 import { createWriteTool } from '../tools/write-tool';
@@ -91,28 +92,28 @@ export class CustomAgentService implements AgentService {
         }
     }
 
-    private getModel(): LanguageModel {
+    private getModel(): LanguageModelV2 {
         const config = vscode.workspace.getConfiguration('securedesign');
-        const provider = config.get<string>('aiModelProvider', AnthropicProvider.metadata.id);
+        const provider = config.get<string>('aiModelProvider', AnthropicProvider.metadata.id) as ProviderId;
 
         this.outputChannel.appendLine(`Using AI provider: ${provider}`);
 
         const modelToUse =
             config.get<string>('aiModel') ||
-            this.providerService.getDefaultModelForProvider(provider as ProviderId)?.id;
+            this.providerService.getDefaultModelForProvider(provider)?.id;
 
         if (modelToUse === undefined) {
             throw new Error('No model configured');
         }
 
         // Create provider configuration
-        const providerConfig: ProviderConfig = {
+        const providerConfig: VsCodeConfiguration = {
             config: config,
             outputChannel: this.outputChannel,
         };
 
         // Use provider service to create model instance
-        return this.providerService.createModel(modelToUse, provider as ProviderId, providerConfig);
+        return this.providerService.createModel(modelToUse, provider, providerConfig);
     }
 
     private getSystemPrompt(): string {
@@ -858,7 +859,7 @@ I've created the html design, please reveiw and let me know if you need any chan
             'claude-3-5-sonnet-20241022';
 
         // Create provider configuration
-        const providerConfig: ProviderConfig = {
+        const providerConfig: VsCodeConfiguration = {
             config: config,
             outputChannel: this.outputChannel,
         };

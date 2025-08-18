@@ -8,11 +8,11 @@ import {
     AIProvider,
     type ProviderMetadata,
     type ModelConfig,
-    type ProviderConfig,
+    type VsCodeConfiguration,
     type ValidationResult,
     type ProviderInstanceParams,
 } from '../types';
-import type { LanguageModel } from 'ai';
+import type { LanguageModelV2 } from '@ai-sdk/provider';
 
 export class AnthropicProvider extends AIProvider {
     static readonly metadata: ProviderMetadata = {
@@ -70,7 +70,7 @@ export class AnthropicProvider extends AIProvider {
         },
     ];
 
-    createInstance(params: ProviderInstanceParams): LanguageModel {
+    createInstance(params: ProviderInstanceParams): LanguageModelV2 {
         const apiKey = params.config.config.get<string>(AnthropicProvider.metadata.apiKeyConfigKey);
         if (apiKey === undefined) {
             throw new Error(this.getCredentialsErrorMessage());
@@ -86,7 +86,7 @@ export class AnthropicProvider extends AIProvider {
         return anthropic(params.model);
     }
 
-    validateCredentials(config: ProviderConfig): ValidationResult {
+    validateCredentials(config: VsCodeConfiguration): ValidationResult {
         const apiKey = config.config.get<string>(AnthropicProvider.metadata.apiKeyConfigKey);
 
         if (apiKey === undefined) {

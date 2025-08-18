@@ -8,11 +8,11 @@ import {
     AIProvider,
     type ProviderMetadata,
     type ModelConfig,
-    type ProviderConfig,
+    type VsCodeConfiguration,
     type ValidationResult,
     type ProviderInstanceParams,
 } from '../types';
-import type { LanguageModel } from 'ai';
+import type { LanguageModelV2 } from '@ai-sdk/provider';
 
 export class GoogleProvider extends AIProvider {
     static readonly metadata: ProviderMetadata = {
@@ -70,7 +70,7 @@ export class GoogleProvider extends AIProvider {
         },
     ];
 
-    createInstance(params: ProviderInstanceParams): LanguageModel {
+    createInstance(params: ProviderInstanceParams): LanguageModelV2 {
         const apiKey = params.config.config.get<string>(GoogleProvider.metadata.apiKeyConfigKey);
         if (!apiKey) {
             throw new Error(this.getCredentialsErrorMessage());
@@ -86,10 +86,10 @@ export class GoogleProvider extends AIProvider {
         return google(params.model);
     }
 
-    validateCredentials(config: ProviderConfig): ValidationResult {
+    validateCredentials(config: VsCodeConfiguration): ValidationResult {
         const apiKey = config.config.get<string>(GoogleProvider.metadata.apiKeyConfigKey);
 
-        if (!apiKey) {
+        if (apiKey === undefined) {
             return {
                 isValid: false,
                 error: 'Google API key is not configured',

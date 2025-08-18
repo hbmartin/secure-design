@@ -8,11 +8,11 @@ import {
     AIProvider,
     type ProviderMetadata,
     type ModelConfig,
-    type ProviderConfig,
+    type VsCodeConfiguration,
     type ValidationResult,
     type ProviderInstanceParams,
 } from '../types';
-import type { LanguageModel } from 'ai';
+import type { LanguageModelV2 } from '@ai-sdk/provider';
 
 export class OpenAIProvider extends AIProvider {
     static readonly metadata: ProviderMetadata = {
@@ -77,32 +77,27 @@ export class OpenAIProvider extends AIProvider {
         },
     ];
 
-    createInstance(params: ProviderInstanceParams): LanguageModel {
+    createInstance(params: ProviderInstanceParams): LanguageModelV2 {
         const apiKey = params.config.config.get<string>(OpenAIProvider.metadata.apiKeyConfigKey);
         const baseURL = params.config.config.get<string>('openaiUrl');
 
-        if (!apiKey) {
+        if (apiKey === undefined) {
             throw new Error(this.getCredentialsErrorMessage());
         }
 
-        params.config.outputChannel.appendLine(
-            `OpenAI API key found: ${apiKey.substring(0, 7)}...`
-        );
+        params.config.outputChannel.appendLine('OpenAI API key found');
 
-        if (baseURL) {
+        if (baseURL !== undefined) {
             params.config.outputChannel.appendLine(`Using custom OpenAI base URL: ${baseURL}`);
         }
 
-        const openai = createOpenAI({
-            apiKey: apiKey,
-            baseURL: baseURL || undefined,
-        });
+        const openai = createOpenAI({apiKey, baseURL});
 
         params.config.outputChannel.appendLine(`Using OpenAI model: ${params.model}`);
         return openai(params.model);
     }
 
-    validateCredentials(config: ProviderConfig): ValidationResult {
+    validateCredentials(config: VsCodeConfiguration): ValidationResult {
         const apiKey = config.config.get<string>(OpenAIProvider.metadata.apiKeyConfigKey);
         const baseURL = config.config.get<string>('openaiUrl');
 
@@ -128,7 +123,7 @@ export class OpenAIProvider extends AIProvider {
         }
 
         // Validate base URL if provided
-        if (baseURL) {
+        if (baseURL !== undefined) {
             try {
                 new URL(baseURL);
                 if (!baseURL.startsWith('http')) {
@@ -147,9 +142,6 @@ export class OpenAIProvider extends AIProvider {
 
         return {
             isValid: true,
-            warning: baseURL
-                ? "Using custom base URL - ensure it's compatible with OpenAI API"
-                : undefined,
         };
     }
 }

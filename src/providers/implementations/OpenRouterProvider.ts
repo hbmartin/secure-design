@@ -8,11 +8,11 @@ import {
     AIProvider,
     type ProviderMetadata,
     type ModelConfig,
-    type ProviderConfig,
+    type VsCodeConfiguration,
     type ValidationResult,
     type ProviderInstanceParams,
 } from '../types';
-import type { LanguageModel } from 'ai';
+import type { LanguageModelV2 } from '@ai-sdk/provider';
 
 export class OpenRouterProvider extends AIProvider {
     static readonly metadata: ProviderMetadata = {
@@ -177,17 +177,15 @@ export class OpenRouterProvider extends AIProvider {
         },
     ];
 
-    createInstance(params: ProviderInstanceParams): LanguageModel {
+    createInstance(params: ProviderInstanceParams): LanguageModelV2 {
         const apiKey = params.config.config.get<string>(
             OpenRouterProvider.metadata.apiKeyConfigKey
         );
-        if (!apiKey) {
+        if (apiKey === undefined) {
             throw new Error(this.getCredentialsErrorMessage());
         }
 
-        params.config.outputChannel.appendLine(
-            `OpenRouter API key found: ${apiKey.substring(0, 12)}...`
-        );
+        params.config.outputChannel.appendLine('OpenRouter API key found');
 
         const openrouter = createOpenRouter({
             apiKey: apiKey,
@@ -197,10 +195,10 @@ export class OpenRouterProvider extends AIProvider {
         return openrouter.chat(params.model);
     }
 
-    validateCredentials(config: ProviderConfig): ValidationResult {
+    validateCredentials(config: VsCodeConfiguration): ValidationResult {
         const apiKey = config.config.get<string>(OpenRouterProvider.metadata.apiKeyConfigKey);
 
-        if (!apiKey) {
+        if (apiKey === undefined) {
             return {
                 isValid: false,
                 error: 'OpenRouter API key is not configured',

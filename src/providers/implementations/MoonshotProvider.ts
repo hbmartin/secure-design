@@ -8,11 +8,11 @@ import {
     AIProvider,
     type ProviderMetadata,
     type ModelConfig,
-    type ProviderConfig,
+    type VsCodeConfiguration,
     type ValidationResult,
     type ProviderInstanceParams,
 } from '../types';
-import type { LanguageModel } from 'ai';
+import type { LanguageModelV2 } from '@ai-sdk/provider';
 
 export class MoonshotProvider extends AIProvider {
     static readonly metadata: ProviderMetadata = {
@@ -52,15 +52,13 @@ export class MoonshotProvider extends AIProvider {
         },
     ];
 
-    createInstance(params: ProviderInstanceParams): LanguageModel {
+    createInstance(params: ProviderInstanceParams): LanguageModelV2 {
         const apiKey = params.config.config.get<string>(MoonshotProvider.metadata.apiKeyConfigKey);
-        if (!apiKey) {
+        if (apiKey === undefined) {
             throw new Error(this.getCredentialsErrorMessage());
         }
 
-        params.config.outputChannel.appendLine(
-            `Moonshot API key found: ${apiKey.substring(0, 12)}...`
-        );
+        params.config.outputChannel.appendLine('Moonshot API key found');
         params.config.outputChannel.appendLine(
             'Using Moonshot API baseURL: https://api.moonshot.ai/v1'
         );
@@ -74,10 +72,10 @@ export class MoonshotProvider extends AIProvider {
         return moonshot(params.model);
     }
 
-    validateCredentials(config: ProviderConfig): ValidationResult {
+    validateCredentials(config: VsCodeConfiguration): ValidationResult {
         const apiKey = config.config.get<string>(MoonshotProvider.metadata.apiKeyConfigKey);
 
-        if (!apiKey) {
+        if (apiKey === undefined) {
             return {
                 isValid: false,
                 error: 'Moonshot API key is not configured',

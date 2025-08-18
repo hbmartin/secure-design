@@ -8,11 +8,11 @@ import {
     AIProvider,
     type ProviderMetadata,
     type ModelConfig,
-    type ProviderConfig,
+    type VsCodeConfiguration,
     type ValidationResult,
     type ProviderInstanceParams,
 } from '../types';
-import type { LanguageModel } from 'ai';
+import type { LanguageModelV2 } from '@ai-sdk/provider';
 
 export class BedrockProvider extends AIProvider {
     static readonly metadata: ProviderMetadata = {
@@ -160,7 +160,7 @@ export class BedrockProvider extends AIProvider {
         },
     ];
 
-    createInstance(params: ProviderInstanceParams): LanguageModel {
+    createInstance(params: ProviderInstanceParams): LanguageModelV2 {
         const awsAccessKeyId = params.config.config.get<string>('awsAccessKeyId');
         const awsSecretAccessKey = params.config.config.get<string>('awsSecretAccessKey');
         const awsRegion = params.config.config.get<string>('awsRegion') || 'us-east-1';
@@ -181,7 +181,7 @@ export class BedrockProvider extends AIProvider {
         return bedrock(params.model);
     }
 
-    validateCredentials(config: ProviderConfig): ValidationResult {
+    validateCredentials(config: VsCodeConfiguration): ValidationResult {
         const awsAccessKeyId = config.config.get<string>('awsAccessKeyId');
         const awsSecretAccessKey = config.config.get<string>('awsSecretAccessKey');
         const awsRegion = config.config.get<string>('awsRegion');
@@ -238,11 +238,5 @@ export class BedrockProvider extends AIProvider {
                 ? 'No AWS region specified, will use us-east-1 as default'
                 : undefined,
         };
-    }
-
-    hasCredentials(config: ProviderConfig): boolean {
-        const awsAccessKeyId = config.config.get<string>('awsAccessKeyId');
-        const awsSecretAccessKey = config.config.get<string>('awsSecretAccessKey');
-        return !!(awsAccessKeyId && awsSecretAccessKey);
     }
 }

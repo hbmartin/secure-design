@@ -7,14 +7,14 @@ import { BedrockProvider } from './implementations/BedrockProvider';
 import { MoonshotProvider } from './implementations/MoonshotProvider';
 import type {
     IProviderService,
-    ProviderConfig,
+    VsCodeConfiguration,
     ProviderMetadata,
     ValidationResult,
     ModelConfig,
     ProviderId,
     AIProvider,
 } from './types';
-import type { LanguageModel } from 'ai';
+import type { LanguageModelV2 } from '@ai-sdk/provider';
 
 export class ProviderService implements IProviderService {
     private static instance: ProviderService | undefined;
@@ -36,10 +36,9 @@ export class ProviderService implements IProviderService {
     /**
      * Create a model instance for the given model and provider
      */
-    createModel(model: string, providerId: ProviderId, config: ProviderConfig): LanguageModel {
+    createModel(model: string, providerId: ProviderId, config: VsCodeConfiguration): LanguageModelV2 {
         const provider = this.registry.getProvider(providerId);
 
-        // Validate credentials before creating instance
         const validation = provider.validateCredentials(config);
         if (!validation.isValid) {
             throw new Error(validation.error ?? 'Invalid credentials');
@@ -53,26 +52,16 @@ export class ProviderService implements IProviderService {
      */
     validateCredentialsForProvider(
         providerId: ProviderId,
-        config: ProviderConfig
+        config: VsCodeConfiguration
     ): ValidationResult {
-        const provider = this.registry.getProvider(providerId);
-
-        if (!provider) {
-            return {
-                isValid: false,
-                error: `Provider not found: ${providerId}`,
-            };
-        }
-
-        return provider.validateCredentials(config);
+        return this.registry.getProvider(providerId).validateCredentials(config);
     }
 
     /**
      * Get display name for a model from a specific provider
      */
     getModelDisplayName(model: string, providerId: ProviderId): string {
-        const provider = this.registry.getProvider(providerId);
-        return provider.getModelDisplayName(model);
+        return this.registry.getProvider(providerId).getModelDisplayName(model);
     }
 
     /**
@@ -115,17 +104,6 @@ export class ProviderService implements IProviderService {
     }
 
     /**
-     * Check if provider has required credentials
-     */
-    hasCredentials(providerId: ProviderId, config: ProviderConfig): boolean {
-        const provider = this.registry.getProvider(providerId);
-        if (!provider) {
-            return false;
-        }
-        return provider.hasCredentials(config);
-    }
-
-    /**
      * Get providers that support vision/multimodal capabilities
      */
     getVisionCapableProviders(): ProviderMetadata[] {
@@ -155,7 +133,7 @@ export class ProviderService implements IProviderService {
     /**
      * Validate all providers and return summary
      */
-    validateAllProviders(config: ProviderConfig): Array<{
+    validateAllProviders(config: VsCodeConfiguration): Array<{
         providerId: ProviderId;
         providerName: string;
         validation: ValidationResult;

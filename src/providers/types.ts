@@ -4,7 +4,7 @@
  */
 
 import type * as vscode from 'vscode';
-import type { LanguageModel } from 'ai';
+import type { LanguageModelV2 } from '@ai-sdk/provider';
 
 /**
  * Supported AI provider identifiers
@@ -32,7 +32,7 @@ export interface ModelConfig {
 /**
  * Provider configuration from VS Code settings
  */
-export interface ProviderConfig {
+export interface VsCodeConfiguration {
     /** VS Code configuration object */
     config: vscode.WorkspaceConfiguration;
     /** Output channel for logging */
@@ -78,7 +78,7 @@ export interface ProviderInstanceParams {
     /** The model to use */
     model: string;
     /** Provider configuration */
-    config: ProviderConfig;
+    config: VsCodeConfiguration;
     /** Additional instance-specific options */
     options?: Record<string, any>;
 }
@@ -131,7 +131,7 @@ export abstract class AIProvider {
      * @param config Provider configuration
      * @returns true if credentials are present
      */
-    hasCredentials(config: ProviderConfig): boolean {
+    hasCredentials(config: VsCodeConfiguration): boolean {
         const metadata = (this.constructor as typeof AIProvider).metadata;
         const primaryKey = config.config.get<string>(metadata.apiKeyConfigKey);
         if (!primaryKey) {
@@ -160,14 +160,14 @@ export abstract class AIProvider {
      * @param params Provider instance parameters
      * @returns AI SDK model instance
      */
-    abstract createInstance(params: ProviderInstanceParams): LanguageModel;
+    abstract createInstance(params: ProviderInstanceParams): LanguageModelV2;
 
     /**
      * Validate provider credentials
      * @param config Provider configuration
      * @returns Validation result
      */
-    abstract validateCredentials(config: ProviderConfig): ValidationResult;
+    abstract validateCredentials(config: VsCodeConfiguration): ValidationResult;
 }
 
 /**
@@ -213,7 +213,7 @@ export interface IProviderService {
      * @param config Provider configuration
      * @returns AI SDK model instance
      */
-    createModel(model: string, providerId: ProviderId, config: ProviderConfig): LanguageModel;
+    createModel(model: string, providerId: ProviderId, config: VsCodeConfiguration): LanguageModelV2;
 
     /**
      * Validate credentials for a specific provider
@@ -223,7 +223,7 @@ export interface IProviderService {
      */
     validateCredentialsForProvider(
         providerId: ProviderId,
-        config: ProviderConfig
+        config: VsCodeConfiguration
     ): ValidationResult;
 
     /**

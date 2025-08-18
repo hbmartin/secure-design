@@ -4,7 +4,7 @@ import { ChatMessageService } from '../services/chatMessageService';
 import { generateWebviewHtml } from '../templates/webviewTemplate';
 import type { WebviewContext } from '../types/context';
 import type { AgentService } from '../types/agent';
-import type { ProviderConfig, ProviderId } from './types';
+import type { VsCodeConfiguration, ProviderId } from './types';
 import { ProviderService } from './ProviderService';
 
 export class ChatSidebarProvider implements vscode.WebviewViewProvider {
@@ -139,7 +139,7 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
             await config.update('aiModel', model, vscode.ConfigurationTarget.Global);
 
             // Check if credentials are configured
-            const providerConfig: ProviderConfig = {
+            const providerConfig: VsCodeConfiguration = {
                 config: config,
                 outputChannel: this.outputChannel,
             };
