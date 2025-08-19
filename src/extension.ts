@@ -4,6 +4,7 @@ import * as vscode from 'vscode';
 import { CustomAgentService } from './services/customAgentService';
 import { ChatSidebarProvider } from './providers/chatSidebarProvider';
 import { Logger } from './services/logger';
+import { WorkspaceStateService } from './services/workspaceStateService';
 import * as path from 'path';
 import { registerProviderCommands } from './providerConfiguration';
 import { SuperdesignCanvasPanel } from './SuperdesignCanvasPanel';
@@ -1284,6 +1285,11 @@ export function activate(context: vscode.ExtensionContext) {
     Logger.info('SecureDesign extension is now active!');
     // Note: Users can manually open output via View → Output → Select "SecureDesign" if needed
 
+    // Initialize workspace state service
+    const workspaceStateService = WorkspaceStateService.getInstance();
+    workspaceStateService.initialize(context);
+    Logger.info('WorkspaceStateService initialized');
+
     // Initialize Custom Agent service
     Logger.info('Creating CustomAgentService...');
     const customAgent = new CustomAgentService(Logger.getOutputChannel());
@@ -1412,6 +1418,22 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
+    // Handle workspace changes to reset chat history for new projects
+    let currentWorkspaceId = workspaceStateService.getWorkspaceId();
+    const workspaceChangeDisposable = vscode.workspace.onDidChangeWorkspaceFolders(() => {
+        const newWorkspaceId = workspaceStateService.getWorkspaceId();
+        if (workspaceStateService.hasWorkspaceChanged(currentWorkspaceId)) {
+            Logger.info(`Workspace changed from ${currentWorkspaceId} to ${newWorkspaceId}`);
+            currentWorkspaceId = newWorkspaceId;
+
+            // Notify webview about workspace change to reload chat history
+            sidebarProvider.sendMessage({
+                command: 'workspaceChanged',
+                workspaceId: newWorkspaceId,
+            });
+        }
+    });
+
     context.subscriptions.push(
         ...registerProviderCommands(),
         sidebarDisposable,
@@ -1420,7 +1442,8 @@ export function activate(context: vscode.ExtensionContext) {
         clearChatDisposable,
         resetWelcomeDisposable,
         initializeProjectDisposable,
-        openSettingsDisposable
+        openSettingsDisposable,
+        workspaceChangeDisposable
     );
 }
 

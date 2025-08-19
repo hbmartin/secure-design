@@ -43,36 +43,34 @@ export interface ChatHookResult {
 }
 
 export function useChat(vscode: any): ChatHookResult {
-    const [chatHistory, setChatHistory] = useState<ChatMessage[]>(() => {
-        // Initialize with persisted chat history from localStorage
-        try {
-            const saved = localStorage.getItem('superdesign-chat-history');
-            return saved ? JSON.parse(saved) : [];
-        } catch (error) {
-            console.warn('Failed to load chat history from localStorage:', error);
-            return [];
-        }
-    });
+    const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [_currentWorkspaceId, setCurrentWorkspaceId] = useState<string | undefined>();
+    const [isInitialized, setIsInitialized] = useState(false);
 
-    // Persist chat history to localStorage whenever it changes
+    // Request chat history from VS Code workspace state on initialization
     useEffect(() => {
-        try {
-            localStorage.setItem('superdesign-chat-history', JSON.stringify(chatHistory));
-        } catch (error) {
-            console.warn('Failed to save chat history to localStorage:', error);
+        if (!isInitialized) {
+            vscode.postMessage({ command: 'loadChatHistory' });
+            setIsInitialized(true);
         }
-    }, [chatHistory]);
+    }, [vscode, isInitialized]);
+
+    // Persist chat history to VS Code workspace state whenever it changes
+    useEffect(() => {
+        if (isInitialized && chatHistory.length >= 0) {
+            vscode.postMessage({
+                command: 'saveChatHistory',
+                chatHistory: chatHistory,
+            });
+        }
+    }, [chatHistory, vscode, isInitialized]);
 
     const clearHistory = useCallback(() => {
         setChatHistory([]);
-        // Also clear from localStorage
-        try {
-            localStorage.removeItem('superdesign-chat-history');
-        } catch (error) {
-            console.warn('Failed to clear chat history from localStorage:', error);
-        }
-    }, []);
+        // Clear from VS Code workspace state
+        vscode.postMessage({ command: 'clearWorkspaceChatHistory' });
+    }, [vscode]);
 
     const sendMessage = useCallback(
         (message: string) => {
@@ -332,6 +330,24 @@ export function useChat(vscode: any): ChatHookResult {
                     setIsLoading(false);
                     break;
 
+                case 'chatHistoryLoaded':
+                    console.log('Chat history loaded from workspace state');
+                    setChatHistory(message.chatHistory ?? []);
+                    setCurrentWorkspaceId(message.workspaceId);
+                    break;
+
+                case 'chatHistoryCleared':
+                    console.log('Chat history cleared');
+                    setChatHistory([]);
+                    break;
+
+                case 'workspaceChanged':
+                    console.log('Workspace changed, reloading chat history');
+                    setCurrentWorkspaceId(message.workspaceId);
+                    // Request fresh chat history for new workspace
+                    vscode.postMessage({ command: 'loadChatHistory' });
+                    break;
+
                 default:
                     break;
             }
@@ -339,7 +355,7 @@ export function useChat(vscode: any): ChatHookResult {
 
         window.addEventListener('message', messageHandler);
         return () => window.removeEventListener('message', messageHandler);
-    }, []);
+    }, [vscode]);
 
     return {
         chatHistory,

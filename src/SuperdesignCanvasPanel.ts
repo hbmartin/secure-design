@@ -15,6 +15,7 @@ export class SuperdesignCanvasPanel {
     private readonly _disposables: vscode.Disposable[] = [];
     private readonly _fileWatcherService: FileWatcherService;
     private _workspaceChangeListener: vscode.Disposable | undefined;
+    private _isDisposing = false;
 
     public static createOrShow(extensionUri: vscode.Uri, sidebarProvider: ChatSidebarProvider) {
         const column = vscode.window.activeTextEditor?.viewColumn;
@@ -113,6 +114,12 @@ export class SuperdesignCanvasPanel {
     }
 
     public dispose() {
+        // Prevent recursive disposal
+        if (this._isDisposing) {
+            return;
+        }
+        this._isDisposing = true;
+
         // Clear static reference first to prevent race conditions
         if (SuperdesignCanvasPanel.currentPanel === this) {
             SuperdesignCanvasPanel.currentPanel = undefined;
@@ -120,18 +127,15 @@ export class SuperdesignCanvasPanel {
 
         // Dispose workspace change listener
         if (this._workspaceChangeListener) {
-            this._workspaceChangeListener.dispose();
+            try {
+                this._workspaceChangeListener.dispose();
+            } catch (error) {
+                Logger.warn(`Error disposing workspace change listener: ${error}`);
+            }
             this._workspaceChangeListener = undefined;
         }
 
-        // Dispose panel (this will trigger onDidDispose event)
-        try {
-            this._panel.dispose();
-        } catch (error) {
-            Logger.warn(`Error disposing webview panel: ${error}`);
-        }
-
-        // Dispose all other resources
+        // Dispose all other resources first (before panel to avoid recursion)
         while (this._disposables.length) {
             const disposable = this._disposables.pop();
             if (disposable) {
@@ -141,6 +145,13 @@ export class SuperdesignCanvasPanel {
                     Logger.warn(`Error disposing resource: ${error}`);
                 }
             }
+        }
+
+        // Dispose panel last (this might trigger onDidDispose event, but we're guarded)
+        try {
+            this._panel.dispose();
+        } catch (error) {
+            Logger.warn(`Error disposing webview panel: ${error}`);
         }
     }
 
@@ -348,7 +359,13 @@ export class SuperdesignCanvasPanel {
 
             this._panel.webview.postMessage({
                 command: 'designFilesLoaded',
-                data: { files: allValidFiles },
+                data: {
+                    files: allValidFiles,
+                    workspaceInfo: {
+                        folderCount: vscode.workspace.workspaceFolders?.length ?? 0,
+                        folderNames: vscode.workspace.workspaceFolders?.map(f => f.name) ?? [],
+                    },
+                },
             });
         } catch (error) {
             Logger.error(`Error loading design files: ${error}`);
