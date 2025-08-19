@@ -153,11 +153,16 @@ async function processTextFile(
     const lines = content.split('\n');
     const originalLineCount = lines.length;
 
-    // Handle line range
-    const actualStartLine = Math.max((startLine ?? 1) - 1, 0); // Convert to 0-based
-    const actualLineCount = lineCount ?? Math.min(DEFAULT_MAX_LINES, originalLineCount);
-    const endLine = Math.min(actualStartLine + actualLineCount, originalLineCount);
+    // Handle line range with proper validation and clamping
+    const clampedStartLine = Math.max(Math.floor(startLine ?? 1), 1); // Ensure positive integer, 1-based
+    const actualStartLine = Math.max(clampedStartLine - 1, 0); // Convert to 0-based
 
+    // Clamp lineCount to non-negative integer, with special handling for explicit 0
+    const requestedLineCount =
+        lineCount !== undefined ? Math.max(Math.floor(lineCount), 0) : undefined;
+    const actualLineCount = requestedLineCount ?? Math.min(DEFAULT_MAX_LINES, originalLineCount);
+
+    const endLine = Math.min(actualStartLine + actualLineCount, originalLineCount);
     const selectedLines = lines.slice(actualStartLine, endLine);
 
     // Truncate long lines
@@ -170,25 +175,38 @@ async function processTextFile(
         return line;
     });
 
-    const contentWasTruncated = endLine < originalLineCount;
+    // Only consider content truncated if we hit the limit due to our own constraints,
+    // not when the user explicitly requested fewer/zero lines
+    const wasLimitedByDefault = requestedLineCount === undefined && endLine < originalLineCount;
+    const wasLimitedByFileSize =
+        requestedLineCount !== undefined &&
+        requestedLineCount > 0 &&
+        endLine < actualStartLine + requestedLineCount;
+    const contentWasTruncated = wasLimitedByDefault || wasLimitedByFileSize;
     const isTruncated = contentWasTruncated || linesWereTruncated;
 
     let processedContent = processedLines.join('\n');
 
-    // Add truncation notice
-    if (contentWasTruncated) {
+    // Add truncation notice only when we actually truncated content
+    if (contentWasTruncated && selectedLines.length > 0) {
         processedContent = `[Content truncated: showing lines ${actualStartLine + 1}-${endLine} of ${originalLineCount} total lines]\n\n${processedContent}`;
     } else if (linesWereTruncated) {
         processedContent = `[Some lines truncated due to length (max ${MAX_LINE_LENGTH} chars)]\n\n${processedContent}`;
     }
 
+    // Build metadata - only include linesShown when lines were actually returned
+    const metadata: Partial<FileReadResult> = {
+        lineCount: originalLineCount,
+        isTruncated,
+    };
+
+    if (selectedLines.length > 0) {
+        metadata.linesShown = [actualStartLine + 1, endLine];
+    }
+
     return {
         content: processedContent,
-        metadata: {
-            lineCount: originalLineCount,
-            isTruncated,
-            linesShown: [actualStartLine + 1, endLine],
-        },
+        metadata,
     };
 }
 
