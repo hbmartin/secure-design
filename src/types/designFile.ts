@@ -17,8 +17,8 @@ export interface DesignFile {
     /** File size in bytes */
     size: number;
 
-    /** Last modified date */
-    modified: Date;
+    /** Last modified date (ISO string) */
+    modified: string;
 
     /** File type - either 'html' or 'svg' */
     fileType: 'html' | 'svg';

@@ -8,6 +8,7 @@ import { ProviderService } from './ProviderService';
 import { getModel } from './VsCodeConfiguration';
 import { WorkspaceStateService } from '../services/workspaceStateService';
 import { ChatHistoryMigrationService } from '../services/chatHistoryMigrationService';
+import type { ChatMessage } from '../types';
 
 export class ChatSidebarProvider implements vscode.WebviewViewProvider {
     public static readonly VIEW_TYPE = 'securedesign.chatView';
@@ -352,7 +353,7 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
         vscode.window.showInformationMessage('Canvas content added as context');
     }
 
-    private async handleSaveChatHistory(chatHistory: any[]): Promise<void> {
+    private async handleSaveChatHistory(chatHistory: ChatMessage[]): Promise<void> {
         try {
             const workspaceStateService = WorkspaceStateService.getInstance();
             await workspaceStateService.saveChatHistory(chatHistory);
@@ -363,21 +364,28 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
 
     private async handleLoadChatHistory(webview: vscode.Webview): Promise<void> {
         try {
+            if (webview.hasOwnProperty('disposed') && (webview as any).disposed === true) {
+                return;
+            }
             const workspaceStateService = WorkspaceStateService.getInstance();
             const chatHistory = workspaceStateService.getChatHistory();
 
             await webview.postMessage({
                 command: 'chatHistoryLoaded',
-                chatHistory: chatHistory,
+                chatHistory,
                 workspaceId: workspaceStateService.getWorkspaceId(),
             });
         } catch (error) {
             console.error('Failed to load chat history:', error);
-            await webview.postMessage({
-                command: 'chatHistoryLoaded',
-                chatHistory: [],
-                workspaceId: undefined,
-            });
+            try {
+                await webview.postMessage({
+                    command: 'chatHistoryLoaded',
+                    chatHistory: [],
+                    workspaceId: undefined,
+                });
+            } catch {
+                // ignore if webview is already disposed
+            }
         }
     }
 

@@ -597,7 +597,7 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                         <p className='placeholder-name'>{file.name}</p>
                         <div className='placeholder-meta'>
                             <span>{(file.size / 1024).toFixed(1)} KB</span>
-                            <span>{file.modified.toLocaleDateString()}</span>
+                            <span>{new Date(file.modified).toLocaleDateString()}</span>
                             <span className='file-type'>{file.fileType.toUpperCase()}</span>
                         </div>
                         {renderMode === 'placeholder' && (

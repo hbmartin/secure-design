@@ -1,38 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
-import type { ModelMessage } from 'ai';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import type { ChatMessage } from '../../types';
 
-// Additional metadata for UI state
-interface MessageMetadata {
-    timestamp?: number;
-    is_loading?: boolean;
-    estimated_duration?: number;
-    start_time?: number;
-    elapsed_time?: number;
-    progress_percentage?: number;
-    session_id?: string;
-    result_type?: string;
-    is_error?: boolean;
-    duration_ms?: number;
-    total_cost_usd?: number;
-    // Tool-related metadata
-    tool_name?: string;
-    tool_id?: string;
-    tool_input?: any;
-    tool_result?: any;
-    result_is_error?: boolean;
-    result_received?: boolean;
-    actions?: Array<{
-        text: string;
-        command: string;
-        args?: string;
-    }>;
-    error_context?: string;
-}
-
-// Message with metadata for UI
-export type ChatMessage = ModelMessage & {
-    metadata?: MessageMetadata;
-};
+// Re-export ChatMessage for backward compatibility
+export type { ChatMessage };
 
 export interface ChatHookResult {
     chatHistory: ChatMessage[];
@@ -45,13 +15,27 @@ export interface ChatHookResult {
 export function useChat(vscode: any): ChatHookResult {
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [_currentWorkspaceId, setCurrentWorkspaceId] = useState<string | undefined>();
     const [isInitialized, setIsInitialized] = useState(false);
     const [hasMigrated, setHasMigrated] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [hasLoadedInitialHistory, setHasLoadedInitialHistory] = useState(false);
+    const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const lastSavedHistoryRef = useRef<string>('');
+    const isWebviewReady = useRef(false);
+
+    // Mark webview as ready when it can receive messages
+    useEffect(() => {
+        // Small delay to ensure webview is fully initialized
+        const timer = setTimeout(() => {
+            isWebviewReady.current = true;
+        }, 100);
+
+        return () => clearTimeout(timer);
+    }, []);
 
     // Handle migration from localStorage to workspace state on initialization
     useEffect(() => {
-        if (!isInitialized) {
+        if (!isInitialized && isWebviewReady.current) {
             // Check for old localStorage data
             let oldChatHistory: ChatMessage[] = [];
             try {
@@ -79,20 +63,66 @@ export function useChat(vscode: any): ChatHookResult {
         }
     }, [vscode, isInitialized, hasMigrated]);
 
-    // Persist chat history to VS Code workspace state whenever it changes
+    // Persist chat history to VS Code workspace state whenever it changes (debounced)
     useEffect(() => {
-        if (isInitialized && chatHistory.length >= 0) {
-            vscode.postMessage({
-                command: 'saveChatHistory',
-                chatHistory: chatHistory,
-            });
+        // Only save if:
+        // 1. We're initialized
+        // 2. We've loaded initial history (prevents save on initial load)
+        // 3. Not currently saving
+        // 4. Webview is ready
+        // 5. Content has actually changed
+        if (isInitialized && hasLoadedInitialHistory && !isSaving && isWebviewReady.current) {
+            // Check if content has actually changed
+            const currentHistoryStr = JSON.stringify(chatHistory);
+            if (currentHistoryStr === lastSavedHistoryRef.current) {
+                // No actual changes, skip save
+                return;
+            }
+
+            // Clear any existing timeout
+            if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+            }
+
+            // Set a new timeout to save after 500ms of no changes
+            saveTimeoutRef.current = setTimeout(() => {
+                // Double-check content changed before saving
+                const historyToSave = chatHistory;
+                const historyStr = JSON.stringify(historyToSave);
+
+                if (historyStr !== lastSavedHistoryRef.current) {
+                    setIsSaving(true);
+                    lastSavedHistoryRef.current = historyStr;
+
+                    vscode
+                        .postMessage({
+                            command: 'saveChatHistory',
+                            chatHistory: historyToSave,
+                        })
+                        .finally(() => {
+                            setIsSaving(false);
+                        });
+                }
+                saveTimeoutRef.current = null;
+            }, 500);
         }
-    }, [chatHistory, vscode, isInitialized]);
+
+        // Cleanup on unmount
+        return () => {
+            if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+            }
+        };
+    }, [chatHistory, vscode, isInitialized, isSaving, hasLoadedInitialHistory]);
 
     const clearHistory = useCallback(() => {
         setChatHistory([]);
+        // Update last saved reference to empty
+        lastSavedHistoryRef.current = JSON.stringify([]);
         // Clear from VS Code workspace state
         vscode.postMessage({ command: 'clearWorkspaceChatHistory' });
+        // Reset isLoading state on workspace change
+        setIsLoading(false);
     }, [vscode]);
 
     const sendMessage = useCallback(
@@ -320,7 +350,7 @@ export function useChat(vscode: any): ChatHookResult {
 
                     const errorMessage: ChatMessage = {
                         role: 'assistant',
-                        content: `❌ **${message.error}**\n\nPlease configure your API key to use this AI model.`,
+                        content: `❌ **${message.error}**\\n\\nPlease configure your API key to use this AI model.`,
                         metadata: {
                             timestamp: Date.now(),
                             is_error: true,
@@ -355,26 +385,53 @@ export function useChat(vscode: any): ChatHookResult {
 
                 case 'chatHistoryLoaded':
                     console.log('Chat history loaded from workspace state');
-                    setChatHistory(message.chatHistory ?? []);
-                    setCurrentWorkspaceId(message.workspaceId);
+                    // Only update if not currently saving to avoid overwriting pending changes
+                    if (!isSaving) {
+                        const loadedHistory = message.chatHistory ?? [];
+                        setChatHistory(loadedHistory);
+
+                        // Mark that we've loaded initial history
+                        setHasLoadedInitialHistory(true);
+
+                        // Update the last saved reference to prevent immediate re-save
+                        lastSavedHistoryRef.current = JSON.stringify(loadedHistory);
+                    }
                     break;
 
                 case 'chatHistoryCleared':
                     console.log('Chat history cleared');
                     setChatHistory([]);
+                    // Update last saved reference to empty
+                    lastSavedHistoryRef.current = JSON.stringify([]);
                     break;
 
                 case 'workspaceChanged':
                     console.log('Workspace changed, reloading chat history');
-                    setCurrentWorkspaceId(message.workspaceId);
+                    // Cancel any pending saves for the old workspace
+                    if (saveTimeoutRef.current) {
+                        clearTimeout(saveTimeoutRef.current);
+                        saveTimeoutRef.current = null;
+                    }
+                    setIsSaving(false);
+                    // Reset the loaded flag so we don't save until new history loads
+                    setHasLoadedInitialHistory(false);
+                    // Clear last saved reference
+                    lastSavedHistoryRef.current = '';
                     // Request fresh chat history for new workspace
                     vscode.postMessage({ command: 'loadChatHistory' });
                     break;
 
                 case 'migrationComplete':
                     console.log('Migration complete, received chat history');
-                    setChatHistory(message.chatHistory ?? []);
-                    setCurrentWorkspaceId(message.workspaceId);
+                    const migratedHistory = message.chatHistory ?? [];
+                    setChatHistory(migratedHistory);
+
+                    // Mark that we've loaded initial history
+                    setHasLoadedInitialHistory(true);
+
+                    // Update the last saved reference to prevent immediate re-save
+                    lastSavedHistoryRef.current = JSON.stringify(migratedHistory);
+
                     // Clear localStorage after successful migration
                     try {
                         localStorage.removeItem('superdesign-chat-history');
@@ -391,7 +448,7 @@ export function useChat(vscode: any): ChatHookResult {
 
         window.addEventListener('message', messageHandler);
         return () => window.removeEventListener('message', messageHandler);
-    }, [vscode]);
+    }, [vscode, isSaving]);
 
     return {
         chatHistory,

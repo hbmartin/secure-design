@@ -185,6 +185,9 @@ export class SuperdesignCanvasPanel {
     public dispose() {
         // Prevent recursive disposal
         if (this._isDisposing) {
+            console.warn(
+                'SuperdesignCanvasPanel.dispose() called while already disposing. This may indicate unintended multiple dispose calls.'
+            );
             return;
         }
         this._isDisposing = true;
@@ -433,7 +436,7 @@ export class SuperdesignCanvasPanel {
                             workspaceName: workspaceName,
                             content: htmlContent,
                             size: stat.size,
-                            modified: new Date(stat.mtime),
+                            modified: new Date(stat.mtime).toISOString(),
                             fileType,
                         } satisfies DesignFile;
                     } catch (fileError) {

@@ -228,14 +228,11 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
 
             switch (message.command) {
                 case 'designFilesLoaded':
-                    // Convert date strings back to Date objects
-                    const filesWithDates = message.data.files.map(file => ({
-                        ...file,
-                        modified: new Date(file.modified),
-                    }));
+                    // Files already have modified as ISO string, no conversion needed
+                    const files = message.data.files;
 
                     // Detect design relationships and build hierarchy
-                    const filesWithRelationships = detectDesignRelationships(filesWithDates);
+                    const filesWithRelationships = detectDesignRelationships(files);
                     setDesignFiles(filesWithRelationships);
 
                     // Build hierarchy tree

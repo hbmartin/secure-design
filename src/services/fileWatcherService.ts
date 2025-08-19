@@ -47,13 +47,18 @@ export class FileWatcherService implements vscode.Disposable {
         // Dispose all file watchers
         this._disposeWatchers();
 
-        // Dispose workspace change listener
+        // Dispose workspace change listener and remove from disposables
         if (this._workspaceChangeListener) {
+            // Remove from disposables array to prevent double disposal
+            const index = this._disposables.indexOf(this._workspaceChangeListener);
+            if (index > -1) {
+                this._disposables.splice(index, 1);
+            }
             this._workspaceChangeListener.dispose();
             this._workspaceChangeListener = undefined;
         }
 
-        // Dispose all event subscriptions
+        // Dispose all remaining event subscriptions
         while (this._disposables.length) {
             const disposable = this._disposables.pop();
             if (disposable) {
