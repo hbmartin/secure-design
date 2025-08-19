@@ -54,6 +54,7 @@ export class SuperdesignCanvasPanel {
 
         this._update();
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
+        this._disposables.push(this._fileWatcherService);
         this._setupFileWatcher();
 
         // Handle messages from the webview
@@ -89,9 +90,6 @@ export class SuperdesignCanvasPanel {
 
     public dispose() {
         SuperdesignCanvasPanel.currentPanel = undefined;
-
-        // Dispose of file watcher service
-        this._fileWatcherService.dispose();
 
         this._panel.dispose();
         while (this._disposables.length) {

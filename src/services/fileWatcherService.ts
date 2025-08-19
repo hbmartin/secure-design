@@ -12,53 +12,106 @@ export interface FileWatcherConfig {
     onFileChange: (event: FileChangeEvent) => void;
 }
 
-export class FileWatcherService {
-    private _fileWatcher: vscode.FileSystemWatcher | undefined;
+export class FileWatcherService implements vscode.Disposable {
+    private readonly _fileWatchers: Map<string, vscode.FileSystemWatcher> = new Map();
     private readonly _disposables: vscode.Disposable[] = [];
+    private _currentConfig: FileWatcherConfig | undefined;
+    private _workspaceChangeListener: vscode.Disposable | undefined;
 
     public setupWatcher(config: FileWatcherConfig): void {
-        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-        if (!workspaceFolder) {
-            return;
+        // Store config for workspace changes
+        this._currentConfig = config;
+
+        // Setup watchers for all workspace folders
+        this._setupWatchersForWorkspace();
+
+        // Setup workspace change listener only if not already setup
+        if (!this._workspaceChangeListener) {
+            this._workspaceChangeListener = vscode.workspace.onDidChangeWorkspaceFolders(() => {
+                Logger.debug('Workspace folders changed, updating file watchers');
+                this._setupWatchersForWorkspace();
+            });
+            this._disposables.push(this._workspaceChangeListener);
         }
-
-        const pattern = new vscode.RelativePattern(workspaceFolder, config.pattern);
-
-        this._fileWatcher = vscode.workspace.createFileSystemWatcher(
-            pattern,
-            false, // Don't ignore create events
-            false, // Don't ignore change events
-            false // Don't ignore delete events
-        );
-
-        // Helper function to create event handler
-        const createEventHandler = (changeType: FileChangeEvent['changeType']) => {
-            return (uri: vscode.Uri) => {
-                const fileName = path.basename(uri.fsPath) ?? '';
-                Logger.debug(`Design file ${changeType}: ${uri.fsPath}`);
-                config.onFileChange({ fileName, changeType });
-            };
-        };
-
-        // Setup all event handlers
-        this._disposables.push(
-            this._fileWatcher.onDidCreate(createEventHandler('created')),
-            this._fileWatcher.onDidChange(createEventHandler('modified')),
-            this._fileWatcher.onDidDelete(createEventHandler('deleted'))
-        );
     }
 
     public dispose(): void {
-        if (this._fileWatcher) {
-            this._fileWatcher.dispose();
-            this._fileWatcher = undefined;
+        // Dispose all file watchers
+        this._disposeWatchers();
+
+        // Dispose workspace change listener
+        if (this._workspaceChangeListener) {
+            this._workspaceChangeListener.dispose();
+            this._workspaceChangeListener = undefined;
         }
 
+        // Dispose all event subscriptions
         while (this._disposables.length) {
             const disposable = this._disposables.pop();
             if (disposable) {
                 disposable.dispose();
             }
         }
+
+        // Clear config
+        this._currentConfig = undefined;
+    }
+    private _setupWatchersForWorkspace(): void {
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (!workspaceFolders || !this._currentConfig) {
+            return;
+        }
+
+        // Dispose existing watchers first
+        this._disposeWatchers();
+
+        // Create watchers for each workspace folder
+        for (const workspaceFolder of workspaceFolders) {
+            this._createWatcherForFolder(workspaceFolder, this._currentConfig);
+        }
+    }
+
+    private _createWatcherForFolder(
+        workspaceFolder: vscode.WorkspaceFolder,
+        config: FileWatcherConfig
+    ): void {
+        const pattern = new vscode.RelativePattern(workspaceFolder, config.pattern);
+        const watcherKey = workspaceFolder.uri.toString();
+
+        const fileWatcher = vscode.workspace.createFileSystemWatcher(
+            pattern,
+            false, // Don't ignore create events
+            false, // Don't ignore change events
+            false // Don't ignore delete events
+        );
+
+        // Store the watcher
+        this._fileWatchers.set(watcherKey, fileWatcher);
+
+        // Helper function to create event handler
+        const createEventHandler = (changeType: FileChangeEvent['changeType']) => {
+            return (uri: vscode.Uri) => {
+                const fileName = path.basename(uri.fsPath) ?? '';
+                Logger.debug(
+                    `Design file ${changeType}: ${uri.fsPath} (workspace: ${workspaceFolder.name})`
+                );
+                config.onFileChange({ fileName, changeType });
+            };
+        };
+
+        // Setup all event handlers
+        this._disposables.push(
+            fileWatcher.onDidCreate(createEventHandler('created')),
+            fileWatcher.onDidChange(createEventHandler('modified')),
+            fileWatcher.onDidDelete(createEventHandler('deleted'))
+        );
+    }
+
+    private _disposeWatchers(): void {
+        // Dispose all existing file watchers
+        for (const [_key, watcher] of this._fileWatchers) {
+            watcher.dispose();
+        }
+        this._fileWatchers.clear();
     }
 }
