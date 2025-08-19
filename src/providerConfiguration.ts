@@ -46,7 +46,7 @@ async function configureApiKeyHelper(options: ApiKeyConfig) {
                     .update(options.configKey, input.trim(), vscode.ConfigurationTarget.Global);
                 vscode.window.showInformationMessage(options.successMessage);
             } catch (error) {
-                vscode.window.showErrorMessage(`Failed to save API key: ${error}`);
+                vscode.window.showErrorMessage(`Failed to save API key: ${error instanceof Error ? error.message : String(error)}`);
             }
         } else if (currentKey) {
             vscode.window.showInformationMessage('API key unchanged (already configured)');
