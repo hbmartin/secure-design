@@ -1,9 +1,12 @@
 import * as vscode from 'vscode';
 import { Logger } from './logger';
-import path from 'path';
+import * as path from 'path';
 
 export interface FileChangeEvent {
     fileName: string;
+    relativePath: string;
+    absolutePath: string;
+    workspaceName?: string;
     changeType: 'created' | 'modified' | 'deleted';
 }
 
@@ -91,11 +94,30 @@ export class FileWatcherService implements vscode.Disposable {
         // Helper function to create event handler
         const createEventHandler = (changeType: FileChangeEvent['changeType']) => {
             return (uri: vscode.Uri) => {
-                const fileName = path.basename(uri.fsPath) ?? '';
+                const absolutePath = uri.fsPath;
+                const fileName = path.basename(absolutePath);
+
+                // Get workspace-relative path
+                const relativePath = vscode.workspace.asRelativePath(uri, false);
+
+                // Include workspace name for multi-root workspaces
+                const workspaceName =
+                    vscode.workspace.workspaceFolders &&
+                    vscode.workspace.workspaceFolders.length > 1
+                        ? workspaceFolder.name
+                        : undefined;
+
                 Logger.debug(
-                    `Design file ${changeType}: ${uri.fsPath} (workspace: ${workspaceFolder.name})`
+                    `Design file ${changeType}: ${relativePath} (workspace: ${workspaceFolder.name})`
                 );
-                config.onFileChange({ fileName, changeType });
+
+                config.onFileChange({
+                    fileName,
+                    relativePath,
+                    absolutePath,
+                    workspaceName,
+                    changeType,
+                });
             };
         };
 

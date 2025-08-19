@@ -3,6 +3,7 @@ import { Logger } from './services/logger';
 import type { ChatSidebarProvider } from './providers/chatSidebarProvider';
 import { FileWatcherService, type FileChangeEvent } from './services/fileWatcherService';
 import { generateCanvasHtml, getNonce } from './helpers/htmlTemplate';
+import type { DesignFile } from './types/designFile';
 
 export class SuperdesignCanvasPanel {
     public static currentPanel: SuperdesignCanvasPanel | undefined;
@@ -13,15 +14,26 @@ export class SuperdesignCanvasPanel {
     private readonly _sidebarProvider: ChatSidebarProvider;
     private readonly _disposables: vscode.Disposable[] = [];
     private readonly _fileWatcherService: FileWatcherService;
+    private _workspaceChangeListener: vscode.Disposable | undefined;
 
     public static createOrShow(extensionUri: vscode.Uri, sidebarProvider: ChatSidebarProvider) {
         const column = vscode.window.activeTextEditor?.viewColumn;
 
+        // Check if current panel is still valid and not disposed
         if (SuperdesignCanvasPanel.currentPanel) {
-            SuperdesignCanvasPanel.currentPanel._panel.reveal(column);
-            return;
+            try {
+                // Try to reveal the panel - this will throw if panel is disposed
+                SuperdesignCanvasPanel.currentPanel._panel.reveal(column);
+                return SuperdesignCanvasPanel.currentPanel;
+            } catch {
+                // Panel was disposed but static reference wasn't cleared
+                Logger.debug('Current panel was disposed, will create new one');
+                SuperdesignCanvasPanel.currentPanel = undefined;
+                // Fall through to create new panel
+            }
         }
 
+        Logger.debug('Creating new SuperdesignCanvasPanel');
         const panel = vscode.window.createWebviewPanel(
             SuperdesignCanvasPanel.viewType,
             'SecureDesign Canvas',
@@ -32,6 +44,7 @@ export class SuperdesignCanvasPanel {
                     vscode.Uri.joinPath(extensionUri, 'dist'),
                     vscode.Uri.joinPath(extensionUri, 'src', 'assets'),
                 ],
+                retainContextWhenHidden: true, // Better webview lifecycle management
             }
         );
 
@@ -40,6 +53,16 @@ export class SuperdesignCanvasPanel {
             extensionUri,
             sidebarProvider
         );
+
+        return SuperdesignCanvasPanel.currentPanel;
+    }
+
+    public static getWorkspaceInfo(): { folderCount: number; folderNames: string[] } {
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        return {
+            folderCount: workspaceFolders?.length ?? 0,
+            folderNames: workspaceFolders?.map(folder => folder.name) ?? [],
+        };
     }
 
     private constructor(
@@ -56,6 +79,7 @@ export class SuperdesignCanvasPanel {
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
         this._disposables.push(this._fileWatcherService);
         this._setupFileWatcher();
+        this._setupWorkspaceChangeListener();
 
         // Handle messages from the webview
         this._panel.webview.onDidReceiveMessage(
@@ -89,13 +113,33 @@ export class SuperdesignCanvasPanel {
     }
 
     public dispose() {
-        SuperdesignCanvasPanel.currentPanel = undefined;
+        // Clear static reference first to prevent race conditions
+        if (SuperdesignCanvasPanel.currentPanel === this) {
+            SuperdesignCanvasPanel.currentPanel = undefined;
+        }
 
-        this._panel.dispose();
+        // Dispose workspace change listener
+        if (this._workspaceChangeListener) {
+            this._workspaceChangeListener.dispose();
+            this._workspaceChangeListener = undefined;
+        }
+
+        // Dispose panel (this will trigger onDidDispose event)
+        try {
+            this._panel.dispose();
+        } catch (error) {
+            Logger.warn(`Error disposing webview panel: ${error}`);
+        }
+
+        // Dispose all other resources
         while (this._disposables.length) {
-            const x = this._disposables.pop();
-            if (x) {
-                x.dispose();
+            const disposable = this._disposables.pop();
+            if (disposable) {
+                try {
+                    disposable.dispose();
+                } catch (error) {
+                    Logger.warn(`Error disposing resource: ${error}`);
+                }
             }
         }
     }
@@ -108,8 +152,20 @@ export class SuperdesignCanvasPanel {
                     command: 'fileChanged',
                     data: event,
                 });
+                void this._loadDesignFiles();
             },
         });
+    }
+
+    private _setupWorkspaceChangeListener() {
+        // Only setup listener if not already setup
+        if (!this._workspaceChangeListener) {
+            this._workspaceChangeListener = vscode.workspace.onDidChangeWorkspaceFolders(() => {
+                Logger.debug('Workspace folders changed, reloading design files');
+                void this._loadDesignFiles();
+            });
+            this._disposables.push(this._workspaceChangeListener);
+        }
     }
 
     private _update() {
@@ -166,31 +222,26 @@ export class SuperdesignCanvasPanel {
         });
     }
 
-    private async _loadDesignFiles() {
-        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-        if (!workspaceFolder) {
-            this._panel.webview.postMessage({
-                command: 'error',
-                data: { error: 'No workspace folder found. Please open a workspace first.' },
-            });
-            return;
-        }
-
+    private async _loadDesignFilesPerWorkspace(
+        workspaceFolder: vscode.WorkspaceFolder,
+        workspaceName: string | undefined
+    ): Promise<DesignFile[]> {
         try {
             const designFolder = vscode.Uri.joinPath(
                 workspaceFolder.uri,
                 '.superdesign',
                 'design_iterations'
             );
-
-            // Check if the design_files folder exists
             try {
+                // Check if the design_iterations folder exists in this workspace
                 await vscode.workspace.fs.stat(designFolder);
             } catch {
                 // Folder doesn't exist, create it
                 try {
                     await vscode.workspace.fs.createDirectory(designFolder);
-                    Logger.info('Created .superdesign/design_iterations directory');
+                    Logger.info(
+                        `Created .superdesign/design_iterations directory in workspace: ${workspaceFolder.name}`
+                    );
                 } catch (createError) {
                     this._panel.webview.postMessage({
                         command: 'error',
@@ -198,7 +249,11 @@ export class SuperdesignCanvasPanel {
                             error: `Failed to create design_iterations directory: ${createError}`,
                         },
                     });
-                    return;
+                    Logger.warn(
+                        `Failed to create design_iterations directory in workspace ${workspaceFolder.name}: ${createError}`
+                    );
+                    // Skip this workspace folder and try the next one
+                    return [];
                 }
             }
 
@@ -211,7 +266,7 @@ export class SuperdesignCanvasPanel {
             );
 
             const loadedFiles = await Promise.all(
-                designFiles.map(async ([fileName, _]) => {
+                designFiles.map(async ([fileName, _]): Promise<DesignFile | null> => {
                     const filePath = vscode.Uri.joinPath(designFolder, fileName);
 
                     try {
@@ -229,29 +284,71 @@ export class SuperdesignCanvasPanel {
                             htmlContent = await this._inlineExternalCSS(htmlContent, designFolder);
                         }
 
+                        // Get workspace-relative path for better UX
+                        const relativePath = vscode.workspace.asRelativePath(filePath, false);
+
                         return {
                             name: fileName,
                             path: filePath.fsPath,
+                            relativePath: relativePath,
+                            workspaceName: workspaceName,
                             content: htmlContent,
                             size: stat.size,
                             modified: new Date(stat.mtime),
                             fileType,
-                        };
+                        } satisfies DesignFile;
                     } catch (fileError) {
-                        Logger.error(`Failed to read file ${fileName}: ${fileError}`);
+                        Logger.error(
+                            `Failed to read file ${fileName} in workspace ${workspaceFolder.name}: ${fileError}`
+                        );
                         return null;
                     }
                 })
             );
 
-            // Filter out any failed file reads
-            const validFiles = loadedFiles.filter(file => file !== null);
+            // Filter out any failed file reads and add to all files
+            const validFiles = loadedFiles.filter((file): file is DesignFile => file !== null);
+            Logger.info(
+                `Loaded ${validFiles.length} design files from workspace: ${workspaceFolder.name}`
+            );
+            return validFiles;
+        } catch (readError) {
+            Logger.warn(
+                `Failed to read design files from workspace ${workspaceFolder.name}: ${readError}`
+            );
+            return [];
+        }
+    }
 
-            Logger.info(`Loaded ${validFiles.length} design files (HTML & SVG)`);
+    private async _loadDesignFiles() {
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (!workspaceFolders || workspaceFolders.length === 0) {
+            this._panel.webview.postMessage({
+                command: 'error',
+                data: { error: 'No workspace folder found. Please open a workspace first.' },
+            });
+            return;
+        }
+
+        try {
+            const allValidFiles: DesignFile[] = [];
+
+            // Process each workspace folder
+            for (const workspaceFolder of workspaceFolders) {
+                const validFiles = await this._loadDesignFilesPerWorkspace(
+                    workspaceFolder,
+                    workspaceFolders.length > 1 ? workspaceFolder.name : undefined
+                );
+                allValidFiles.push(...validFiles);
+            }
+
+            Logger.info(
+                `Total loaded design files: ${allValidFiles.length} from ${workspaceFolders.length} workspace(s)`
+            );
 
             this._panel.webview.postMessage({
                 command: 'designFilesLoaded',
-                data: { files: validFiles },
+                data: { files: allValidFiles },
             });
         } catch (error) {
             Logger.error(`Error loading design files: ${error}`);
