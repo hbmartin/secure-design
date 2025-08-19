@@ -177,11 +177,11 @@ async function processTextFile(
 
     // Only consider content truncated if we hit the limit due to our own constraints,
     // not when the user explicitly requested fewer/zero lines
-    const wasLimitedByDefault = requestedLineCount === undefined && endLine < originalLineCount;
+    const wasLimitedByDefault = requestedLineCount === undefined && selectedLines.length < originalLineCount;
     const wasLimitedByFileSize =
         requestedLineCount !== undefined &&
         requestedLineCount > 0 &&
-        endLine < actualStartLine + requestedLineCount;
+        selectedLines.length < requestedLineCount;
     const contentWasTruncated = wasLimitedByDefault || wasLimitedByFileSize;
     const isTruncated = contentWasTruncated || linesWereTruncated;
 
