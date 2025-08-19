@@ -155,7 +155,7 @@ async function processTextFile(
 
     // Handle line range with proper validation and clamping
     const clampedStartLine = Math.max(Math.floor(startLine ?? 1), 1); // Ensure positive integer, 1-based
-    const actualStartLine = Math.max(clampedStartLine - 1, 0); // Convert to 0-based
+    const actualStartLine = clampedStartLine - 1; // Convert to 0-based
 
     // Clamp lineCount to non-negative integer, with special handling for explicit 0
     const requestedLineCount =
