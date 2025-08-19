@@ -17,6 +17,7 @@ export class WebviewMessageGuard {
 
     private static readonly REQUEST_TIMEOUT = 5000; // 5 seconds
     private static requestIdCounter = 0;
+    private static cleanupTimer: NodeJS.Timeout | undefined;
 
     /**
      * Send a message to webview and wait for response
@@ -169,8 +170,8 @@ export class WebviewMessageGuard {
     public static wrapHandler<T extends (...args: any[]) => any>(
         handlerName: string,
         handler: T
-    ): T {
-        return (async (...args: Parameters<T>) => {
+    ): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>> {
+        return async (...args: Parameters<T>) => {
             try {
                 Logger.debug(`Handling message: ${handlerName}`);
                 const result = await handler(...args);
@@ -181,11 +182,35 @@ export class WebviewMessageGuard {
                 // Re-throw to let caller handle if needed
                 throw error;
             }
-        }) as T;
+        };
+    }
+
+    /**
+     * Initialize the cleanup timer - should be called during extension activation
+     */
+    public static initialize(): void {
+        if (!this.cleanupTimer) {
+            this.cleanupTimer = setInterval(() => {
+                this.cleanupPendingRequests();
+            }, 60000); // Clean up every minute
+            Logger.debug('WebviewMessageGuard cleanup timer initialized');
+        }
+    }
+
+    /**
+     * Stop the cleanup timer and clean up resources - should be called during extension deactivation
+     */
+    public static dispose(): void {
+        if (this.cleanupTimer) {
+            clearInterval(this.cleanupTimer);
+            this.cleanupTimer = undefined;
+            Logger.debug('WebviewMessageGuard cleanup timer disposed');
+        }
+
+        // Clean up any remaining pending requests
+        for (const [_requestId, pending] of this.pendingRequests.entries()) {
+            pending.reject(new Error('Extension is deactivating'));
+        }
+        this.pendingRequests.clear();
     }
 }
-
-// Set up periodic cleanup
-setInterval(() => {
-    WebviewMessageGuard.cleanupPendingRequests();
-}, 60000); // Clean up every minute

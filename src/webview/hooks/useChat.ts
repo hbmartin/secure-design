@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { ChatMessage } from '../../types';
+import { useDebouncedSave } from './useDebouncedSave';
 
 // Re-export ChatMessage for backward compatibility
 export type { ChatMessage };
@@ -17,11 +18,26 @@ export function useChat(vscode: any): ChatHookResult {
     const [isLoading, setIsLoading] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
     const [hasMigrated, setHasMigrated] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
     const [hasLoadedInitialHistory, setHasLoadedInitialHistory] = useState(false);
-    const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const lastSavedHistoryRef = useRef<string>('');
     const isWebviewReady = useRef(false);
+
+    // Debounced save hook handles the complex save logic
+    const saveChatHistory = useCallback(
+        (history: ChatMessage[]) => {
+            return vscode.postMessage({
+                command: 'saveChatHistory',
+                chatHistory: history,
+            });
+        },
+        [vscode]
+    );
+
+    const { isSaving, lastSavedRef } = useDebouncedSave(chatHistory, saveChatHistory, {
+        delay: 500,
+        isReady: isInitialized && isWebviewReady.current,
+        hasLoadedInitialData: hasLoadedInitialHistory,
+        isSaving: false, // No external saving state
+    });
 
     // Mark webview as ready when it can receive messages
     useEffect(() => {
@@ -63,67 +79,15 @@ export function useChat(vscode: any): ChatHookResult {
         }
     }, [vscode, isInitialized, hasMigrated]);
 
-    // Persist chat history to VS Code workspace state whenever it changes (debounced)
-    useEffect(() => {
-        // Only save if:
-        // 1. We're initialized
-        // 2. We've loaded initial history (prevents save on initial load)
-        // 3. Not currently saving
-        // 4. Webview is ready
-        // 5. Content has actually changed
-        if (isInitialized && hasLoadedInitialHistory && !isSaving && isWebviewReady.current) {
-            // Check if content has actually changed
-            const currentHistoryStr = JSON.stringify(chatHistory);
-            if (currentHistoryStr === lastSavedHistoryRef.current) {
-                // No actual changes, skip save
-                return;
-            }
-
-            // Clear any existing timeout
-            if (saveTimeoutRef.current) {
-                clearTimeout(saveTimeoutRef.current);
-            }
-
-            // Set a new timeout to save after 500ms of no changes
-            saveTimeoutRef.current = setTimeout(() => {
-                // Double-check content changed before saving
-                const historyToSave = chatHistory;
-                const historyStr = JSON.stringify(historyToSave);
-
-                if (historyStr !== lastSavedHistoryRef.current) {
-                    setIsSaving(true);
-                    lastSavedHistoryRef.current = historyStr;
-
-                    vscode
-                        .postMessage({
-                            command: 'saveChatHistory',
-                            chatHistory: historyToSave,
-                        })
-                        .finally(() => {
-                            setIsSaving(false);
-                        });
-                }
-                saveTimeoutRef.current = null;
-            }, 500);
-        }
-
-        // Cleanup on unmount
-        return () => {
-            if (saveTimeoutRef.current) {
-                clearTimeout(saveTimeoutRef.current);
-            }
-        };
-    }, [chatHistory, vscode, isInitialized, isSaving, hasLoadedInitialHistory]);
-
     const clearHistory = useCallback(() => {
         setChatHistory([]);
         // Update last saved reference to empty
-        lastSavedHistoryRef.current = JSON.stringify([]);
+        lastSavedRef.current = JSON.stringify([]);
         // Clear from VS Code workspace state
         vscode.postMessage({ command: 'clearWorkspaceChatHistory' });
         // Reset isLoading state on workspace change
         setIsLoading(false);
-    }, [vscode]);
+    }, [vscode, lastSavedRef]);
 
     const sendMessage = useCallback(
         (message: string) => {
@@ -350,7 +314,7 @@ export function useChat(vscode: any): ChatHookResult {
 
                     const errorMessage: ChatMessage = {
                         role: 'assistant',
-                        content: `❌ **${message.error}**\\n\\nPlease configure your API key to use this AI model.`,
+                        content: `❌ **${message.error}**\n\nPlease configure your API key to use this AI model.`,
                         metadata: {
                             timestamp: Date.now(),
                             is_error: true,
@@ -394,7 +358,7 @@ export function useChat(vscode: any): ChatHookResult {
                         setHasLoadedInitialHistory(true);
 
                         // Update the last saved reference to prevent immediate re-save
-                        lastSavedHistoryRef.current = JSON.stringify(loadedHistory);
+                        lastSavedRef.current = JSON.stringify(loadedHistory);
                     }
                     break;
 
@@ -402,21 +366,16 @@ export function useChat(vscode: any): ChatHookResult {
                     console.log('Chat history cleared');
                     setChatHistory([]);
                     // Update last saved reference to empty
-                    lastSavedHistoryRef.current = JSON.stringify([]);
+                    lastSavedRef.current = JSON.stringify([]);
                     break;
 
                 case 'workspaceChanged':
                     console.log('Workspace changed, reloading chat history');
-                    // Cancel any pending saves for the old workspace
-                    if (saveTimeoutRef.current) {
-                        clearTimeout(saveTimeoutRef.current);
-                        saveTimeoutRef.current = null;
-                    }
-                    setIsSaving(false);
+                    // Note: useDebouncedSave hook handles cleanup automatically
                     // Reset the loaded flag so we don't save until new history loads
                     setHasLoadedInitialHistory(false);
                     // Clear last saved reference
-                    lastSavedHistoryRef.current = '';
+                    lastSavedRef.current = '';
                     // Request fresh chat history for new workspace
                     vscode.postMessage({ command: 'loadChatHistory' });
                     break;
@@ -430,7 +389,7 @@ export function useChat(vscode: any): ChatHookResult {
                     setHasLoadedInitialHistory(true);
 
                     // Update the last saved reference to prevent immediate re-save
-                    lastSavedHistoryRef.current = JSON.stringify(migratedHistory);
+                    lastSavedRef.current = JSON.stringify(migratedHistory);
 
                     // Clear localStorage after successful migration
                     try {
@@ -448,7 +407,7 @@ export function useChat(vscode: any): ChatHookResult {
 
         window.addEventListener('message', messageHandler);
         return () => window.removeEventListener('message', messageHandler);
-    }, [vscode, isSaving]);
+    }, [vscode]);
 
     return {
         chatHistory,

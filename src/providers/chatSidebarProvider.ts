@@ -363,13 +363,10 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
     }
 
     private async handleLoadChatHistory(webview: vscode.Webview): Promise<void> {
-        try {
-            if (webview.hasOwnProperty('disposed') && (webview as any).disposed === true) {
-                return;
-            }
-            const workspaceStateService = WorkspaceStateService.getInstance();
-            const chatHistory = workspaceStateService.getChatHistory();
+        const workspaceStateService = WorkspaceStateService.getInstance();
+        const chatHistory = workspaceStateService.getChatHistory();
 
+        try {
             await webview.postMessage({
                 command: 'chatHistoryLoaded',
                 chatHistory,
@@ -377,14 +374,16 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
             });
         } catch (error) {
             console.error('Failed to load chat history:', error);
+            // Return early to avoid double-send race
             try {
                 await webview.postMessage({
                     command: 'chatHistoryLoaded',
                     chatHistory: [],
                     workspaceId: undefined,
                 });
-            } catch {
-                // ignore if webview is already disposed
+            } catch (fallbackError) {
+                console.error('Fallback postMessage also failed:', fallbackError);
+                // Webview likely disposed, nothing more we can do
             }
         }
     }

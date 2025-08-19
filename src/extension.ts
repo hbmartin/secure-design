@@ -5,6 +5,7 @@ import { CustomAgentService } from './services/customAgentService';
 import { ChatSidebarProvider } from './providers/chatSidebarProvider';
 import { Logger } from './services/logger';
 import { WorkspaceStateService } from './services/workspaceStateService';
+import { WebviewMessageGuard } from './services/webviewMessageGuard';
 import * as path from 'path';
 import { registerProviderCommands } from './providerConfiguration';
 import { SuperdesignCanvasPanel } from './SuperdesignCanvasPanel';
@@ -1298,6 +1299,10 @@ export function activate(context: vscode.ExtensionContext) {
     workspaceStateService.initialize(context);
     Logger.info('WorkspaceStateService initialized');
 
+    // Initialize WebviewMessageGuard cleanup timer
+    WebviewMessageGuard.initialize();
+    Logger.info('WebviewMessageGuard initialized');
+
     // Initialize Custom Agent service
     Logger.info('Creating CustomAgentService...');
     const customAgent = new CustomAgentService(Logger.getOutputChannel());
@@ -1483,6 +1488,9 @@ export function activate(context: vscode.ExtensionContext) {
 export function deactivate() {
     // Dispose all canvas panels
     SuperdesignCanvasPanel.disposeAll();
+
+    // Dispose WebviewMessageGuard cleanup timer and pending requests
+    WebviewMessageGuard.dispose();
 
     Logger.dispose();
 }

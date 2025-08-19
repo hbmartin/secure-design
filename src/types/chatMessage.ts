@@ -21,9 +21,9 @@ interface MessageMetadata {
     result_is_error?: boolean;
     result_received?: boolean;
     actions?: Array<{
-        text: string;
-        command: string;
-        args?: string;
+        readonly text: string;
+        readonly command: string;
+        readonly args?: string;
     }>;
     error_context?: string;
 }

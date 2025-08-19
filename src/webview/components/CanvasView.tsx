@@ -229,7 +229,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
             switch (message.command) {
                 case 'designFilesLoaded':
                     // Files already have modified as ISO string, no conversion needed
-                    const files = message.data.files;
+                    const { files } = message.data;
 
                     // Detect design relationships and build hierarchy
                     const filesWithRelationships = detectDesignRelationships(files);
