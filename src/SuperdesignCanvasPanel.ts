@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import { Logger } from './services/logger';
 import type { ChatSidebarProvider } from './providers/chatSidebarProvider';
-import path from 'path';
+import { FileWatcherService, type FileChangeEvent } from './services/fileWatcherService';
+import { generateCanvasHtml, getNonce } from './helpers/htmlTemplate';
 
 export class SuperdesignCanvasPanel {
     public static currentPanel: SuperdesignCanvasPanel | undefined;
@@ -11,7 +12,7 @@ export class SuperdesignCanvasPanel {
     private readonly _extensionUri: vscode.Uri;
     private readonly _sidebarProvider: ChatSidebarProvider;
     private readonly _disposables: vscode.Disposable[] = [];
-    private _fileWatcher: vscode.FileSystemWatcher | undefined;
+    private readonly _fileWatcherService: FileWatcherService;
 
     public static createOrShow(extensionUri: vscode.Uri, sidebarProvider: ChatSidebarProvider) {
         const column = vscode.window.activeTextEditor?.viewColumn;
@@ -49,6 +50,7 @@ export class SuperdesignCanvasPanel {
         this._panel = panel;
         this._extensionUri = extensionUri;
         this._sidebarProvider = sidebarProvider;
+        this._fileWatcherService = new FileWatcherService();
 
         this._update();
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
@@ -88,11 +90,8 @@ export class SuperdesignCanvasPanel {
     public dispose() {
         SuperdesignCanvasPanel.currentPanel = undefined;
 
-        // Dispose of file watcher
-        if (this._fileWatcher) {
-            this._fileWatcher.dispose();
-            this._fileWatcher = undefined;
-        }
+        // Dispose of file watcher service
+        this._fileWatcherService.dispose();
 
         this._panel.dispose();
         while (this._disposables.length) {
@@ -104,58 +103,14 @@ export class SuperdesignCanvasPanel {
     }
 
     private _setupFileWatcher() {
-        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-        if (!workspaceFolder) {
-            return;
-        }
-
-        // Watch for changes in .superdesign/design_iterations/*.html, *.svg, and *.css
-        const pattern = new vscode.RelativePattern(
-            workspaceFolder,
-            '.superdesign/design_iterations/**/*.{html,svg,css}'
-        );
-
-        this._fileWatcher = vscode.workspace.createFileSystemWatcher(
-            pattern,
-            false, // Don't ignore create events
-            false, // Don't ignore change events
-            false // Don't ignore delete events
-        );
-
-        // Handle file creation
-        this._fileWatcher.onDidCreate(uri => {
-            Logger.debug(`Design file created: ${uri.fsPath}`);
-            this._panel.webview.postMessage({
-                command: 'fileChanged',
-                data: {
-                    fileName: path.basename(uri.fsPath) ?? '',
-                    changeType: 'created',
-                },
-            });
-        });
-
-        // Handle file modification
-        this._fileWatcher.onDidChange(uri => {
-            Logger.debug(`Design file modified: ${uri.fsPath}`);
-            this._panel.webview.postMessage({
-                command: 'fileChanged',
-                data: {
-                    fileName: path.basename(uri.fsPath) ?? '',
-                    changeType: 'modified',
-                },
-            });
-        });
-
-        // Handle file deletion
-        this._fileWatcher.onDidDelete(uri => {
-            Logger.debug(`Design file deleted: ${uri.fsPath}`);
-            this._panel.webview.postMessage({
-                command: 'fileChanged',
-                data: {
-                    fileName: path.basename(uri.fsPath) ?? '',
-                    changeType: 'deleted',
-                },
-            });
+        this._fileWatcherService.setupWatcher({
+            pattern: '.superdesign/design_iterations/**/*.{html,svg,css}',
+            onFileChange: (event: FileChangeEvent) => {
+                this._panel.webview.postMessage({
+                    command: 'fileChanged',
+                    data: event,
+                });
+            },
         });
     }
 
@@ -204,34 +159,13 @@ export class SuperdesignCanvasPanel {
 
         const nonce = getNonce();
 
-        return `<!DOCTYPE html>
-			<html lang="en">
-			<head>
-				<meta charset="UTF-8">
-				<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; img-src ${webview.cspSource} data: https: vscode-webview:; script-src 'nonce-${nonce}'; frame-src ${webview.cspSource};">
-				<meta name="viewport" content="width=device-width, initial-scale=1.0">
-				<title>SecureDesign Canvas</title>
-			</head>
-			<body>
-				<div id="root" data-view="canvas" data-nonce="${nonce}"></div>
-				<script nonce="${nonce}">
-					// Debug: Check if context data is being generated
-					console.log('Canvas Panel - About to set webview context. Logo URIs:', ${JSON.stringify(logoUris)});
-					
-					// Initialize context for React app
-					window.__WEBVIEW_CONTEXT__ = {
-						layout: 'panel',
-						extensionUri: '${this._extensionUri.toString()}',
-						logoUris: ${JSON.stringify(logoUris)}
-					};
-					
-					// Debug logging in webview
-					console.log('Canvas Panel - Webview context set:', window.__WEBVIEW_CONTEXT__);
-					console.log('Canvas Panel - Logo URIs received in webview:', window.__WEBVIEW_CONTEXT__?.logoUris);
-				</script>
-				<script nonce="${nonce}" src="${scriptUri}"></script>
-			</body>
-			</html>`;
+        return generateCanvasHtml({
+            scriptUri,
+            logoUris,
+            nonce,
+            extensionUri: this._extensionUri,
+            webviewCspSource: webview.cspSource,
+        });
     }
 
     private async _loadDesignFiles() {
@@ -370,13 +304,4 @@ export class SuperdesignCanvasPanel {
 
         return modifiedContent;
     }
-}
-
-function getNonce() {
-    let text = '';
-    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    for (let i = 0; i < 32; i++) {
-        text += possible.charAt(Math.floor(Math.random() * possible.length));
-    }
-    return text;
 }
