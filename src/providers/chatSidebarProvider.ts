@@ -6,6 +6,8 @@ import type { AgentService } from '../types/agent';
 import type { VsCodeConfiguration, ProviderId } from './types';
 import { ProviderService } from './ProviderService';
 import { getModel } from './VsCodeConfiguration';
+import { WorkspaceStateService } from '../services/workspaceStateService';
+import { ChatHistoryMigrationService } from '../services/chatHistoryMigrationService';
 
 export class ChatSidebarProvider implements vscode.WebviewViewProvider {
     public static readonly VIEW_TYPE = 'securedesign.chatView';
@@ -17,7 +19,8 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
     constructor(
         private readonly _extensionUri: vscode.Uri,
         private readonly agentService: AgentService,
-        private readonly outputChannel: vscode.OutputChannel
+        private readonly outputChannel: vscode.OutputChannel,
+        private readonly context: vscode.ExtensionContext
     ) {
         this.messageHandler = new ChatMessageService(agentService, outputChannel);
         this.providerService = ProviderService.getInstance();
@@ -60,6 +63,11 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
         );
         // eslint-disable-next-line require-atomic-updates
         webviewView.webview.html = html;
+
+        // Load chat history for the current workspace after webview is ready
+        setTimeout(() => {
+            void this.handleLoadChatHistory(webviewView.webview);
+        }, 100);
 
         // Handle messages from the webview
         const messageListener = webviewView.webview.onDidReceiveMessage(async message => {
@@ -104,6 +112,21 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
                     break;
                 case 'showContextPicker':
                     await this.handleShowContextPicker(webviewView.webview);
+                    break;
+                case 'saveChatHistory':
+                    await this.handleSaveChatHistory(message.chatHistory);
+                    break;
+                case 'loadChatHistory':
+                    await this.handleLoadChatHistory(webviewView.webview);
+                    break;
+                case 'clearWorkspaceChatHistory':
+                    await this.handleClearWorkspaceChatHistory(webviewView.webview);
+                    break;
+                case 'migrateLocalStorage':
+                    await this.handleMigrateLocalStorage(
+                        message.oldChatHistory,
+                        webviewView.webview
+                    );
                     break;
             }
         });
@@ -327,5 +350,75 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
             },
         });
         vscode.window.showInformationMessage('Canvas content added as context');
+    }
+
+    private async handleSaveChatHistory(chatHistory: any[]): Promise<void> {
+        try {
+            const workspaceStateService = WorkspaceStateService.getInstance();
+            await workspaceStateService.saveChatHistory(chatHistory);
+        } catch (error) {
+            console.error('Failed to save chat history:', error);
+        }
+    }
+
+    private async handleLoadChatHistory(webview: vscode.Webview): Promise<void> {
+        try {
+            const workspaceStateService = WorkspaceStateService.getInstance();
+            const chatHistory = workspaceStateService.getChatHistory();
+
+            await webview.postMessage({
+                command: 'chatHistoryLoaded',
+                chatHistory: chatHistory,
+                workspaceId: workspaceStateService.getWorkspaceId(),
+            });
+        } catch (error) {
+            console.error('Failed to load chat history:', error);
+            await webview.postMessage({
+                command: 'chatHistoryLoaded',
+                chatHistory: [],
+                workspaceId: undefined,
+            });
+        }
+    }
+
+    private async handleClearWorkspaceChatHistory(webview: vscode.Webview): Promise<void> {
+        try {
+            const workspaceStateService = WorkspaceStateService.getInstance();
+            await workspaceStateService.clearChatHistory();
+
+            await webview.postMessage({
+                command: 'chatHistoryCleared',
+            });
+        } catch (error) {
+            console.error('Failed to clear chat history:', error);
+        }
+    }
+
+    private async handleMigrateLocalStorage(
+        oldChatHistory: any[],
+        webview: vscode.Webview
+    ): Promise<void> {
+        try {
+            // Perform migration if needed
+            const migratedHistory = await ChatHistoryMigrationService.performMigrationIfNeeded(
+                this.context,
+                oldChatHistory
+            );
+
+            // Send the migrated (or existing) history back to the webview
+            await webview.postMessage({
+                command: 'migrationComplete',
+                chatHistory: migratedHistory,
+                workspaceId: WorkspaceStateService.getInstance().getWorkspaceId(),
+            });
+        } catch (error) {
+            console.error('Failed to migrate chat history:', error);
+            // Send empty history on failure
+            await webview.postMessage({
+                command: 'migrationComplete',
+                chatHistory: [],
+                workspaceId: undefined,
+            });
+        }
     }
 }

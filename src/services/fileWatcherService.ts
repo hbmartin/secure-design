@@ -15,8 +15,13 @@ export interface FileWatcherConfig {
     onFileChange: (event: FileChangeEvent) => void;
 }
 
+interface WatcherInfo {
+    watcher: vscode.FileSystemWatcher;
+    subscriptions: vscode.Disposable[];
+}
+
 export class FileWatcherService implements vscode.Disposable {
-    private readonly _fileWatchers: Map<string, vscode.FileSystemWatcher> = new Map();
+    private readonly _fileWatchers: Map<string, WatcherInfo> = new Map();
     private readonly _disposables: vscode.Disposable[] = [];
     private _currentConfig: FileWatcherConfig | undefined;
     private _workspaceChangeListener: vscode.Disposable | undefined;
@@ -61,12 +66,17 @@ export class FileWatcherService implements vscode.Disposable {
     }
     private _setupWatchersForWorkspace(): void {
         const workspaceFolders = vscode.workspace.workspaceFolders;
-        if (!workspaceFolders || !this._currentConfig) {
+        if (!this._currentConfig) {
             return;
         }
 
         // Dispose existing watchers first
         this._disposeWatchers();
+
+        if (!workspaceFolders || workspaceFolders.length === 0) {
+            Logger.debug('No workspace folders; clearing watcher config until folders are added.');
+            return;
+        }
 
         // Create watchers for each workspace folder
         for (const workspaceFolder of workspaceFolders) {
@@ -87,9 +97,6 @@ export class FileWatcherService implements vscode.Disposable {
             false, // Don't ignore change events
             false // Don't ignore delete events
         );
-
-        // Store the watcher
-        this._fileWatchers.set(watcherKey, fileWatcher);
 
         // Helper function to create event handler
         const createEventHandler = (changeType: FileChangeEvent['changeType']) => {
@@ -121,19 +128,66 @@ export class FileWatcherService implements vscode.Disposable {
             };
         };
 
-        // Setup all event handlers
-        this._disposables.push(
+        // Setup all event handlers and track their subscriptions
+        const subscriptions = [
             fileWatcher.onDidCreate(createEventHandler('created')),
             fileWatcher.onDidChange(createEventHandler('modified')),
-            fileWatcher.onDidDelete(createEventHandler('deleted'))
-        );
+            fileWatcher.onDidDelete(createEventHandler('deleted')),
+        ];
+
+        // Store the watcher and its associated subscriptions
+        this._fileWatchers.set(watcherKey, {
+            watcher: fileWatcher,
+            subscriptions: subscriptions,
+        });
     }
 
     private _disposeWatchers(): void {
-        // Dispose all existing file watchers
-        for (const [_key, watcher] of this._fileWatchers) {
-            watcher.dispose();
+        // Dispose all existing file watchers and their event subscriptions
+        for (const [key, watcherInfo] of this._fileWatchers) {
+            try {
+                // Dispose all event subscriptions for this watcher
+                for (const subscription of watcherInfo.subscriptions) {
+                    subscription.dispose();
+                }
+
+                // Dispose the watcher itself
+                watcherInfo.watcher.dispose();
+
+                Logger.debug(
+                    `Disposed file watcher and ${watcherInfo.subscriptions.length} subscriptions for: ${key}`
+                );
+            } catch (error) {
+                Logger.warn(`Error disposing file watcher for ${key}: ${error}`);
+            }
         }
         this._fileWatchers.clear();
+    }
+
+    /**
+     * Dispose a specific watcher by workspace key
+     * Useful for removing watchers for individual workspace folders
+     */
+    private _disposeWatcherByKey(key: string): void {
+        const watcherInfo = this._fileWatchers.get(key);
+        if (watcherInfo) {
+            try {
+                // Dispose all event subscriptions for this watcher
+                for (const subscription of watcherInfo.subscriptions) {
+                    subscription.dispose();
+                }
+
+                // Dispose the watcher itself
+                watcherInfo.watcher.dispose();
+
+                Logger.debug(
+                    `Disposed specific file watcher and ${watcherInfo.subscriptions.length} subscriptions for: ${key}`
+                );
+            } catch (error) {
+                Logger.warn(`Error disposing specific file watcher for ${key}: ${error}`);
+            }
+
+            this._fileWatchers.delete(key);
+        }
     }
 }
