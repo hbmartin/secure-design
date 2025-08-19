@@ -5,8 +5,15 @@ import { FileWatcherService, type FileChangeEvent } from './services/fileWatcher
 import { generateCanvasHtml, getNonce } from './helpers/htmlTemplate';
 import type { DesignFile } from './types/designFile';
 
+interface CanvasPanelState {
+    workspaceUri?: string;
+    selectedFile?: string;
+    scrollPosition?: number;
+}
+
 export class SuperdesignCanvasPanel {
-    public static currentPanel: SuperdesignCanvasPanel | undefined;
+    // Map workspace URI to panel instance for multi-workspace support
+    private static readonly panels: Map<string, SuperdesignCanvasPanel> = new Map();
     public static readonly viewType = 'superdesignCanvasPanel';
 
     private readonly _panel: vscode.WebviewPanel;
@@ -16,46 +23,97 @@ export class SuperdesignCanvasPanel {
     private readonly _fileWatcherService: FileWatcherService;
     private _workspaceChangeListener: vscode.Disposable | undefined;
     private _isDisposing = false;
+    private readonly _state: CanvasPanelState;
 
     public static createOrShow(extensionUri: vscode.Uri, sidebarProvider: ChatSidebarProvider) {
         const column = vscode.window.activeTextEditor?.viewColumn;
 
-        // Check if current panel is still valid and not disposed
-        if (SuperdesignCanvasPanel.currentPanel) {
+        // Get the current workspace folder
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!workspaceFolder) {
+            vscode.window.showErrorMessage('Please open a workspace folder first');
+            return undefined;
+        }
+
+        const workspaceKey = workspaceFolder.uri.toString();
+
+        // Check if we already have a panel for this workspace
+        const existingPanel = SuperdesignCanvasPanel.panels.get(workspaceKey);
+        if (existingPanel) {
             try {
-                // Try to reveal the panel - this will throw if panel is disposed
-                SuperdesignCanvasPanel.currentPanel._panel.reveal(column);
-                return SuperdesignCanvasPanel.currentPanel;
+                // Try to reveal the existing panel
+                existingPanel._panel.reveal(column);
+                return existingPanel;
             } catch {
-                // Panel was disposed but static reference wasn't cleared
-                Logger.debug('Current panel was disposed, will create new one');
-                SuperdesignCanvasPanel.currentPanel = undefined;
-                // Fall through to create new panel
+                // Panel was disposed, remove from map
+                Logger.debug(
+                    `Panel for workspace ${workspaceFolder.name} was disposed, creating new one`
+                );
+                SuperdesignCanvasPanel.panels.delete(workspaceKey);
             }
         }
 
-        Logger.debug('Creating new SuperdesignCanvasPanel');
+        // Create a new panel for this workspace
+        Logger.debug(`Creating new SuperdesignCanvasPanel for workspace: ${workspaceFolder.name}`);
         const panel = vscode.window.createWebviewPanel(
             SuperdesignCanvasPanel.viewType,
-            'SecureDesign Canvas',
+            `SecureDesign Canvas - ${workspaceFolder.name}`,
             column ?? vscode.ViewColumn.One,
             {
                 enableScripts: true,
                 localResourceRoots: [
                     vscode.Uri.joinPath(extensionUri, 'dist'),
                     vscode.Uri.joinPath(extensionUri, 'src', 'assets'),
+                    workspaceFolder.uri, // Add workspace folder as local resource root
                 ],
-                retainContextWhenHidden: true, // Better webview lifecycle management
+                retainContextWhenHidden: true,
             }
         );
 
-        SuperdesignCanvasPanel.currentPanel = new SuperdesignCanvasPanel(
-            panel,
-            extensionUri,
-            sidebarProvider
-        );
+        const newPanel = new SuperdesignCanvasPanel(panel, extensionUri, sidebarProvider, {
+            workspaceUri: workspaceKey,
+        });
 
-        return SuperdesignCanvasPanel.currentPanel;
+        // Store the panel in our map
+        SuperdesignCanvasPanel.panels.set(workspaceKey, newPanel);
+
+        return newPanel;
+    }
+
+    /**
+     * Deserialize a webview panel from saved state
+     */
+    public static deserialize(
+        panel: vscode.WebviewPanel,
+        state: CanvasPanelState,
+        extensionUri: vscode.Uri,
+        sidebarProvider: ChatSidebarProvider
+    ): SuperdesignCanvasPanel {
+        const newPanel = new SuperdesignCanvasPanel(panel, extensionUri, sidebarProvider, state);
+
+        // Store in map if we have a workspace URI
+        if (state.workspaceUri) {
+            SuperdesignCanvasPanel.panels.set(state.workspaceUri, newPanel);
+        }
+
+        return newPanel;
+    }
+
+    /**
+     * Get panel for a specific workspace
+     */
+    public static getPanelForWorkspace(workspaceUri: string): SuperdesignCanvasPanel | undefined {
+        return SuperdesignCanvasPanel.panels.get(workspaceUri);
+    }
+
+    /**
+     * Dispose all panels
+     */
+    public static disposeAll(): void {
+        for (const panel of SuperdesignCanvasPanel.panels.values()) {
+            panel.dispose();
+        }
+        SuperdesignCanvasPanel.panels.clear();
     }
 
     public static getWorkspaceInfo(): { folderCount: number; folderNames: string[] } {
@@ -69,18 +127,26 @@ export class SuperdesignCanvasPanel {
     private constructor(
         panel: vscode.WebviewPanel,
         extensionUri: vscode.Uri,
-        sidebarProvider: ChatSidebarProvider
+        sidebarProvider: ChatSidebarProvider,
+        state?: CanvasPanelState
     ) {
         this._panel = panel;
         this._extensionUri = extensionUri;
         this._sidebarProvider = sidebarProvider;
         this._fileWatcherService = new FileWatcherService();
+        this._state = state ?? {};
 
         this._update();
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
         this._disposables.push(this._fileWatcherService);
         this._setupFileWatcher();
         this._setupWorkspaceChangeListener();
+
+        // Restore state if we have any
+        if (state) {
+            // Give webview time to load before restoring state
+            setTimeout(() => this._restoreState(), 500);
+        }
 
         // Handle messages from the webview
         this._panel.webview.onDidReceiveMessage(
@@ -91,6 +157,9 @@ export class SuperdesignCanvasPanel {
                         break;
                     case 'selectFrame':
                         Logger.debug(`Frame selected: ${message.data?.fileName}`);
+                        // Update state with selected file
+                        this._state.selectedFile = message.data?.fileName;
+                        this._saveState();
                         break;
                     case 'setContextFromCanvas':
                         // Forward context to chat sidebar
@@ -120,9 +189,9 @@ export class SuperdesignCanvasPanel {
         }
         this._isDisposing = true;
 
-        // Clear static reference first to prevent race conditions
-        if (SuperdesignCanvasPanel.currentPanel === this) {
-            SuperdesignCanvasPanel.currentPanel = undefined;
+        // Remove from panels map
+        if (this._state.workspaceUri) {
+            SuperdesignCanvasPanel.panels.delete(this._state.workspaceUri);
         }
 
         // Dispose workspace change listener
@@ -155,6 +224,43 @@ export class SuperdesignCanvasPanel {
         }
     }
 
+    /**
+     * Save the current state to the webview for persistence
+     */
+    private _saveState(): void {
+        // Store workspace URI for proper restoration
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (workspaceFolder) {
+            this._state.workspaceUri = workspaceFolder.uri.toString();
+        }
+
+        // Send state to webview for persistence
+        this._panel.webview.postMessage({
+            command: 'setState',
+            state: this._state,
+        });
+    }
+
+    /**
+     * Get the current state for serialization
+     */
+    public getState(): CanvasPanelState {
+        return this._state;
+    }
+
+    /**
+     * Restore state after deserialization
+     */
+    private _restoreState(): void {
+        if (this._state.selectedFile) {
+            // Notify webview about previously selected file
+            this._panel.webview.postMessage({
+                command: 'restoreSelection',
+                fileName: this._state.selectedFile,
+            });
+        }
+    }
+
     private _setupFileWatcher() {
         this._fileWatcherService.setupWatcher({
             pattern: '.superdesign/design_iterations/**/*.{html,svg,css}',
@@ -171,9 +277,31 @@ export class SuperdesignCanvasPanel {
     private _setupWorkspaceChangeListener() {
         // Only setup listener if not already setup
         if (!this._workspaceChangeListener) {
-            this._workspaceChangeListener = vscode.workspace.onDidChangeWorkspaceFolders(() => {
-                Logger.debug('Workspace folders changed, reloading design files');
-                void this._loadDesignFiles();
+            this._workspaceChangeListener = vscode.workspace.onDidChangeWorkspaceFolders(e => {
+                Logger.debug(
+                    `Workspace folders changed: ${e.added.length} added, ${e.removed.length} removed`
+                );
+
+                // Check if any workspace folders remain
+                if (
+                    !vscode.workspace.workspaceFolders ||
+                    vscode.workspace.workspaceFolders.length === 0
+                ) {
+                    Logger.warn('All workspace folders removed');
+                    // Send empty file list to webview
+                    this._panel.webview.postMessage({
+                        command: 'designFilesLoaded',
+                        data: {
+                            files: [],
+                            workspaceInfo: {
+                                folderCount: 0,
+                                folderNames: [],
+                            },
+                        },
+                    });
+                } else {
+                    void this._loadDesignFiles();
+                }
             });
             this._disposables.push(this._workspaceChangeListener);
         }
@@ -334,9 +462,20 @@ export class SuperdesignCanvasPanel {
     private async _loadDesignFiles() {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (!workspaceFolders || workspaceFolders.length === 0) {
+            Logger.warn('No workspace folders available');
             this._panel.webview.postMessage({
                 command: 'error',
                 data: { error: 'No workspace folder found. Please open a workspace first.' },
+            });
+            this._panel.webview.postMessage({
+                command: 'designFilesLoaded',
+                data: {
+                    files: [],
+                    workspaceInfo: {
+                        folderCount: 0,
+                        folderNames: [],
+                    },
+                },
             });
             return;
         }

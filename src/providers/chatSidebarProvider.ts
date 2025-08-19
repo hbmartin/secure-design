@@ -7,6 +7,7 @@ import type { VsCodeConfiguration, ProviderId } from './types';
 import { ProviderService } from './ProviderService';
 import { getModel } from './VsCodeConfiguration';
 import { WorkspaceStateService } from '../services/workspaceStateService';
+import { ChatHistoryMigrationService } from '../services/chatHistoryMigrationService';
 
 export class ChatSidebarProvider implements vscode.WebviewViewProvider {
     public static readonly VIEW_TYPE = 'securedesign.chatView';
@@ -18,7 +19,8 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
     constructor(
         private readonly _extensionUri: vscode.Uri,
         private readonly agentService: AgentService,
-        private readonly outputChannel: vscode.OutputChannel
+        private readonly outputChannel: vscode.OutputChannel,
+        private readonly context: vscode.ExtensionContext
     ) {
         this.messageHandler = new ChatMessageService(agentService, outputChannel);
         this.providerService = ProviderService.getInstance();
@@ -119,6 +121,12 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
                     break;
                 case 'clearWorkspaceChatHistory':
                     await this.handleClearWorkspaceChatHistory(webviewView.webview);
+                    break;
+                case 'migrateLocalStorage':
+                    await this.handleMigrateLocalStorage(
+                        message.oldChatHistory,
+                        webviewView.webview
+                    );
                     break;
             }
         });
@@ -383,6 +391,34 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
             });
         } catch (error) {
             console.error('Failed to clear chat history:', error);
+        }
+    }
+
+    private async handleMigrateLocalStorage(
+        oldChatHistory: any[],
+        webview: vscode.Webview
+    ): Promise<void> {
+        try {
+            // Perform migration if needed
+            const migratedHistory = await ChatHistoryMigrationService.performMigrationIfNeeded(
+                this.context,
+                oldChatHistory
+            );
+
+            // Send the migrated (or existing) history back to the webview
+            await webview.postMessage({
+                command: 'migrationComplete',
+                chatHistory: migratedHistory,
+                workspaceId: WorkspaceStateService.getInstance().getWorkspaceId(),
+            });
+        } catch (error) {
+            console.error('Failed to migrate chat history:', error);
+            // Send empty history on failure
+            await webview.postMessage({
+                command: 'migrationComplete',
+                chatHistory: [],
+                workspaceId: undefined,
+            });
         }
     }
 }

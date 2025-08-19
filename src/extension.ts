@@ -26,6 +26,11 @@ async function saveImageToMoodboard(
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
     if (!workspaceFolder) {
         Logger.error('No workspace folder found for saving image');
+        vscode.window.showErrorMessage('Cannot save image: No workspace folder is open');
+        sidebarProvider.sendMessage({
+            command: 'uploadFailed',
+            error: 'No workspace folder found',
+        });
         return;
     }
 
@@ -236,11 +241,14 @@ async function claudeCommandExists(): Promise<boolean> {
 }
 
 async function initializeSecuredesignProject() {
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-    if (!workspaceFolder) {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
         vscode.window.showErrorMessage('No workspace folder found. Please open a workspace first.');
+        Logger.warn('Cannot initialize SecureDesign: No workspace folders found');
         return;
     }
+
+    const workspaceFolder = workspaceFolders[0];
 
     const workspaceRoot = workspaceFolder.uri;
     const superdesignFolder = vscode.Uri.joinPath(workspaceRoot, '.superdesign');
@@ -1299,7 +1307,8 @@ export function activate(context: vscode.ExtensionContext) {
     const sidebarProvider = new ChatSidebarProvider(
         context.extensionUri,
         customAgent,
-        Logger.getOutputChannel()
+        Logger.getOutputChannel(),
+        context
     );
 
     // Register the webview view provider for sidebar
@@ -1325,6 +1334,24 @@ export function activate(context: vscode.ExtensionContext) {
     const openCanvasDisposable = vscode.commands.registerCommand('securedesign.openCanvas', () => {
         SuperdesignCanvasPanel.createOrShow(context.extensionUri, sidebarProvider);
     });
+
+    // Register webview panel serializer for state restoration
+    const canvasSerializer = vscode.window.registerWebviewPanelSerializer(
+        SuperdesignCanvasPanel.viewType,
+        {
+            deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel, state: any): Thenable<void> {
+                Logger.info('Restoring SuperdesignCanvasPanel from saved state');
+                // Restore the webview from saved state
+                SuperdesignCanvasPanel.deserialize(
+                    webviewPanel,
+                    state,
+                    context.extensionUri,
+                    sidebarProvider
+                );
+                return Promise.resolve();
+            },
+        }
+    );
 
     // Register clear chat command
     const clearChatDisposable = vscode.commands.registerCommand('securedesign.clearChat', () => {
@@ -1369,8 +1396,13 @@ export function activate(context: vscode.ExtensionContext) {
     sidebarProvider.setMessageHandler(message => {
         switch (message.command) {
             case 'checkCanvasStatus':
-                // Check if canvas panel is currently open
-                const isCanvasOpen = SuperdesignCanvasPanel.currentPanel !== undefined;
+                // Check if canvas panel is currently open for current workspace
+                const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+                const isCanvasOpen = workspaceFolder
+                    ? SuperdesignCanvasPanel.getPanelForWorkspace(
+                          workspaceFolder.uri.toString()
+                      ) !== undefined
+                    : false;
                 sidebarProvider.sendMessage({
                     command: 'canvasStatusResponse',
                     isOpen: isCanvasOpen,
@@ -1439,6 +1471,7 @@ export function activate(context: vscode.ExtensionContext) {
         sidebarDisposable,
         showSidebarDisposable,
         openCanvasDisposable,
+        canvasSerializer,
         clearChatDisposable,
         resetWelcomeDisposable,
         initializeProjectDisposable,
@@ -1448,5 +1481,8 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
+    // Dispose all canvas panels
+    SuperdesignCanvasPanel.disposeAll();
+
     Logger.dispose();
 }

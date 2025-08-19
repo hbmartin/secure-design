@@ -9,7 +9,9 @@
       "Bash(npm run lint:*)",
       "Bash(npm run compile:*)",
       "WebSearch",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(npm run compile:*)",
+      "Bash(npm test)"
     ],
     "deny": []
   }

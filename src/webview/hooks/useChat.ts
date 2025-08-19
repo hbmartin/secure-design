@@ -47,14 +47,37 @@ export function useChat(vscode: any): ChatHookResult {
     const [isLoading, setIsLoading] = useState(false);
     const [_currentWorkspaceId, setCurrentWorkspaceId] = useState<string | undefined>();
     const [isInitialized, setIsInitialized] = useState(false);
+    const [hasMigrated, setHasMigrated] = useState(false);
 
-    // Request chat history from VS Code workspace state on initialization
+    // Handle migration from localStorage to workspace state on initialization
     useEffect(() => {
         if (!isInitialized) {
-            vscode.postMessage({ command: 'loadChatHistory' });
+            // Check for old localStorage data
+            let oldChatHistory: ChatMessage[] = [];
+            try {
+                const saved = localStorage.getItem('superdesign-chat-history');
+                if (saved) {
+                    oldChatHistory = JSON.parse(saved);
+                    console.log('Found old chat history in localStorage, migrating...');
+                }
+            } catch (error) {
+                console.warn('Failed to read old chat history from localStorage:', error);
+            }
+
+            // If we have old data, migrate it; otherwise just load workspace state
+            if (oldChatHistory.length > 0 && !hasMigrated) {
+                vscode.postMessage({
+                    command: 'migrateLocalStorage',
+                    oldChatHistory: oldChatHistory,
+                });
+                setHasMigrated(true);
+            } else {
+                vscode.postMessage({ command: 'loadChatHistory' });
+            }
+
             setIsInitialized(true);
         }
-    }, [vscode, isInitialized]);
+    }, [vscode, isInitialized, hasMigrated]);
 
     // Persist chat history to VS Code workspace state whenever it changes
     useEffect(() => {
@@ -346,6 +369,19 @@ export function useChat(vscode: any): ChatHookResult {
                     setCurrentWorkspaceId(message.workspaceId);
                     // Request fresh chat history for new workspace
                     vscode.postMessage({ command: 'loadChatHistory' });
+                    break;
+
+                case 'migrationComplete':
+                    console.log('Migration complete, received chat history');
+                    setChatHistory(message.chatHistory ?? []);
+                    setCurrentWorkspaceId(message.workspaceId);
+                    // Clear localStorage after successful migration
+                    try {
+                        localStorage.removeItem('superdesign-chat-history');
+                        console.log('Cleared old localStorage data');
+                    } catch (error) {
+                        console.warn('Failed to clear localStorage:', error);
+                    }
                     break;
 
                 default:

@@ -14,7 +14,7 @@ const Welcome: React.FC<WelcomeProps> = ({ onGetStarted }) => {
             <div className='welcome-header'>
                 <div className='welcome-logo'>
                     <div className='logo-icon'>✨</div>
-                    <h1>Welcome to Super Design</h1>
+                    <h1>Welcome to SecureDesign</h1>
                 </div>
                 <p className='welcome-subtitle'>Your AI-powered canvas for rapid UI exploration</p>
             </div>
