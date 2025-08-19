@@ -262,7 +262,7 @@
     "@ai-sdk/anthropic": "^2.0.4",
     "@ai-sdk/google": "^2.0.6",
     "@ai-sdk/openai": "^2.0.15",
-    "@anthropic-ai/claude-code": "^1.0.83",
+    "@anthropic-ai/claude-code": "^1.0.84",
     "@openrouter/ai-sdk-provider": "^1.1.2",
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
