@@ -1,4 +1,3 @@
-import React from 'react';
 import { createRoot } from 'react-dom/client';
 import ChatInterface from './components/Chat/ChatInterface';
 import type { WebviewContext } from '../types/context';

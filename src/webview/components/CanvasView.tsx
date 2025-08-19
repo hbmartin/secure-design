@@ -227,7 +227,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
             const message: ExtensionToWebviewMessage = event.data;
 
             switch (message.command) {
-                case 'designFilesLoaded':
+                case 'designFilesLoaded': {
                     // Files already have modified as ISO string, no conversion needed
                     const { files } = message.data;
 
@@ -275,7 +275,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
                         }
                     }, 100);
                     break;
-
+                }
                 case 'error':
                     setError(message.data.error);
                     setIsLoading(false);

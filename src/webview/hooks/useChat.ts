@@ -19,31 +19,39 @@ export function useChat(vscode: any): ChatHookResult {
     const [isInitialized, setIsInitialized] = useState(false);
     const [hasMigrated, setHasMigrated] = useState(false);
     const [hasLoadedInitialHistory, setHasLoadedInitialHistory] = useState(false);
-    const isWebviewReady = useRef(false);
+    const [isWebviewReady, setIsWebviewReady] = useState(false);
+    
+    // Use ref to track current saving state for message handler
+    const isSavingRef = useRef(false);
 
     // Debounced save hook handles the complex save logic
     const saveChatHistory = useCallback(
-        (history: ChatMessage[]) => {
-            return vscode.postMessage({
+        (history: ChatMessage[]): Promise<void> => {
+            return Promise.resolve(vscode.postMessage({
                 command: 'saveChatHistory',
                 chatHistory: history,
-            });
+            }));
         },
         [vscode]
     );
 
     const { isSaving, lastSavedRef } = useDebouncedSave(chatHistory, saveChatHistory, {
         delay: 500,
-        isReady: isInitialized && isWebviewReady.current,
+        isReady: isInitialized && isWebviewReady,
         hasLoadedInitialData: hasLoadedInitialHistory,
         isSaving: false, // No external saving state
     });
+    
+    // Keep ref in sync with isSaving state for use in message handler
+    useEffect(() => {
+        isSavingRef.current = isSaving;
+    }, [isSaving]);
 
     // Mark webview as ready when it can receive messages
     useEffect(() => {
         // Small delay to ensure webview is fully initialized
         const timer = setTimeout(() => {
-            isWebviewReady.current = true;
+            setIsWebviewReady(true);
         }, 100);
 
         return () => clearTimeout(timer);
@@ -51,7 +59,7 @@ export function useChat(vscode: any): ChatHookResult {
 
     // Handle migration from localStorage to workspace state on initialization
     useEffect(() => {
-        if (!isInitialized && isWebviewReady.current) {
+        if (!isInitialized && isWebviewReady) {
             // Check for old localStorage data
             let oldChatHistory: ChatMessage[] = [];
             try {
@@ -77,7 +85,7 @@ export function useChat(vscode: any): ChatHookResult {
 
             setIsInitialized(true);
         }
-    }, [vscode, isInitialized, hasMigrated]);
+    }, [vscode, isInitialized, hasMigrated, isWebviewReady]);
 
     const clearHistory = useCallback(() => {
         setChatHistory([]);
@@ -92,7 +100,9 @@ export function useChat(vscode: any): ChatHookResult {
     const sendMessage = useCallback(
         (message: string) => {
             setIsLoading(true);
-
+            if (!message?.trim()) {
+                return;
+            }
             // Add user message to history
             const userMessage: ChatMessage = {
                 role: 'user',
@@ -102,16 +112,20 @@ export function useChat(vscode: any): ChatHookResult {
                 },
             };
 
-            setChatHistory(prev => [...prev, userMessage]);
-
-            // Send to extension
-            vscode.postMessage({
-                command: 'chatMessage',
-                message: message,
-                chatHistory: [...chatHistory, userMessage],
+            setChatHistory(prev => {
+                const newHistory = [...prev, userMessage];
+                
+                // Send to extension with the same history snapshot
+                vscode.postMessage({
+                    command: 'chatMessage',
+                    message: message,
+                    chatHistory: newHistory,
+                });
+                
+                return newHistory;
             });
         },
-        [chatHistory, vscode]
+        [vscode]
     );
 
     useEffect(() => {
@@ -154,7 +168,7 @@ export function useChat(vscode: any): ChatHookResult {
                                 type: 'tool-call' as const,
                                 toolCallId: message.metadata?.tool_id ?? 'unknown',
                                 toolName: message.metadata?.tool_name ?? 'unknown',
-                                input: message.metadata?.tool_input ?? {},
+                                args: message.metadata?.tool_input ?? {},
                             };
 
                             // Find the last assistant message and append tool call to it
@@ -350,7 +364,7 @@ export function useChat(vscode: any): ChatHookResult {
                 case 'chatHistoryLoaded':
                     console.log('Chat history loaded from workspace state');
                     // Only update if not currently saving to avoid overwriting pending changes
-                    if (!isSaving) {
+                    if (!isSavingRef.current) {
                         const loadedHistory = message.chatHistory ?? [];
                         setChatHistory(loadedHistory);
 
@@ -380,7 +394,7 @@ export function useChat(vscode: any): ChatHookResult {
                     vscode.postMessage({ command: 'loadChatHistory' });
                     break;
 
-                case 'migrationComplete':
+                case 'migrationComplete': {
                     console.log('Migration complete, received chat history');
                     const migratedHistory = message.chatHistory ?? [];
                     setChatHistory(migratedHistory);
@@ -399,7 +413,7 @@ export function useChat(vscode: any): ChatHookResult {
                         console.warn('Failed to clear localStorage:', error);
                     }
                     break;
-
+                }
                 default:
                     break;
             }

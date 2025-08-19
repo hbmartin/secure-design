@@ -25,7 +25,7 @@ interface UseDebouncedSaveResult {
  */
 export function useDebouncedSave(
     data: ChatMessage[],
-    saveFunction: (data: ChatMessage[]) => Promise<void>,
+    saveFunction: (data: ChatMessage[]) => Promise<any>,
     options: UseDebouncedSaveOptions = {}
 ): UseDebouncedSaveResult {
     const {
@@ -36,7 +36,7 @@ export function useDebouncedSave(
     } = options;
 
     const [isSaving, setIsSaving] = useState(false);
-    const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastSavedRef = useRef<string>('');
 
     useEffect(() => {

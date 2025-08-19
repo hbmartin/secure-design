@@ -1299,9 +1299,17 @@ export function activate(context: vscode.ExtensionContext) {
     workspaceStateService.initialize(context);
     Logger.info('WorkspaceStateService initialized');
 
-    // Initialize WebviewMessageGuard cleanup timer
+    // Initialize WebviewMessageGuard cleanup timer and ensure proper disposal
     WebviewMessageGuard.initialize();
     Logger.info('WebviewMessageGuard initialized');
+    
+    // Push disposal to subscriptions to ensure cleanup even if deactivate isn't called
+    context.subscriptions.push({
+        dispose: () => {
+            WebviewMessageGuard.dispose();
+            Logger.info('WebviewMessageGuard disposed via subscription');
+        }
+    });
 
     // Initialize Custom Agent service
     Logger.info('Creating CustomAgentService...');

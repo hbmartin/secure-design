@@ -70,7 +70,7 @@ export class FileWatcherService implements vscode.Disposable {
         this._currentConfig = undefined;
     }
     private _setupWatchersForWorkspace(): void {
-        const workspaceFolders = vscode.workspace.workspaceFolders;
+        const { workspaceFolders } = vscode.workspace;
         if (!this._currentConfig) {
             return;
         }
