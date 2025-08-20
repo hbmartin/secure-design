@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { type RefObject, useEffect, useRef, useState } from 'react';
 import type { ChatMessage } from '../../types';
 
 interface UseDebouncedSaveOptions {
@@ -16,7 +16,7 @@ interface UseDebouncedSaveResult {
     /** Whether currently saving */
     isSaving: boolean;
     /** Reference to the last saved data (JSON string) */
-    lastSavedRef: React.MutableRefObject<string>;
+    lastSavedRef: RefObject<string>;
 }
 
 /**

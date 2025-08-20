@@ -158,7 +158,6 @@ The project uses a modular testing approach:
 - Run specific test suites based on the area being modified.
 - architect such that much of the logic can be tested as plain functions or classes
 - mock vscode object for unit tests
--
 
 ### Test Organization
 
