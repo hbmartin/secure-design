@@ -65,7 +65,7 @@ function globToRegex(pattern: string, caseSensitive: boolean = false): RegExp {
 
     // Handle brace expansion like {js,ts,jsx}
     const braceRegex = /\{([^}]+)\}/g;
-    regexPattern = regexPattern.replace(braceRegex, (match, content) => {
+    regexPattern = regexPattern.replace(braceRegex, (_, content) => {
         const options = content.split(',').map((s: string) => s.trim());
         return `(${options.join('|')})`;
     });

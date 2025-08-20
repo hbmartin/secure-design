@@ -1,6 +1,6 @@
-import React from 'react';
 import { createRoot } from 'react-dom/client';
 import ChatInterface from './components/Chat/ChatInterface';
+import { WebviewProvider } from './contexts/WebviewContext';
 import type { WebviewContext } from '../types/context';
 
 // Import main App styles for panel layout
@@ -36,8 +36,11 @@ if (container) {
         } else {
             console.log('🔲 Sidebar layout, rendering ChatInterface directly');
             // Use ChatInterface directly for sidebar (compact layout)
-            const vscode = acquireVsCodeApi();
-            root.render(<ChatInterface layout='sidebar' vscode={vscode} />);
+            root.render(
+                <WebviewProvider>
+                    <ChatInterface layout='sidebar' />
+                </WebviewProvider>
+            );
         }
     }
 }

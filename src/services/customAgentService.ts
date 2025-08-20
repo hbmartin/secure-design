@@ -576,15 +576,16 @@ I've created the html design, please reveiw and let me know if you need any chan
             };
 
             if (usingConversationHistory) {
-                // Use conversation messages
-                streamTextConfig.messages = conversationHistory;
+                // Validate and repair conversation history to ensure proper tool call/result pairing
+                const validatedMessages = this.validateToolCallPairs(conversationHistory);
+                streamTextConfig.messages = validatedMessages;
                 this.outputChannel.appendLine(
-                    `Using conversation history with ${conversationHistory.length} messages`
+                    `Using conversation history with ${validatedMessages.length} messages (${conversationHistory.length} original)`
                 );
 
                 // Debug: Log the actual messages being sent to AI SDK
                 this.outputChannel.appendLine('=== AI SDK MESSAGES DEBUG ===');
-                conversationHistory.forEach((msg, index) => {
+                validatedMessages.forEach((msg, index) => {
                     const content =
                         typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
                     this.outputChannel.appendLine(`  [${index}] ${msg.role}: "${content}..."`);
@@ -870,5 +871,79 @@ I've created the html design, please reveiw and let me know if you need any chan
             lowerError.includes('api_key_invalid') ||
             lowerError.includes('unauthenticated')
         );
+    }
+
+    /**
+     * Validates and repairs conversation history to ensure proper tool call/result pairing
+     * Each tool_use block must have a corresponding tool_result block immediately after
+     */
+    private validateToolCallPairs(messages: ModelMessage[]): ModelMessage[] {
+        const validatedMessages: ModelMessage[] = [];
+        
+        for (let i = 0; i < messages.length; i++) {
+            const message = messages[i];
+            
+            // For assistant messages with tool calls, ensure they have corresponding results
+            if (message.role === 'assistant' && Array.isArray(message.content)) {
+                const toolCalls = message.content.filter(part => part.type === 'tool-call');
+                
+                if (toolCalls.length > 0) {
+                    // Check if the next message contains tool results for these calls
+                    const nextMessage = messages[i + 1];
+                    let hasValidResults = false;
+                    
+                    if (nextMessage && nextMessage.role === 'tool' && Array.isArray(nextMessage.content)) {
+                        const toolResults = nextMessage.content.filter(part => part.type === 'tool-result');
+                        
+                        // Check if all tool calls have corresponding results
+                        hasValidResults = toolCalls.every(toolCall => 
+                            toolResults.some(result => 
+                                (result as any).toolCallId === (toolCall as any).toolCallId
+                            )
+                        );
+                    }
+                    
+                    if (hasValidResults) {
+                        // Both messages are valid, add them
+                        validatedMessages.push(message);
+                        validatedMessages.push(nextMessage);
+                        i++; // Skip the next message since we've already processed it
+                    } else {
+                        // Tool call without result - remove the tool calls to avoid error
+                        const missingToolIds = toolCalls.map(tc => (tc as any).toolCallId).join(', ');
+                        this.outputChannel.appendLine(
+                            `Removing incomplete tool calls from message ${i} - no matching results found for IDs: ${missingToolIds}`
+                        );
+                        
+                        const filteredContent = message.content.filter(part => part.type !== 'tool-call');
+                        if (filteredContent.length > 0) {
+                            validatedMessages.push({
+                                ...message,
+                                content: filteredContent
+                            });
+                        }
+                        // Skip this message if it only contained tool calls
+                    }
+                } else {
+                    // No tool calls, message is safe to include
+                    validatedMessages.push(message);
+                }
+            } else if (message.role === 'tool') {
+                // Tool message without preceding assistant tool call - skip it
+                this.outputChannel.appendLine(
+                    `Skipping orphaned tool result message ${i}`
+                );
+                continue;
+            } else {
+                // User or system message, always include
+                validatedMessages.push(message);
+            }
+        }
+        
+        this.outputChannel.appendLine(
+            `Tool call validation: ${messages.length} -> ${validatedMessages.length} messages`
+        );
+        
+        return validatedMessages;
     }
 }

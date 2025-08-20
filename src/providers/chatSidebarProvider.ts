@@ -1,30 +1,19 @@
 import * as vscode from 'vscode';
-import { ChatMessageService } from '../services/chatMessageService';
 import { generateWebviewHtml } from '../templates/webviewTemplate';
 import type { WebviewContext } from '../types/context';
-import type { AgentService } from '../types/agent';
-import type { VsCodeConfiguration, ProviderId } from './types';
-import { ProviderService } from './ProviderService';
-import { getModel } from './VsCodeConfiguration';
-import { WorkspaceStateService } from '../services/workspaceStateService';
-import { ChatHistoryMigrationService } from '../services/chatHistoryMigrationService';
+// Unused imports removed after legacy cleanup
+import { Logger } from '../services/logger';
+import type { WebviewApiProvider } from './WebviewApiProvider';
 
 export class ChatSidebarProvider implements vscode.WebviewViewProvider {
     public static readonly VIEW_TYPE = 'securedesign.chatView';
     private _view?: vscode.WebviewView;
-    private readonly messageHandler: ChatMessageService;
-    private readonly providerService: ProviderService;
     private customMessageHandler?: (message: any) => void;
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
-        private readonly agentService: AgentService,
-        private readonly outputChannel: vscode.OutputChannel,
-        private readonly context: vscode.ExtensionContext
-    ) {
-        this.messageHandler = new ChatMessageService(agentService, outputChannel);
-        this.providerService = ProviderService.getInstance();
-    }
+        private readonly apiProvider: WebviewApiProvider
+    ) {}
 
     public setMessageHandler(handler: (message: any) => void) {
         this.customMessageHandler = handler;
@@ -64,10 +53,10 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
         // eslint-disable-next-line require-atomic-updates
         webviewView.webview.html = html;
 
-        // Load chat history for the current workspace after webview is ready
-        setTimeout(() => {
-            void this.handleLoadChatHistory(webviewView.webview);
-        }, 100);
+        // Initial chat history loading is now handled by the webview using the new API
+
+        // Register this webview with the API provider
+        this.apiProvider.registerView('chat-sidebar', webviewView, 'chat-sidebar');
 
         // Handle messages from the webview
         const messageListener = webviewView.webview.onDidReceiveMessage(async message => {
@@ -76,57 +65,23 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
                 this.customMessageHandler(message);
             }
 
-            // Then handle regular chat messages
+            // Check if this is a new API message format
+            if (message.type === 'request') {
+                // Delegate to WebviewApiProvider for new API calls
+                await this.apiProvider.handleMessage(message, webviewView.webview);
+                return;
+            }
+
+            // Handle special legacy messages that aren't yet migrated to the new API
             switch (message.command) {
-                case 'chatMessage':
-                    await this.messageHandler.handleChatMessage(message, webviewView.webview);
-                    break;
-                case 'stopChat':
-                    await this.messageHandler.stopCurrentChat(webviewView.webview);
-                    break;
-                case 'executeAction':
-                    // Execute command from error action buttons
-                    console.log('Executing action:', message.actionCommand, message.actionArgs);
-                    if (message.actionArgs) {
-                        await vscode.commands.executeCommand(
-                            message.actionCommand,
-                            message.actionArgs
-                        );
-                    } else {
-                        await vscode.commands.executeCommand(message.actionCommand);
-                    }
-                    break;
-                case 'getBase64Image':
-                    // Forward to extension for image conversion
-                    // This will be handled by extension.ts
-                    break;
-                case 'getCurrentProvider':
-                    await this.handleGetCurrentProvider(webviewView.webview);
-                    break;
-                case 'changeProvider':
-                    await this.handleChangeProvider(
-                        message.providerId,
-                        message.model,
-                        webviewView.webview
-                    );
-                    break;
                 case 'showContextPicker':
+                    // Keep this until we have a proper UI component replacement
                     await this.handleShowContextPicker(webviewView.webview);
                     break;
-                case 'saveChatHistory':
-                    await this.handleSaveChatHistory(message.chatHistory);
-                    break;
-                case 'loadChatHistory':
-                    await this.handleLoadChatHistory(webviewView.webview);
-                    break;
-                case 'clearWorkspaceChatHistory':
-                    await this.handleClearWorkspaceChatHistory(webviewView.webview);
-                    break;
-                case 'migrateLocalStorage':
-                    await this.handleMigrateLocalStorage(
-                        message.oldChatHistory,
-                        webviewView.webview
-                    );
+                
+                default:
+                    // All other commands should now use the new API
+                    Logger.warn(`Received unmigrated legacy command: ${message.command}`, message);
                     break;
             }
         });
@@ -137,65 +92,7 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
         });
     }
 
-    private async handleGetCurrentProvider(webview: vscode.Webview) {
-        const modelToUse = getModel();
-
-        await webview.postMessage({
-            command: 'currentProviderResponse',
-            provider: modelToUse?.providerId,
-            model: modelToUse?.id,
-        });
-    }
-
-    private async handleChangeProvider(
-        providerId: ProviderId,
-        model: string,
-        webview: vscode.Webview
-    ) {
-        try {
-            const config = vscode.workspace.getConfiguration('securedesign');
-
-            // Get provider for this model
-            const providerMetadata = this.providerService.getProviderMetadata(providerId);
-            const displayName = `${providerMetadata.name} (${this.providerService.getModelDisplayName(model, providerId)})`;
-
-            // Update both provider and specific model
-            await config.update('aiModelProvider', providerId, vscode.ConfigurationTarget.Global);
-            await config.update('aiModel', model, vscode.ConfigurationTarget.Global);
-
-            // Check if credentials are configured
-            const providerConfig: VsCodeConfiguration = {
-                config: config,
-                outputChannel: this.outputChannel,
-            };
-
-            const validation = this.providerService.validateCredentialsForProvider(
-                providerId,
-                providerConfig
-            );
-
-            if (!validation.isValid) {
-                const result = await vscode.window.showWarningMessage(
-                    `${displayName} selected, but credentials are not configured. Would you like to configure them now?`,
-                    'Configure Credentials',
-                    'Later'
-                );
-
-                if (result === 'Configure Credentials') {
-                    await vscode.commands.executeCommand(providerMetadata.configureCommand);
-                }
-            }
-
-            // Notify webview of successful change
-            await webview.postMessage({
-                command: 'providerChanged',
-                provider: providerMetadata.id,
-                model: model,
-            });
-        } catch (error) {
-            vscode.window.showErrorMessage(`Failed to update AI model: ${error}`);
-        }
-    }
+    // handleGetCurrentProvider and handleChangeProvider have been migrated to WebviewApiProvider
 
     private async handleShowContextPicker(webview: vscode.Webview) {
         try {
@@ -352,73 +249,6 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
         vscode.window.showInformationMessage('Canvas content added as context');
     }
 
-    private async handleSaveChatHistory(chatHistory: any[]): Promise<void> {
-        try {
-            const workspaceStateService = WorkspaceStateService.getInstance();
-            await workspaceStateService.saveChatHistory(chatHistory);
-        } catch (error) {
-            console.error('Failed to save chat history:', error);
-        }
-    }
-
-    private async handleLoadChatHistory(webview: vscode.Webview): Promise<void> {
-        try {
-            const workspaceStateService = WorkspaceStateService.getInstance();
-            const chatHistory = workspaceStateService.getChatHistory();
-
-            await webview.postMessage({
-                command: 'chatHistoryLoaded',
-                chatHistory: chatHistory,
-                workspaceId: workspaceStateService.getWorkspaceId(),
-            });
-        } catch (error) {
-            console.error('Failed to load chat history:', error);
-            await webview.postMessage({
-                command: 'chatHistoryLoaded',
-                chatHistory: [],
-                workspaceId: undefined,
-            });
-        }
-    }
-
-    private async handleClearWorkspaceChatHistory(webview: vscode.Webview): Promise<void> {
-        try {
-            const workspaceStateService = WorkspaceStateService.getInstance();
-            await workspaceStateService.clearChatHistory();
-
-            await webview.postMessage({
-                command: 'chatHistoryCleared',
-            });
-        } catch (error) {
-            console.error('Failed to clear chat history:', error);
-        }
-    }
-
-    private async handleMigrateLocalStorage(
-        oldChatHistory: any[],
-        webview: vscode.Webview
-    ): Promise<void> {
-        try {
-            // Perform migration if needed
-            const migratedHistory = await ChatHistoryMigrationService.performMigrationIfNeeded(
-                this.context,
-                oldChatHistory
-            );
-
-            // Send the migrated (or existing) history back to the webview
-            await webview.postMessage({
-                command: 'migrationComplete',
-                chatHistory: migratedHistory,
-                workspaceId: WorkspaceStateService.getInstance().getWorkspaceId(),
-            });
-        } catch (error) {
-            console.error('Failed to migrate chat history:', error);
-            // Send empty history on failure
-            await webview.postMessage({
-                command: 'migrationComplete',
-                chatHistory: [],
-                workspaceId: undefined,
-            });
-        }
-    }
+    // handleSaveChatHistory, handleLoadChatHistory, and handleClearWorkspaceChatHistory 
+    // have been migrated to WebviewApiProvider
 }

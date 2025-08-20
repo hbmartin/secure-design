@@ -47,13 +47,18 @@ export class FileWatcherService implements vscode.Disposable {
         // Dispose all file watchers
         this._disposeWatchers();
 
-        // Dispose workspace change listener
+        // Dispose workspace change listener and remove from disposables
         if (this._workspaceChangeListener) {
+            // Remove from disposables array to prevent double disposal
+            const index = this._disposables.indexOf(this._workspaceChangeListener);
+            if (index > -1) {
+                this._disposables.splice(index, 1);
+            }
             this._workspaceChangeListener.dispose();
             this._workspaceChangeListener = undefined;
         }
 
-        // Dispose all event subscriptions
+        // Dispose all remaining event subscriptions
         while (this._disposables.length) {
             const disposable = this._disposables.pop();
             if (disposable) {
@@ -65,7 +70,7 @@ export class FileWatcherService implements vscode.Disposable {
         this._currentConfig = undefined;
     }
     private _setupWatchersForWorkspace(): void {
-        const workspaceFolders = vscode.workspace.workspaceFolders;
+        const { workspaceFolders } = vscode.workspace;
         if (!this._currentConfig) {
             return;
         }
@@ -162,32 +167,5 @@ export class FileWatcherService implements vscode.Disposable {
             }
         }
         this._fileWatchers.clear();
-    }
-
-    /**
-     * Dispose a specific watcher by workspace key
-     * Useful for removing watchers for individual workspace folders
-     */
-    private _disposeWatcherByKey(key: string): void {
-        const watcherInfo = this._fileWatchers.get(key);
-        if (watcherInfo) {
-            try {
-                // Dispose all event subscriptions for this watcher
-                for (const subscription of watcherInfo.subscriptions) {
-                    subscription.dispose();
-                }
-
-                // Dispose the watcher itself
-                watcherInfo.watcher.dispose();
-
-                Logger.debug(
-                    `Disposed specific file watcher and ${watcherInfo.subscriptions.length} subscriptions for: ${key}`
-                );
-            } catch (error) {
-                Logger.warn(`Error disposing specific file watcher for ${key}: ${error}`);
-            }
-
-            this._fileWatchers.delete(key);
-        }
     }
 }

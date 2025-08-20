@@ -19,12 +19,10 @@ export class ClaudeCodeService {
     private isInitialized = false;
     private initializationPromise: Promise<void> | null = null;
     private workingDirectory: string = '';
-    private readonly outputChannel: vscode.OutputChannel;
     private currentSessionId: string | null = null;
     private claudeCodeQuery: QueryFunction | null = null;
 
-    constructor(outputChannel: vscode.OutputChannel) {
-        this.outputChannel = outputChannel;
+    constructor() {
         // Initialize on construction
         this.initializationPromise = this.initialize();
     }

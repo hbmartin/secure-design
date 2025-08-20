@@ -1,12 +1,12 @@
 import React from 'react';
 
 interface WelcomeProps {
-    onGetStarted: () => void;
+    onGetStarted: () => void | Promise<void>;
 }
 
 const Welcome: React.FC<WelcomeProps> = ({ onGetStarted }) => {
     const handleGetStarted = () => {
-        onGetStarted();
+        void onGetStarted();
     };
 
     return (

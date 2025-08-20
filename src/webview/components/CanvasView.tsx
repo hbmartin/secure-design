@@ -227,15 +227,12 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
             const message: ExtensionToWebviewMessage = event.data;
 
             switch (message.command) {
-                case 'designFilesLoaded':
-                    // Convert date strings back to Date objects
-                    const filesWithDates = message.data.files.map(file => ({
-                        ...file,
-                        modified: new Date(file.modified),
-                    }));
+                case 'designFilesLoaded': {
+                    // Files already have modified as ISO string, no conversion needed
+                    const { files } = message.data;
 
                     // Detect design relationships and build hierarchy
-                    const filesWithRelationships = detectDesignRelationships(filesWithDates);
+                    const filesWithRelationships = detectDesignRelationships(files);
                     setDesignFiles(filesWithRelationships);
 
                     // Build hierarchy tree
@@ -278,7 +275,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
                         }
                     }, 100);
                     break;
-
+                }
                 case 'error':
                     setError(message.data.error);
                     setIsLoading(false);
