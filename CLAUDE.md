@@ -29,15 +29,6 @@ npm run test:tools     # Test file operation tools
 
 ## Architecture Overview
 
-### Extension Structure
-
-- **`src/extension.ts`**: Main extension entry point and activation logic
-- **`src/providers/chatSidebarProvider.ts`**: Manages the chat sidebar webview interface
-- **`src/services/`**: Core services including AI agent integration and logging
-- **`src/webview/`**: React-based webview components for chat and canvas interfaces
-- **`src/tools/`**: File system operation tools (read, write, edit, grep, glob, etc.)
-- **`src/types/`**: TypeScript type definitions for agents and context
-
 ### Key Components
 
 **Extension Entry Point** (`src/extension.ts`)
@@ -99,6 +90,7 @@ The extension includes a comprehensive tool system for file operations:
 - API keys configured per provider (Anthropic, OpenAI, OpenRouter)
 - Design files stored in `.superdesign/` directory
 - Moodboard images saved to `.superdesign/moodboard/`
+- Push settings into a centralized settings management system
 
 ### Design File Management
 
@@ -120,10 +112,19 @@ The extension includes a comprehensive tool system for file operations:
 
 ### Webview Communication
 
+- clear separation of concerns between the extension host (Node.js backend) and the webview (React frontend) is crucial.
+- split functionality into distinct modules or files.
+- Decouple backend business logic from frontend React
+- define a clear schema for IPC commands / messages
+- validate and sanitize messages coming from the webview
+- Avoid sending extremely large payloads through postMessage frequently. For large data, consider streaming chunks or allowing the webview to request specific portions on demand.
+- Leverage VS Code’s state: The `vscode` object provides a setState/getState that can preserve state within the webview across reloads. Use this for caching UI state if the webview might be torn down and rebuilt
+- Clean up listeners and resources. For instance, setInterval or event listeners in the webview, require a corresponding cleanup.
+
 The extension uses a message-based system for webview communication:
 
 - Commands sent via `vscode.postMessage()`
-- Message handling in `ChatMessageService`
+- Use a structured message protocol between extension and webview
 - Context propagation through `WebviewContext`
 
 ### AI Integration
@@ -139,15 +140,13 @@ The extension uses a message-based system for webview communication:
 - Working directory managed relative to workspace root
 - Tool results include proper error handling and validation
 
-### Error Handling
-
-Centralized error handling with user-friendly messages and actionable error responses (e.g., API key configuration prompts).
-
 ### Extension Lifecycle
 
 Proper disposal patterns for file watchers, webview panels, and event subscriptions to prevent memory leaks.
 
 ## Testing Strategy
+
+### Important: always run tests for new business logic
 
 The project uses a modular testing approach:
 
@@ -156,23 +155,29 @@ The project uses a modular testing approach:
 - **Tool tests**: File operation tools
 - **Agent tests**: Combined agent functionality
 
-Run specific test suites based on the area being modified.
+- Run specific test suites based on the area being modified.
+- architect such that much of the logic can be tested as plain functions or classes
+- mock vscode object for unit tests
 
-### Security Considerations
+### Test Organization
 
-- API keys stored in VS Code's secure configuration system
-- Content Security Policy enforcement for webviews
-- Sandboxed file operations within workspace boundaries
+- **Unit tests**: Test individual services and utilities
+- **Integration tests**: Test VSCode API integration
+- **Fixture-based testing**: Use realistic test scenarios
+- **Isolated environment**: Disable other extensions during testing
+
+### Testing Strategy
+
+- Write unit tests with Mocha and vscode-test-cli
+- Implement integration tests using `@vscode/test-electron`
+- Mock VSCode API in unit tests
+- Use snapshot testing for complex outputs
+- Test with different workspace configurations
+- Implement E2E tests for critical workflows
+- Maintain >80% code coverage
+- Test error scenarios and edge cases
 
 ## Important Notes
-
-### Cursor Rules Integration
-
-The project includes comprehensive Cursor rules in `.cursor/rules/`:
-
-- Follow the dev workflow patterns in `dev_workflow.mdc`
-- Use Taskmaster for complex feature development
-- Reference `cursor_rules.mdc` for rule structure guidelines
 
 ### Security Considerations
 
@@ -191,14 +196,13 @@ The project includes comprehensive Cursor rules in `.cursor/rules/`:
 
 ## Important: You have access to VSCode API docs in the vscode-docs folder
 
-## Project Setup & Structure
+## Project Structure Principles
 
-- Keep `package.json` manifest accurate with all contributions
-- Use `.vscodeignore` to exclude test files and source maps from published extension
-- Enable strict TypeScript: `"strict": true` in `tsconfig.json`
-- Target ES2020+ for modern VSCode versions
-- Use ESLint with `@typescript-eslint` parser
-- Configure Prettier for consistent formatting
+- Organize complex extensions into separate packages with clear responsibilities
+- **Logical Grouping**: Group related functionality in dedicated directories
+- **Shared Code**: Extract common utilities to shared directories
+- **Configuration**: Keep configuration files at appropriate levels (root, client, server)
+- **Assets**: Organize images, icons, and other assets in dedicated directories
 
 ## TypeScript Best Practices
 
@@ -206,6 +210,7 @@ The project includes comprehensive Cursor rules in `.cursor/rules/`:
 - Use explicit return types for public APIs
 - Leverage type inference for local variables
 - Define interfaces for complex objects, not type aliases
+- Create specific interfaces for different concerns
 - Use enums sparingly, prefer const assertions or union types
 - Implement proper error types, not generic `Error`
 - Use optional chaining `?.` and nullish coalescing `??`
@@ -214,6 +219,7 @@ The project includes comprehensive Cursor rules in `.cursor/rules/`:
 - Avoid `any`, use `unknown` when type is truly unknown
 - Implement discriminated unions for state management
 - Use template literal types for string patterns
+- Maintain type safety throughout the codebase
 
 ## Extension Lifecycle
 
@@ -239,6 +245,7 @@ The project includes comprehensive Cursor rules in `.cursor/rules/`:
 ## Configuration Management
 
 - Define configuration schema in `package.json` contributes.configuration
+- Use VS Code's configuration API with typed interfaces
 - Use `vscode.workspace.getConfiguration()` with scope
 - Listen to configuration changes: `vscode.workspace.onDidChangeConfiguration`
 - Provide sensible defaults for all settings
@@ -275,6 +282,7 @@ The project includes comprehensive Cursor rules in `.cursor/rules/`:
 ## Performance Optimization
 
 - Lazy-load modules with dynamic imports
+- Implement lazy activation to minimize startup impact
 - Use webpack for bundling production builds
 - Minimize extension size with tree-shaking
 - Debounce frequent events like `onDidChangeTextDocument`
@@ -285,23 +293,12 @@ The project includes comprehensive Cursor rules in `.cursor/rules/`:
 - Batch workspace edits
 - Cache parsed ASTs and computations
 
-## Testing Strategy
-
-- Write unit tests with Mocha and vscode-test-cli
-- Implement integration tests using `@vscode/test-electron`
-- Mock VSCode API in unit tests
-- Test multiple VSCode versions in CI
-- Use snapshot testing for complex outputs
-- Test with different workspace configurations
-- Implement E2E tests for critical workflows
-- Maintain >80% code coverage
-- Test error scenarios and edge cases
-
 ## Error Handling
 
 - Wrap all async operations in try-catch
 - Log errors to output channel, not console
 - Provide user-friendly error messages
+- User facing messages should provide an action or command (e.g., API key configuration prompts).
 - Implement fallback behaviors
 - Use custom error classes with error codes
 - Report telemetry for critical errors (with consent)
@@ -327,6 +324,7 @@ The project includes comprehensive Cursor rules in `.cursor/rules/`:
 - Semantic versioning: MAJOR.MINOR.PATCH
 - Maintain comprehensive CHANGELOG.md
 - Write clear README with features and usage
+- Update the readme when adding new features or providers
 - Include screenshots and GIFs
 - Set appropriate categories and keywords
 - Use `vsce` CLI for packaging
@@ -346,18 +344,6 @@ The project includes comprehensive Cursor rules in `.cursor/rules/`:
 - Profile performance bottlenecks
 - Monitor extension host memory usage
 - Implement telemetry (with user consent)
-
-## Language Server Protocol (LSP)
-
-- Implement LSP for language support
-- Use `vscode-languageclient` package
-- Separate server logic from extension
-- Implement incremental text synchronization
-- Cache language server results
-- Handle server crashes gracefully
-- Support multiple workspace folders
-- Implement custom LSP extensions carefully
-- Profile server performance
 
 ## Webview Best Practices
 
@@ -415,6 +401,23 @@ The project includes comprehensive Cursor rules in `.cursor/rules/`:
 - Include contribution guidelines
 - Document configuration options
 - Create user-facing documentation
+
+## Key Takeaways
+
+1. **Modular Architecture**: Separate client and server code for complex extensions
+2. **Lazy Loading**: Minimize activation time and resource usage
+3. **Rich Configuration**: Provide comprehensive, well-documented settings
+4. **Error Handling**: Implement robust error handling with user-friendly messages
+5. **Performance**: Monitor and optimize with time budgets and caching
+6. **Testing**: Include comprehensive test coverage. Include unit, integration, and fixture-based tests.
+7. **Build Flexibility**: Support multiple build systems (webpack, esbuild, tsc)
+8. **User Experience**: Provide clear status indication and migration paths
+9. **Documentation**: Maintain comprehensive documentation and examples
+10. **Standards**: Follow VSCode extension conventions and best practices
+11. **Developer experience**: Provide excellent tooling and documentation
+12. **TypeScript**: Leverage strong typing, decorators, and modern ES features
+13. **Maintainability**: Design for testability, use consistent patterns, and maintain clear code organization
+14. **State Management**: Use configuration-driven settings with proper caching and event handling
 
 ## Libraries
 

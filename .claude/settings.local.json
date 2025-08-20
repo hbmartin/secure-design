@@ -2,16 +2,17 @@
   "permissions": {
     "allow": [
       "Bash(npm run check-types:*)",
-      "Bash(npm run lint)",
       "WebFetch(domain:vercel.com)",
       "WebFetch(domain:sdk.vercel.ai)",
       "WebFetch(domain:ai-sdk.dev)",
       "Bash(npm run lint:*)",
-      "Bash(npm run compile:*)",
       "WebSearch",
       "Bash(grep:*)",
       "Bash(npm run compile:*)",
-      "Bash(npm test)"
+      "Bash(npm test)",
+      "Bash(npm run test:typesafe-api:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx eslint:*)"
     ],
     "deny": []
   }

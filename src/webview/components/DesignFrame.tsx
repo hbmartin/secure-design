@@ -99,6 +99,7 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                 document.removeEventListener('mousedown', handleClickOutside);
             };
         }
+        return () => {};
     }, [showCopyDropdown]);
 
     const handleViewportToggle = (newViewport: ViewportMode) => {
@@ -597,7 +598,14 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                         <p className='placeholder-name'>{file.name}</p>
                         <div className='placeholder-meta'>
                             <span>{(file.size / 1024).toFixed(1)} KB</span>
-                            <span>{file.modified.toLocaleDateString()}</span>
+                            <span>
+                                {(() => {
+                                    const date = new Date(file.modified);
+                                    return isNaN(date.getTime())
+                                        ? 'Unknown date'
+                                        : date.toLocaleDateString();
+                                })()}
+                            </span>
                             <span className='file-type'>{file.fileType.toUpperCase()}</span>
                         </div>
                         {renderMode === 'placeholder' && (

@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useChat, type ChatMessage } from '../../hooks/useChat';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useChatTypeSafe } from '../../hooks/useChatTypeSafe';
+import { useWebviewApi } from '../../contexts/WebviewContext';
+import type { ChatMessage } from '../../../types/chatMessage';
 import { useFirstTimeUser } from '../../hooks/useFirstTimeUser';
 import type { WebviewLayout } from '../../../types/context';
 import MarkdownRenderer from '../MarkdownRenderer';
@@ -10,16 +12,42 @@ import ModelSelector from './ModelSelector';
 import chatStyles from './ChatInterface.css';
 
 import welcomeStyles from '../Welcome/Welcome.css';
-import { ChangeProvider } from '../../types/command.types';
 import { ProviderService } from '../../../providers';
 
 interface ChatInterfaceProps {
     layout: WebviewLayout;
-    vscode: VsCodeApi;
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
-    const { chatHistory, isLoading, sendMessage, clearHistory, setChatHistory } = useChat(vscode);
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
+    const { messages: chatHistory, isLoading, sendMessage, clearHistory } = useChatTypeSafe();
+    const { api } = useWebviewApi();
+
+    // Temporary compatibility bridge for gradual migration
+    const vscode = useMemo(
+        () => ({
+            postMessage: (message: any) => {
+                console.warn('Legacy vscode.postMessage call:', message);
+                // Handle legacy messages appropriately
+                switch (message.command) {
+                    case 'checkCanvasStatus':
+                        // Stub for canvas status checks
+                        break;
+                    case 'executeCommand':
+                        void api.executeCommand(message.command, message.args);
+                        break;
+                    default:
+                        console.warn('Unhandled legacy message:', message);
+                }
+            },
+        }),
+        [api]
+    );
+
+    // Create a compatibility setter for components that need to manually update chat history
+    const setChatHistory = useCallback((_updater: React.SetStateAction<ChatMessage[]>) => {
+        // For the new API, we'll handle this through events instead of direct state updates
+        console.warn('setChatHistory is deprecated with the new API - use event system instead');
+    }, []);
     const {
         isFirstTime,
         isLoading: isCheckingFirstTime,
@@ -60,29 +88,28 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
 
     // Request current provider on mount
     useEffect(() => {
-        vscode.postMessage({
-            command: 'getCurrentProvider',
-        });
-
-        const handleMessage = (event: MessageEvent) => {
-            const message = event.data;
-            if (message.command === 'currentProviderResponse') {
-                setSelectedModel(message.model);
-            } else if (message.command === 'providerChanged') {
-                setSelectedModel(message.model);
+        void (async () => {
+            try {
+                const provider = await api.getCurrentProvider();
+                setSelectedModel(provider.model);
+            } catch (error) {
+                console.error('Failed to get current provider:', error);
             }
-        };
+        })();
+    }, [api]);
 
-        window.addEventListener('message', handleMessage);
-        return () => window.removeEventListener('message', handleMessage);
-    }, [vscode]);
-
-    const handleModelChange = (providerId: string, model: string) => {
-        vscode.postMessage(ChangeProvider(providerId, model));
+    const handleModelChange = async (providerId: string, model: string) => {
+        try {
+            await api.changeProvider(providerId, model);
+            setSelectedModel(model);
+        } catch (error) {
+            console.error('Failed to change provider:', error);
+            api.showErrorMessage('Failed to change AI provider');
+        }
     };
 
-    const handleNewConversation = useCallback(() => {
-        clearHistory();
+    const handleNewConversation = useCallback(async () => {
+        // Clear UI state immediately for responsive UX
         setInputMessage('');
         setCurrentContext(null);
         setUploadingImages([]);
@@ -94,7 +121,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
         timerIntervals.current = {};
 
         markAsReturningUser();
-    }, [clearHistory, markAsReturningUser]);
+
+        // Then handle the async storage clearing
+        try {
+            console.log('🗑️ Calling clearHistory...');
+            await clearHistory();
+            console.log('🗑️ clearHistory completed');
+        } catch (error) {
+            console.error('Failed to clear conversation:', error);
+            api.showErrorMessage('Failed to clear chat history');
+        }
+    }, [clearHistory, markAsReturningUser, api]);
 
     useEffect(() => {
         // Inject ChatInterface CSS styles
@@ -120,24 +157,23 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
         }
 
         // Auto-open canvas if not already open
-        const autoOpenCanvas = () => {
-            // Check if canvas panel is already open by looking for the canvas webview
-            vscode.postMessage({
-                command: 'checkCanvasStatus',
-            });
+        const autoOpenCanvas = async () => {
+            // Check if canvas panel is already open using the new API
+            try {
+                const isCanvasOpen = await api.checkCanvasStatus();
+                if (!isCanvasOpen) {
+                    // Canvas is not open, auto-open it
+                    console.log('🎨 Auto-opening canvas view...');
+                    await api.openCanvas();
+                }
+            } catch (error) {
+                console.error('Failed to check canvas status or open canvas:', error);
+            }
 
-            // Listen for canvas status response and context messages
+            // Listen for context messages and other events
             const handleMessage = (event: MessageEvent) => {
                 const message = event.data;
-                if (message.command === 'canvasStatusResponse') {
-                    if (!message.isOpen) {
-                        // Canvas is not open, auto-open it
-                        console.log('🎨 Auto-opening canvas view...');
-                        vscode.postMessage({
-                            command: 'autoOpenCanvas',
-                        });
-                    }
-                } else if (message.command === 'contextFromCanvas') {
+                if (message.command === 'contextFromCanvas') {
                     // Handle context from canvas
                     console.log('📄 Received context from canvas:', message.data);
                     console.log('📄 Current context before setting:', currentContext);
@@ -171,7 +207,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                     );
                 } else if (message.command === 'clearChat') {
                     // Handle clear chat command from toolbar
-                    handleNewConversation();
+                    void handleNewConversation();
                 } else if (message.command === 'resetWelcome') {
                     // Handle reset welcome command from command palette
                     resetFirstTimeUser();
@@ -193,7 +229,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
         };
 
         // Delay the check slightly to ensure chat is fully loaded
-        const timeoutId = setTimeout(autoOpenCanvas, 500);
+        const timeoutId = setTimeout(() => void autoOpenCanvas(), 500);
 
         return () => {
             clearTimeout(timeoutId);
@@ -207,7 +243,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                 document.head.removeChild(existingWelcomeStyle);
             }
         };
-    }, [vscode, currentContext, handleNewConversation, resetFirstTimeUser]);
+    }, [api, vscode, currentContext, handleNewConversation, resetFirstTimeUser]);
 
     // Handle first-time user welcome display
     useEffect(() => {
@@ -275,36 +311,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                     // Convert each image to base64
                     for (const imagePath of imagePaths) {
                         try {
-                            // Request base64 data from the extension
-                            const base64Data = await new Promise<string>((resolve, reject) => {
-                                const timeoutId = setTimeout(() => {
-                                    reject(new Error('Timeout waiting for base64 data'));
-                                }, 10000);
-
-                                const handler = (event: MessageEvent) => {
-                                    const message = event.data;
-                                    if (
-                                        message.command === 'base64ImageResponse' &&
-                                        message.filePath === imagePath
-                                    ) {
-                                        clearTimeout(timeoutId);
-                                        window.removeEventListener('message', handler);
-                                        if (message.error) {
-                                            reject(new Error(message.error));
-                                        } else {
-                                            resolve(message.base64Data);
-                                        }
-                                    }
-                                };
-
-                                window.addEventListener('message', handler);
-
-                                // Request base64 data from extension
-                                vscode.postMessage({
-                                    command: 'getBase64Image',
-                                    filePath: imagePath,
-                                });
-                            });
+                            // Request base64 data from the extension using the new API
+                            const base64Data = await api.getBase64Image(imagePath);
 
                             // Extract MIME type from base64 data URL
                             const mimeMatch = base64Data.match(/^data:([^;]+);base64,/);
@@ -349,7 +357,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                 console.log('📤 No context available, sending message as-is');
             }
 
-            sendMessage(messageContent);
+            void sendMessage(messageContent);
             setInputMessage('');
         }
     };
@@ -391,15 +399,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
         console.log('Add Context clicked');
     };
 
-    const handleWelcomeGetStarted = () => {
+    const handleWelcomeGetStarted = async () => {
         setShowWelcome(false);
         markAsReturningUser();
         console.log('👋 User clicked Get Started, welcome dismissed');
 
-        vscode.postMessage({
-            command: 'initializeSecuredesign',
-        });
-        console.log('🚀 Auto-triggering Initialize Securedesign command');
+        // Initialize Securedesign using the new API
+        try {
+            await api.initializeSecuredesign();
+            console.log('🚀 Successfully initialized Securedesign');
+        } catch (error) {
+            console.error('Failed to initialize Securedesign:', error);
+            api.showErrorMessage('Failed to initialize Securedesign');
+        }
     };
 
     // Drag and drop handlers
@@ -460,10 +472,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
             if (file.size > maxSize) {
                 const displayName = file.name || 'clipboard image';
                 console.error('Image too large:', displayName);
-                await vscode.postMessage({
-                    command: 'showError',
-                    data: `Image "${displayName}" is too large. Maximum size is 10MB.`,
-                });
+                void api.showErrorMessage(
+                    `Image "${displayName}" is too large. Maximum size is 10MB.`
+                );
                 return;
             }
 
@@ -480,37 +491,34 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
             setUploadingImages(prev => [...prev, originalName]);
 
             // Convert to base64 for sending to extension
-            const reader = new FileReader();
-            reader.onload = () => {
-                const base64Data = reader.result as string;
+            try {
+                const base64Data = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result as string);
+                    reader.onerror = () => reject(new Error(`Failed to read file: ${file.name}`));
+                    reader.readAsDataURL(file);
+                });
 
                 // Send to extension to save in moodboard
-                vscode.postMessage({
-                    command: 'saveImageToMoodboard',
-                    data: {
-                        fileName,
-                        originalName,
-                        base64Data,
-                        mimeType: file.type,
-                        size: file.size,
-                    },
+                await api.saveImageToMoodboard({
+                    fileName,
+                    originalName,
+                    base64Data,
+                    mimeType: file.type,
+                    size: file.size,
                 });
-
-                console.log('📎 Image sent to extension for saving:', fileName);
-            };
-
-            reader.onerror = () => {
-                console.error('Error reading file:', file.name);
-                setUploadingImages(prev => prev.filter(name => name !== file.name));
-                vscode.postMessage({
-                    command: 'showError',
-                    data: `Failed to read image "${file.name}"`,
-                });
-            };
-
-            reader.readAsDataURL(file);
+                console.log('📎 Image saved to moodboard:', fileName);
+            } catch (error) {
+                console.error('Failed to process image:', error);
+                void api.showErrorMessage(
+                    `Failed to process image "${file.name}": ${error instanceof Error ? error.message : String(error)}`
+                );
+            } finally {
+                // Remove from uploading state
+                setUploadingImages(prev => prev.filter(name => name !== originalName));
+            }
         },
-        [vscode, setUploadingImages]
+        [api, setUploadingImages]
     );
 
     // Auto-set context when images finish uploading
@@ -717,10 +725,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                             await handleImageUpload(file);
                         } catch (error) {
                             console.error('Error processing pasted image:', error);
-                            vscode.postMessage({
-                                command: 'showError',
-                                data: `Failed to process pasted image: ${error instanceof Error ? error.message : String(error)}`,
-                            });
+                            api.showErrorMessage(
+                                `Failed to process pasted image: ${error instanceof Error ? error.message : String(error)}`
+                            );
                         }
                     }
                 }
@@ -741,7 +748,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
             document.removeEventListener('drop', dropWrapper);
             document.removeEventListener('paste', pasteWrapper);
         };
-    }, [isLoading, handleImageUpload, showWelcome, vscode]);
+    }, [isLoading, handleImageUpload, showWelcome, api]);
 
     const renderChatMessage = (msg: ChatMessage, index: number) => {
         // Helper function to extract text content from CoreMessage
@@ -751,8 +758,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
             } else if (Array.isArray(msg.content)) {
                 // Find text parts and concatenate them
                 return msg.content
-                    .filter(part => part.type === 'text')
-                    .map(part => (part as any).text)
+                    .filter((part: any) => part.type === 'text')
+                    .map((part: any) => part.text)
                     .join('\n');
             }
             return '';
@@ -760,7 +767,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
 
         // Check if message has tool calls
         const hasToolCalls =
-            Array.isArray(msg.content) && msg.content.some(part => part.type === 'tool-call');
+            Array.isArray(msg.content) &&
+            msg.content.some((part: any) => part.type === 'tool-call');
 
         // Helper function to find tool result for a tool call
         const findToolResult = (toolCallId: string) => {
@@ -782,7 +790,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
 
         // Check if message has tool results
         const hasToolResults =
-            Array.isArray(msg.content) && msg.content.some(part => part.type === 'tool-result');
+            Array.isArray(msg.content) &&
+            msg.content.some((part: any) => part.type === 'tool-result');
 
         const isLastUserMessage =
             msg.role === 'user' && index === chatHistory.length - 1 && isLoading;
@@ -961,7 +970,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
         }
 
         // Find ALL tool call parts
-        const toolCallParts = msg.content.filter(part => part.type === 'tool-call') as any[];
+        const toolCallParts = msg.content.filter((part: any) => part.type === 'tool-call') as any[];
 
         if (toolCallParts.length === 0) {
             return <div key={index}>No tool calls found</div>;
@@ -1356,11 +1365,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
     ) => {
         const handleActionClick = (action: { text: string; command: string; args?: string }) => {
             console.log('Action clicked:', action);
-            vscode.postMessage({
-                command: 'executeAction',
-                actionCommand: action.command,
-                actionArgs: action.args,
-            });
+            void api.executeCommand(action.command, action.args);
         };
 
         const handleCloseError = () => {
@@ -1391,7 +1396,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                     </div>
                     {msg.metadata?.actions && msg.metadata.actions.length > 0 && (
                         <div className='error-actions'>
-                            {msg.metadata.actions.map((action, actionIndex) => (
+                            {msg.metadata.actions.map((action: any, actionIndex: number) => (
                                 <button
                                     key={actionIndex}
                                     onClick={() => handleActionClick(action)}
@@ -1448,7 +1453,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                     <p>Ask Claude anything about code, design, or development!</p>
                     <button
                         className='new-conversation-btn'
-                        onClick={handleNewConversation}
+                        onClick={() => void handleNewConversation()}
                         title='Start a new conversation'
                         disabled={isLoading}
                     >
@@ -1563,7 +1568,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                                 <div className='selector-wrapper'>
                                     <ModelSelector
                                         selectedModel={selectedModel}
-                                        onModelChange={handleModelChange}
+                                        onModelChange={(providerId, model) => {
+                                            void handleModelChange(providerId, model);
+                                        }}
                                         disabled={isLoading || showWelcome}
                                         models={ProviderService.getInstance().getAvailableModels()}
                                     />
@@ -1609,6 +1616,27 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout, vscode }) => {
                                     >
                                         <path d='M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z' />
                                         <path d='M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z' />
+                                    </svg>
+                                </button>
+                                <button
+                                    className='clear-history-btn'
+                                    onClick={() => void handleNewConversation()}
+                                    disabled={
+                                        isLoading || showWelcome || !hasConversationMessages()
+                                    }
+                                    title='Clear chat history'
+                                >
+                                    <svg
+                                        width='12'
+                                        height='12'
+                                        viewBox='0 0 16 16'
+                                        fill='currentColor'
+                                    >
+                                        <path d='M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z' />
+                                        <path
+                                            fillRule='evenodd'
+                                            d='M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z'
+                                        />
                                     </svg>
                                 </button>
                                 {isLoading ? (
