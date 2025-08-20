@@ -78,7 +78,7 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
                     // Keep this until we have a proper UI component replacement
                     await this.handleShowContextPicker(webviewView.webview);
                     break;
-                
+
                 default:
                     // All other commands should now use the new API
                     Logger.warn(`Received unmigrated legacy command: ${message.command}`, message);
@@ -249,6 +249,6 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
         vscode.window.showInformationMessage('Canvas content added as context');
     }
 
-    // handleSaveChatHistory, handleLoadChatHistory, and handleClearWorkspaceChatHistory 
+    // handleSaveChatHistory, handleLoadChatHistory, and handleClearWorkspaceChatHistory
     // have been migrated to WebviewApiProvider
 }

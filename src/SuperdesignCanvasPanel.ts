@@ -91,7 +91,12 @@ export class SuperdesignCanvasPanel {
     ): SuperdesignCanvasPanel {
         // Ensure state is not undefined/null and has required properties
         const safeState = state ?? {};
-        const newPanel = new SuperdesignCanvasPanel(panel, extensionUri, sidebarProvider, safeState);
+        const newPanel = new SuperdesignCanvasPanel(
+            panel,
+            extensionUri,
+            sidebarProvider,
+            safeState
+        );
 
         // Store in map if we have a workspace URI
         if (safeState.workspaceUri) {

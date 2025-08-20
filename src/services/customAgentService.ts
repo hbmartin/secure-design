@@ -879,30 +879,37 @@ I've created the html design, please reveiw and let me know if you need any chan
      */
     private validateToolCallPairs(messages: ModelMessage[]): ModelMessage[] {
         const validatedMessages: ModelMessage[] = [];
-        
+
         for (let i = 0; i < messages.length; i++) {
             const message = messages[i];
-            
+
             // For assistant messages with tool calls, ensure they have corresponding results
             if (message.role === 'assistant' && Array.isArray(message.content)) {
                 const toolCalls = message.content.filter(part => part.type === 'tool-call');
-                
+
                 if (toolCalls.length > 0) {
                     // Check if the next message contains tool results for these calls
                     const nextMessage = messages[i + 1];
                     let hasValidResults = false;
-                    
-                    if (nextMessage && nextMessage.role === 'tool' && Array.isArray(nextMessage.content)) {
-                        const toolResults = nextMessage.content.filter(part => part.type === 'tool-result');
-                        
+
+                    if (
+                        nextMessage &&
+                        nextMessage.role === 'tool' &&
+                        Array.isArray(nextMessage.content)
+                    ) {
+                        const toolResults = nextMessage.content.filter(
+                            part => part.type === 'tool-result'
+                        );
+
                         // Check if all tool calls have corresponding results
-                        hasValidResults = toolCalls.every(toolCall => 
-                            toolResults.some(result => 
-                                (result as any).toolCallId === (toolCall as any).toolCallId
+                        hasValidResults = toolCalls.every(toolCall =>
+                            toolResults.some(
+                                result =>
+                                    (result as any).toolCallId === (toolCall as any).toolCallId
                             )
                         );
                     }
-                    
+
                     if (hasValidResults) {
                         // Both messages are valid, add them
                         validatedMessages.push(message);
@@ -910,16 +917,20 @@ I've created the html design, please reveiw and let me know if you need any chan
                         i++; // Skip the next message since we've already processed it
                     } else {
                         // Tool call without result - remove the tool calls to avoid error
-                        const missingToolIds = toolCalls.map(tc => (tc as any).toolCallId).join(', ');
+                        const missingToolIds = toolCalls
+                            .map(tc => (tc as any).toolCallId)
+                            .join(', ');
                         this.outputChannel.appendLine(
                             `Removing incomplete tool calls from message ${i} - no matching results found for IDs: ${missingToolIds}`
                         );
-                        
-                        const filteredContent = message.content.filter(part => part.type !== 'tool-call');
+
+                        const filteredContent = message.content.filter(
+                            part => part.type !== 'tool-call'
+                        );
                         if (filteredContent.length > 0) {
                             validatedMessages.push({
                                 ...message,
-                                content: filteredContent
+                                content: filteredContent,
                             });
                         }
                         // Skip this message if it only contained tool calls
@@ -930,20 +941,18 @@ I've created the html design, please reveiw and let me know if you need any chan
                 }
             } else if (message.role === 'tool') {
                 // Tool message without preceding assistant tool call - skip it
-                this.outputChannel.appendLine(
-                    `Skipping orphaned tool result message ${i}`
-                );
+                this.outputChannel.appendLine(`Skipping orphaned tool result message ${i}`);
                 continue;
             } else {
                 // User or system message, always include
                 validatedMessages.push(message);
             }
         }
-        
+
         this.outputChannel.appendLine(
             `Tool call validation: ${messages.length} -> ${validatedMessages.length} messages`
         );
-        
+
         return validatedMessages;
     }
 }

@@ -21,25 +21,28 @@ interface ChatInterfaceProps {
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
     const { messages: chatHistory, isLoading, sendMessage, clearHistory } = useChatTypeSafe();
     const { api } = useWebviewApi();
-    
+
     // Temporary compatibility bridge for gradual migration
-    const vscode = useMemo(() => ({
-        postMessage: (message: any) => {
-            console.warn('Legacy vscode.postMessage call:', message);
-            // Handle legacy messages appropriately
-            switch (message.command) {
-                case 'checkCanvasStatus':
-                    // Stub for canvas status checks
-                    break;
-                case 'executeCommand':
-                    void api.executeCommand(message.command, message.args);
-                    break;
-                default:
-                    console.warn('Unhandled legacy message:', message);
-            }
-        }
-    }), [api]);
-    
+    const vscode = useMemo(
+        () => ({
+            postMessage: (message: any) => {
+                console.warn('Legacy vscode.postMessage call:', message);
+                // Handle legacy messages appropriately
+                switch (message.command) {
+                    case 'checkCanvasStatus':
+                        // Stub for canvas status checks
+                        break;
+                    case 'executeCommand':
+                        void api.executeCommand(message.command, message.args);
+                        break;
+                    default:
+                        console.warn('Unhandled legacy message:', message);
+                }
+            },
+        }),
+        [api]
+    );
+
     // Create a compatibility setter for components that need to manually update chat history
     const setChatHistory = useCallback((_updater: React.SetStateAction<ChatMessage[]>) => {
         // For the new API, we'll handle this through events instead of direct state updates
@@ -105,7 +108,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         }
     };
 
-    const handleNewConversation = useCallback(async () => {        
+    const handleNewConversation = useCallback(async () => {
         // Clear UI state immediately for responsive UX
         setInputMessage('');
         setCurrentContext(null);
@@ -354,7 +357,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 console.log('📤 No context available, sending message as-is');
             }
 
-            sendMessage(messageContent);
+            void sendMessage(messageContent);
             setInputMessage('');
         }
     };
@@ -469,7 +472,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             if (file.size > maxSize) {
                 const displayName = file.name || 'clipboard image';
                 console.error('Image too large:', displayName);
-                api.showErrorMessage(`Image "${displayName}" is too large. Maximum size is 10MB.`);
+                void api.showErrorMessage(
+                    `Image "${displayName}" is too large. Maximum size is 10MB.`
+                );
                 return;
             }
 
@@ -486,37 +491,32 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             setUploadingImages(prev => [...prev, originalName]);
 
             // Convert to base64 for sending to extension
-            const reader = new FileReader();
-            
-            // Set up event handlers before reading
-            const handleLoad = async () => {
-                const base64Data = reader.result as string;
+            try {
+                const base64Data = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result as string);
+                    reader.onerror = () => reject(new Error(`Failed to read file: ${file.name}`));
+                    reader.readAsDataURL(file);
+                });
 
                 // Send to extension to save in moodboard
-                try {
-                    await api.saveImageToMoodboard({
-                        fileName,
-                        originalName,
-                        base64Data,
-                        mimeType: file.type,
-                        size: file.size,
-                    });
-                    console.log('📎 Image saved to moodboard:', fileName);
-                } catch (error) {
-                    console.error('Failed to save image to moodboard:', error);
-                    api.showErrorMessage(`Failed to save image to moodboard: ${error instanceof Error ? error.message : String(error)}`);
-                }
-            };
-
-            const handleError = () => {
-                console.error('Error reading file:', file.name);
-                setUploadingImages(prev => prev.filter(name => name !== file.name));
-                api.showErrorMessage(`Failed to read image "${file.name}"`);
-            };
-
-            reader.onload = handleLoad;
-            reader.onerror = handleError;
-            reader.readAsDataURL(file);
+                await api.saveImageToMoodboard({
+                    fileName,
+                    originalName,
+                    base64Data,
+                    mimeType: file.type,
+                    size: file.size,
+                });
+                console.log('📎 Image saved to moodboard:', fileName);
+            } catch (error) {
+                console.error('Failed to process image:', error);
+                void api.showErrorMessage(
+                    `Failed to process image "${file.name}": ${error instanceof Error ? error.message : String(error)}`
+                );
+            } finally {
+                // Remove from uploading state
+                setUploadingImages(prev => prev.filter(name => name !== originalName));
+            }
         },
         [api, setUploadingImages]
     );
@@ -725,7 +725,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                             await handleImageUpload(file);
                         } catch (error) {
                             console.error('Error processing pasted image:', error);
-                            api.showErrorMessage(`Failed to process pasted image: ${error instanceof Error ? error.message : String(error)}`);
+                            api.showErrorMessage(
+                                `Failed to process pasted image: ${error instanceof Error ? error.message : String(error)}`
+                            );
                         }
                     }
                 }
@@ -765,7 +767,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
 
         // Check if message has tool calls
         const hasToolCalls =
-            Array.isArray(msg.content) && msg.content.some((part: any) => part.type === 'tool-call');
+            Array.isArray(msg.content) &&
+            msg.content.some((part: any) => part.type === 'tool-call');
 
         // Helper function to find tool result for a tool call
         const findToolResult = (toolCallId: string) => {
@@ -787,7 +790,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
 
         // Check if message has tool results
         const hasToolResults =
-            Array.isArray(msg.content) && msg.content.some((part: any) => part.type === 'tool-result');
+            Array.isArray(msg.content) &&
+            msg.content.some((part: any) => part.type === 'tool-result');
 
         const isLastUserMessage =
             msg.role === 'user' && index === chatHistory.length - 1 && isLoading;
@@ -1617,7 +1621,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                 <button
                                     className='clear-history-btn'
                                     onClick={() => void handleNewConversation()}
-                                    disabled={isLoading || showWelcome || !hasConversationMessages()}
+                                    disabled={
+                                        isLoading || showWelcome || !hasConversationMessages()
+                                    }
                                     title='Clear chat history'
                                 >
                                     <svg
@@ -1626,8 +1632,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                         viewBox='0 0 16 16'
                                         fill='currentColor'
                                     >
-                                        <path d='M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z'/>
-                                        <path fillRule='evenodd' d='M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z'/>
+                                        <path d='M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z' />
+                                        <path
+                                            fillRule='evenodd'
+                                            d='M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z'
+                                        />
                                     </svg>
                                 </button>
                                 {isLoading ? (

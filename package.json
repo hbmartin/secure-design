@@ -234,8 +234,7 @@
     "test:write-edit": "tsc --project tsconfig.test.json && node dist-test/test/write-edit-tools.test.js",
     "test:ls-grep-glob": "tsc --project tsconfig.test.json && node dist-test/test/ls-grep-glob-tools.test.js",
     "test:agent": "tsc --project tsconfig.test.json && node dist-test/test/llm-service.test.js && node dist-test/test/core-components.test.js",
-    "test:tools": "tsc --project tsconfig.test.json && node dist-test/test/read-tool.test.js && node dist-test/test/write-edit-tools.test.js && node dist-test/test/ls-grep-glob-tools.test.js",
-    "test:typesafe-api": "tsc --project tsconfig.test.json && node_modules/.bin/mocha dist-test/test/typeaafe-api.test.js"
+    "test:tools": "tsc --project tsconfig.test.json && node dist-test/test/read-tool.test.js && node dist-test/test/write-edit-tools.test.js && node dist-test/test/ls-grep-glob-tools.test.js"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.7.0",

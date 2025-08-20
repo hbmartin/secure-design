@@ -119,8 +119,7 @@ The extension includes a comprehensive tool system for file operations:
 - validate and sanitize messages coming from the webview
 - Avoid sending extremely large payloads through postMessage frequently. For large data, consider streaming chunks or allowing the webview to request specific portions on demand.
 - Leverage VS Code’s state: The `vscode` object provides a setState/getState that can preserve state within the webview across reloads. Use this for caching UI state if the webview might be torn down and rebuilt
-- Clean up listeners and resources. For instance, setInterval or  event listeners in the webview, require a corresponding cleanup.
-
+- Clean up listeners and resources. For instance, setInterval or event listeners in the webview, require a corresponding cleanup.
 
 The extension uses a message-based system for webview communication:
 
@@ -159,7 +158,7 @@ The project uses a modular testing approach:
 - Run specific test suites based on the area being modified.
 - architect such that much of the logic can be tested as plain functions or classes
 - mock vscode object for unit tests
-- 
+-
 
 ### Test Organization
 

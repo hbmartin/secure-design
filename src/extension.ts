@@ -1308,13 +1308,13 @@ export function activate(context: vscode.ExtensionContext): void {
     // Initialize WebviewMessageGuard cleanup timer and ensure proper disposal
     WebviewMessageGuard.initialize();
     Logger.info('WebviewMessageGuard initialized');
-    
+
     // Push disposal to subscriptions to ensure cleanup even if deactivate isn't called
     context.subscriptions.push({
         dispose: () => {
             WebviewMessageGuard.dispose();
             Logger.info('WebviewMessageGuard disposed via subscription');
-        }
+        },
     });
 
     // Initialize services using dependency injection container

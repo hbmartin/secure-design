@@ -299,14 +299,14 @@ export default [
         },
     },
     {
-        files: ['src/test/**/*.ts', 'src/**/*.tsx'],
+        files: ['src/test/**/*.ts'],
         rules: {
             // Reduce severity during migration
             'no-unused-expressions': 'off',
             '@typescript-eslint/no-unused-expressions': 'off',
             '@typescript-eslint/require-await': 'off',
-            '@typescript-eslint/no-floating-promises': 'off'
-        }
+            '@typescript-eslint/no-floating-promises': 'warn',
+        },
     },
 
     // Prettier integration - disable conflicting formatting rules
