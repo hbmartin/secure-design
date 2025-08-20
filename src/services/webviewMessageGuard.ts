@@ -26,7 +26,6 @@ export class WebviewMessageGuard {
     public static async sendMessageWithResponse<T = any>(
         webview: vscode.Webview,
         message: any,
-        responseCommand: string,
         timeout: number = this.REQUEST_TIMEOUT
     ): Promise<T> {
         const requestId = `${Date.now()}_${++this.requestIdCounter}`;

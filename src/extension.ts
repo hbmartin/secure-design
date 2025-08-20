@@ -1,10 +1,12 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import { CustomAgentService } from './services/customAgentService';
 import { ChatSidebarProvider } from './providers/chatSidebarProvider';
+import type { WebviewApiProvider } from './providers/WebviewApiProvider';
+import { ServiceContainer } from './di/ServiceContainer';
 import { Logger } from './services/logger';
 import { WorkspaceStateService } from './services/workspaceStateService';
+import { ProviderService } from './providers/ProviderService';
 import { WebviewMessageGuard } from './services/webviewMessageGuard';
 import * as path from 'path';
 import { registerProviderCommands } from './providerConfiguration';
@@ -1288,7 +1290,7 @@ html.dark {
     }
 }
 
-export function activate(context: vscode.ExtensionContext) {
+export function activate(context: vscode.ExtensionContext): void {
     // Initialize the centralized logger
     Logger.initialize();
     Logger.info('SecureDesign extension is now active!');
@@ -1298,6 +1300,10 @@ export function activate(context: vscode.ExtensionContext) {
     const workspaceStateService = WorkspaceStateService.getInstance();
     workspaceStateService.initialize(context);
     Logger.info('WorkspaceStateService initialized');
+
+    // Initialize provider service
+    ProviderService.getInstance();
+    Logger.info('ProviderService initialized');
 
     // Initialize WebviewMessageGuard cleanup timer and ensure proper disposal
     WebviewMessageGuard.initialize();
@@ -1311,18 +1317,13 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    // Initialize Custom Agent service
-    Logger.info('Creating CustomAgentService...');
-    const customAgent = new CustomAgentService(Logger.getOutputChannel());
-    Logger.info('CustomAgentService created');
+    // Initialize services using dependency injection container
+    const serviceContainer = new ServiceContainer(context);
+    serviceContainer.initialize();
 
-    // Create the chat sidebar provider
-    const sidebarProvider = new ChatSidebarProvider(
-        context.extensionUri,
-        customAgent,
-        Logger.getOutputChannel(),
-        context
-    );
+    // Get services from container
+    const apiProvider = serviceContainer.get<WebviewApiProvider>('apiProvider');
+    const sidebarProvider = serviceContainer.get<ChatSidebarProvider>('sidebarProvider');
 
     // Register the webview view provider for sidebar
     const sidebarDisposable = vscode.window.registerWebviewViewProvider(
@@ -1481,6 +1482,8 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         ...registerProviderCommands(),
+        serviceContainer,
+        apiProvider,
         sidebarDisposable,
         showSidebarDisposable,
         openCanvasDisposable,

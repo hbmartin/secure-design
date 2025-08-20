@@ -99,6 +99,7 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                 document.removeEventListener('mousedown', handleClickOutside);
             };
         }
+        return () => {};
     }, [showCopyDropdown]);
 
     const handleViewportToggle = (newViewport: ViewportMode) => {

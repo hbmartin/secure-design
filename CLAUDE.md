@@ -112,6 +112,16 @@ The extension includes a comprehensive tool system for file operations:
 
 ### Webview Communication
 
+- clear separation of concerns between the extension host (Node.js backend) and the webview (React frontend) is crucial.
+- split functionality into distinct modules or files.
+- Decouple backend business logic from frontend React
+- define a clear schema for IPC commands / messages
+- validate and sanitize messages coming from the webview
+- Avoid sending extremely large payloads through postMessage frequently. For large data, consider streaming chunks or allowing the webview to request specific portions on demand.
+- Leverage VS Code’s state: The `vscode` object provides a setState/getState that can preserve state within the webview across reloads. Use this for caching UI state if the webview might be torn down and rebuilt
+- Clean up listeners and resources. For instance, setInterval or  event listeners in the webview, require a corresponding cleanup.
+
+
 The extension uses a message-based system for webview communication:
 
 - Commands sent via `vscode.postMessage()`
@@ -146,8 +156,10 @@ The project uses a modular testing approach:
 - **Tool tests**: File operation tools
 - **Agent tests**: Combined agent functionality
 
-Run specific test suites based on the area being modified.
-vscode-test-cli
+- Run specific test suites based on the area being modified.
+- architect such that much of the logic can be tested as plain functions or classes
+- mock vscode object for unit tests
+- 
 
 ### Test Organization
 
@@ -334,18 +346,6 @@ vscode-test-cli
 - Profile performance bottlenecks
 - Monitor extension host memory usage
 - Implement telemetry (with user consent)
-
-## Language Server Protocol (LSP)
-
-- Implement LSP for language support
-- Use `vscode-languageclient` package
-- Separate server logic from extension
-- Implement incremental text synchronization
-- Cache language server results
-- Handle server crashes gracefully
-- Support multiple workspace folders
-- Implement custom LSP extensions carefully
-- Profile server performance
 
 ## Webview Best Practices
 

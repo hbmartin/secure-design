@@ -168,31 +168,4 @@ export class FileWatcherService implements vscode.Disposable {
         }
         this._fileWatchers.clear();
     }
-
-    /**
-     * Dispose a specific watcher by workspace key
-     * Useful for removing watchers for individual workspace folders
-     */
-    private _disposeWatcherByKey(key: string): void {
-        const watcherInfo = this._fileWatchers.get(key);
-        if (watcherInfo) {
-            try {
-                // Dispose all event subscriptions for this watcher
-                for (const subscription of watcherInfo.subscriptions) {
-                    subscription.dispose();
-                }
-
-                // Dispose the watcher itself
-                watcherInfo.watcher.dispose();
-
-                Logger.debug(
-                    `Disposed specific file watcher and ${watcherInfo.subscriptions.length} subscriptions for: ${key}`
-                );
-            } catch (error) {
-                Logger.warn(`Error disposing specific file watcher for ${key}: ${error}`);
-            }
-
-            this._fileWatchers.delete(key);
-        }
-    }
 }

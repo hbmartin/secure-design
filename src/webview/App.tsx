@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ChatInterface from './components/Chat/ChatInterface';
 import CanvasView from './components/CanvasView';
+import { WebviewProvider } from './contexts/WebviewContext';
 import type { WebviewContext } from '../types/context';
 
 // Import CSS as string for esbuild
@@ -88,7 +89,11 @@ const App: React.FC = () => {
                     return <div>Loading...</div>;
                 }
                 try {
-                    return <ChatInterface layout={context.layout} vscode={vscode} />;
+                    return (
+                        <WebviewProvider>
+                            <ChatInterface layout={context.layout} />
+                        </WebviewProvider>
+                    );
                 } catch (error) {
                     console.error('❌ Error rendering ChatInterface:', error);
                     return <div>Error rendering chat: {String(error)}</div>;

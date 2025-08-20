@@ -172,7 +172,6 @@ export class ChatMessageService {
 
         // Check if this is an update to existing message
         const isUpdate = (message as any)._isUpdate;
-        const _updateToolId = (message as any)._updateToolId;
 
         // Handle assistant messages
         if (message.role === 'assistant') {
@@ -200,8 +199,6 @@ export class ChatMessageService {
                     } else if (part.type === 'tool-call') {
                         // Send tool call or update
                         const toolPart = part as any;
-                        const _command = isUpdate ? 'chatToolUpdate' : 'chatResponseChunk';
-                        const _messageType = isUpdate ? undefined : 'tool-call';
 
                         const toolInput = toolPart.args ?? toolPart.input ?? toolPart.params;
                         if (isUpdate) {
@@ -279,109 +276,6 @@ export class ChatMessageService {
         // Skip other message types (system, etc.)
     }
 
-    // Legacy handler for backward compatibility
-    private handleLegacyResultMessage(message: any, webview: vscode.Webview): void {
-        if (message.type === 'result') {
-            Logger.debug(`Result message structure: ${JSON.stringify(message, null, 2)}`);
-
-            // Skip error result messages that contain raw API key errors - these are handled by our custom error handler
-            if (message.is_error) {
-                // Check if this is an API key related error in any field
-                const messageStr = JSON.stringify(message).toLowerCase();
-                if (
-                    messageStr.includes('api key') ||
-                    messageStr.includes('authentication') ||
-                    messageStr.includes('unauthorized') ||
-                    messageStr.includes('anthropic') ||
-                    messageStr.includes('process exited') ||
-                    messageStr.includes('exit code')
-                ) {
-                    Logger.debug(
-                        'Skipping raw API key error result message - handled by custom error handler'
-                    );
-                    return;
-                }
-            }
-
-            // Skip final success result messages that are just summaries
-            if (
-                message.subtype === 'success' &&
-                message.result &&
-                typeof message.result === 'string'
-            ) {
-                const resultText = message.result.toLowerCase();
-                // Skip if it looks like a final summary (contains phrases like "successfully created", "perfect", etc.)
-                if (
-                    resultText.includes('successfully') ||
-                    resultText.includes('perfect') ||
-                    resultText.includes('created') ||
-                    resultText.includes('variations')
-                ) {
-                    Logger.debug('Skipping final summary result message');
-                    return;
-                }
-            }
-
-            let content = '';
-            let resultType = 'result';
-            let isError = false;
-
-            if (typeof message.message === 'string') {
-                content = message.message;
-            } else if (message.content) {
-                content =
-                    typeof message.content === 'string'
-                        ? message.content
-                        : JSON.stringify(message.content);
-            } else if (message.text) {
-                content = message.text;
-            } else if (message.result && typeof message.result === 'string') {
-                content = message.result;
-            } else {
-                // Skip messages that would result in raw JSON dump
-                Logger.debug('Skipping result message with no readable content');
-                return;
-            }
-
-            // Determine result type and error status
-            if (message.subtype) {
-                if (message.subtype.includes('error')) {
-                    isError = true;
-                    resultType = 'error';
-                } else if (message.subtype === 'success') {
-                    resultType = 'success';
-                }
-            }
-
-            Logger.debug(`Extracted result content: ${content}`);
-
-            if (content.trim()) {
-                webview.postMessage({
-                    command: 'chatResponseChunk',
-                    messageType: 'tool-result',
-                    content: content,
-                    metadata: {
-                        session_id: message.session_id,
-                        parent_tool_use_id: message.parent_tool_use_id,
-                        result_type: resultType,
-                        is_error: isError,
-                        duration_ms: message.duration_ms,
-                        total_cost_usd: message.total_cost_usd,
-                    },
-                });
-            }
-        }
-
-        // Log tool activity
-        if (
-            (message.type === 'assistant' || message.type === 'user') &&
-            'subtype' in message &&
-            (message.subtype === 'tool_use' || message.subtype === 'tool_result')
-        ) {
-            Logger.debug(`Tool activity detected: ${message.subtype}`);
-        }
-    }
-
     async stopCurrentChat(webview: vscode.Webview): Promise<void> {
         if (this.currentRequestController) {
             Logger.info('Stopping current chat request');
@@ -394,76 +288,5 @@ export class ChatMessageService {
         } else {
             Logger.info('No active chat request to stop');
         }
-    }
-
-    private processClaudeResponse(response: any[]): string {
-        let fullResponse = '';
-        const assistantMessages: string[] = [];
-        const toolResults: string[] = [];
-
-        for (const msg of response) {
-            const subtype = 'subtype' in msg ? msg.subtype : undefined;
-            Logger.debug(
-                `Processing message type: ${msg.type}${subtype ? `, subtype: ${subtype}` : ''}`
-            );
-
-            // Collect assistant messages
-            if (msg.type === 'assistant' && msg.message) {
-                let content = '';
-
-                if (typeof msg.message === 'string') {
-                    content = msg.message;
-                } else if (msg.message.content && Array.isArray(msg.message.content)) {
-                    content = msg.message.content
-                        .filter((item: any) => item.type === 'text')
-                        .map((item: any) => item.text)
-                        .join('\n');
-                } else if (msg.message.content && typeof msg.message.content === 'string') {
-                    content = msg.message.content;
-                }
-
-                if (content.trim()) {
-                    assistantMessages.push(content);
-                }
-            }
-
-            // Collect tool results
-            if (msg.type === 'result' && msg.subtype === 'success' && msg.result) {
-                const result =
-                    typeof msg.result === 'string'
-                        ? msg.result
-                        : JSON.stringify(msg.result, null, 2);
-                toolResults.push(result);
-            }
-
-            // Handle tool usage messages
-            if (
-                (msg.type === 'assistant' || msg.type === 'user') &&
-                'subtype' in msg &&
-                (msg.subtype === 'tool_use' || msg.subtype === 'tool_result')
-            ) {
-                Logger.debug(`Tool activity detected: ${msg.subtype}`);
-            }
-        }
-
-        // Combine all responses
-        if (assistantMessages.length > 0) {
-            fullResponse = assistantMessages.join('\n\n');
-        }
-
-        if (toolResults.length > 0 && !fullResponse.includes(toolResults[0])) {
-            if (fullResponse) {
-                fullResponse += `\n\n--- Tool Results ---\n${toolResults.join('\n\n')}`;
-            } else {
-                fullResponse = toolResults.join('\n\n');
-            }
-        }
-
-        if (!fullResponse) {
-            fullResponse =
-                "I processed your request but didn't generate a visible response. Check the console for details.";
-        }
-
-        return fullResponse;
     }
 }
