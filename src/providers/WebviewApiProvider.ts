@@ -180,19 +180,19 @@ export class WebviewApiProvider implements vscode.Disposable {
             const canvasPanel = panels.find(
                 tab =>
                     tab.label === 'Superdesign Canvas' ||
-                    (tab.input as any)?.viewType === 'superdesign.canvas'
+                    (tab.input as any)?.viewType === 'securedesign.canvas'
             );
             return Promise.resolve(!!canvasPanel);
         },
 
         openCanvas: async (): Promise<void> => {
             Logger.info('API: openCanvas called');
-            await vscode.commands.executeCommand('superdesign.openCanvas');
+            await vscode.commands.executeCommand('securedesign.openCanvas');
         },
 
         initializeSecuredesign: async (): Promise<void> => {
             Logger.info('API: initializeSecuredesign called');
-            await vscode.commands.executeCommand('superdesign.initializeProject');
+            await vscode.commands.executeCommand('securedesign.initializeProject');
         },
 
         getBase64Image: async (filePath: string): Promise<string> => {
@@ -461,28 +461,16 @@ export class WebviewApiProvider implements vscode.Disposable {
                 const connectedView = this.connectedViews.get(viewId);
                 if (connectedView) {
                     Logger.warn(
-                        `Pruning failed webview ${connectedView.context.viewType}:${viewId}`
+                        `Removing failed webview ${connectedView.context.viewType}:${viewId} from connectedViews`
                     );
 
-                    // Dispose the view if it has a dispose method
-                    if (
-                        'dispose' in connectedView.view &&
-                        typeof connectedView.view.dispose === 'function'
-                    ) {
-                        try {
-                            connectedView.view.dispose();
-                        } catch (disposeError) {
-                            Logger.error(`Error disposing view ${viewId}: ${String(disposeError)}`);
-                        }
-                    }
-
-                    // Remove from connected views
+                    // Only remove from connected views - let webviews handle their own disposal lifecycle
                     this.connectedViews.delete(viewId);
                 }
             });
 
             Logger.info(
-                `Pruned ${failedViews.length} failed webview(s). Remaining: ${this.connectedViews.size}`
+                `Removed ${failedViews.length} failed webview(s) from connectedViews. Remaining: ${this.connectedViews.size}`
             );
         }
     }

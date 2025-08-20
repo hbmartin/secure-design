@@ -17,11 +17,22 @@ class DeferredPromise<T> {
     resolve!: (value: T) => void;
     reject!: (reason?: any) => void;
     timeoutHandle?: NodeJS.Timeout;
+    private settled = false;
 
     constructor() {
         this.promise = new Promise<T>((resolve, reject) => {
-            this.resolve = resolve;
-            this.reject = reject;
+            this.resolve = (value: T) => {
+                if (!this.settled) {
+                    this.settled = true;
+                    resolve(value);
+                }
+            };
+            this.reject = (reason?: any) => {
+                if (!this.settled) {
+                    this.settled = true;
+                    reject(new Error(reason));
+                }
+            };
         });
     }
 
@@ -33,6 +44,13 @@ class DeferredPromise<T> {
             clearTimeout(this.timeoutHandle);
             this.timeoutHandle = undefined;
         }
+    }
+
+    /**
+     * Mark this deferred as settled to prevent further resolve/reject calls
+     */
+    markSettled(): void {
+        this.settled = true;
     }
 }
 
@@ -272,6 +290,7 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
             // Clear timeouts and reject all pending requests
             currentRequests.forEach(deferred => {
                 deferred.clearTimeout(); // Clear timeout to prevent late firing
+                deferred.markSettled(); // Mark as settled to prevent subsequent resolve/reject calls
                 deferred.reject(new Error('WebviewProvider unmounted'));
             });
             currentRequests.clear();

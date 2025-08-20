@@ -180,8 +180,14 @@ export class ChatController {
             if (Array.isArray(message.content)) {
                 for (const part of message.content) {
                     if (part.type === 'tool-result') {
-                        // Pass tool result with full AI SDK LanguageModelV2ToolResultOutput compliance
-                        const rawOutput = (part as any).output;
+                        const toolResultPart = part as any;
+                        if (!('output' in toolResultPart)) {
+                            Logger.warn(
+                                `Tool result part missing output field: ${JSON.stringify(part)}`
+                            );
+                            continue;
+                        }
+                        const rawOutput = toolResultPart.output;
 
                         // Ensure the output conforms to LanguageModelV2ToolResultOutput interface
                         // The AI SDK should already provide this in the correct format

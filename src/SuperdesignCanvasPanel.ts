@@ -98,8 +98,12 @@ export class SuperdesignCanvasPanel {
             safeState
         );
 
-        // Store in map if we have a workspace URI
-        if (safeState.workspaceUri) {
+        // Store in map if we have a valid workspace URI
+        if (
+            safeState.workspaceUri &&
+            typeof safeState.workspaceUri === 'string' &&
+            safeState.workspaceUri.trim().length > 0
+        ) {
             SuperdesignCanvasPanel.panels.set(safeState.workspaceUri, newPanel);
         }
 
