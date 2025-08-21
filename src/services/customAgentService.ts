@@ -4,6 +4,7 @@ import * as vscode from 'vscode';
 import type { AgentService, ExecutionContext } from '../types/agent';
 import type { VsCodeConfiguration } from '../providers/types';
 import { ProviderService } from '../providers/ProviderService';
+import { Logger } from './logger';
 import { createReadTool } from '../tools/read-tool';
 import { createWriteTool } from '../tools/write-tool';
 import { createBashTool } from '../tools/bash-tool';
@@ -18,48 +19,46 @@ import * as os from 'os';
 
 export class CustomAgentService implements AgentService {
     private workingDirectory: string = '';
-    private readonly outputChannel: vscode.OutputChannel;
     private readonly providerService: ProviderService;
     private isInitialized = false;
 
-    constructor(outputChannel: vscode.OutputChannel) {
-        this.outputChannel = outputChannel;
+    constructor() {
         this.providerService = ProviderService.getInstance();
-        this.outputChannel.appendLine('CustomAgentService constructor called');
+        console.log('CustomAgentService constructor called');
+        Logger.debug('[CustomAgentService] Constructor initialized');
         this.setupWorkingDirectory().catch(error => {
-            this.outputChannel.appendLine(`Error in setupWorkingDirectory: ${error}`);
+            Logger.debug('[CustomAgentService] Error in setupWorkingDirectory', { error });
+            console.log(`Error in setupWorkingDirectory: ${error}`);
         });
     }
 
     private async setupWorkingDirectory() {
+        Logger.debug('[CustomAgentService] Setting up working directory');
         try {
             // Try to get workspace root first
             const workspaceRootUri = vscode.workspace.workspaceFolders?.[0]?.uri;
-            this.outputChannel.appendLine(`Workspace root detected: ${workspaceRootUri?.fsPath}`);
+            Logger.debug('[CustomAgentService] Workspace root detected', {
+                path: workspaceRootUri?.fsPath,
+            });
+            console.log(`Workspace root detected: ${workspaceRootUri?.fsPath}`);
 
             if (workspaceRootUri) {
                 // Create .superdesign folder in workspace root
                 const superdesignUri = vscode.Uri.joinPath(workspaceRootUri, '.superdesign');
-                this.outputChannel.appendLine(
-                    `Setting up .superdesign directory at: ${superdesignUri.fsPath}`
-                );
+                console.log(`Setting up .superdesign directory at: ${superdesignUri.fsPath}`);
 
                 try {
                     // Check if directory exists
                     await vscode.workspace.fs.stat(superdesignUri);
-                    this.outputChannel.appendLine(
-                        `.superdesign directory already exists: ${superdesignUri.fsPath}`
-                    );
+                    console.log(`.superdesign directory already exists: ${superdesignUri.fsPath}`);
                 } catch (error) {
                     if (error instanceof vscode.FileSystemError && error.code === 'FileNotFound') {
                         // Directory doesn't exist, create it
                         await vscode.workspace.fs.createDirectory(superdesignUri);
-                        this.outputChannel.appendLine(
-                            `Created .superdesign directory: ${superdesignUri.fsPath}`
-                        );
+                        console.log(`Created .superdesign directory: ${superdesignUri.fsPath}`);
                     } else {
                         // Log and rethrow other unexpected errors
-                        this.outputChannel.appendLine(
+                        console.log(
                             `Error setting up working directory at ${superdesignUri.fsPath}: ${error}`
                         );
                         throw error;
@@ -67,9 +66,9 @@ export class CustomAgentService implements AgentService {
                 }
 
                 this.workingDirectory = superdesignUri.fsPath;
-                this.outputChannel.appendLine(`Working directory set to: ${this.workingDirectory}`);
+                console.log(`Working directory set to: ${this.workingDirectory}`);
             } else {
-                this.outputChannel.appendLine('No workspace root found, using fallback');
+                console.log('No workspace root found, using fallback');
                 // Fallback to OS temp directory if no workspace
                 const tempDir = vscode.Uri.file(os.tmpdir());
                 const tempSuperdesignUri = vscode.Uri.joinPath(tempDir, 'superdesign-custom');
@@ -78,15 +77,13 @@ export class CustomAgentService implements AgentService {
                     await vscode.workspace.fs.stat(tempSuperdesignUri);
                 } catch (error) {
                     await vscode.workspace.fs.createDirectory(tempSuperdesignUri);
-                    this.outputChannel.appendLine(
+                    console.log(
                         `Created temporary superdesign directory: ${tempSuperdesignUri.fsPath} because of ${error}`
                     );
                 }
 
                 this.workingDirectory = tempSuperdesignUri.fsPath;
-                this.outputChannel.appendLine(
-                    `Working directory set to (fallback): ${this.workingDirectory}`
-                );
+                console.log(`Working directory set to (fallback): ${this.workingDirectory}`);
 
                 vscode.window.showWarningMessage(
                     'No workspace folder found. Using temporary directory for Custom Agent operations.'
@@ -95,28 +92,32 @@ export class CustomAgentService implements AgentService {
 
             this.isInitialized = true;
         } catch (error) {
-            this.outputChannel.appendLine(`Failed to setup working directory: ${error}`);
+            console.log(`Failed to setup working directory: ${error}`);
             // Final fallback to current working directory
             this.workingDirectory = process.cwd();
-            this.outputChannel.appendLine(
-                `Working directory set to (final fallback): ${this.workingDirectory}`
-            );
+            console.log(`Working directory set to (final fallback): ${this.workingDirectory}`);
             this.isInitialized = true;
         }
     }
 
     private getModel(): LanguageModelV2 {
+        Logger.debug('[CustomAgentService] Getting model configuration');
         const config = vscode.workspace.getConfiguration('securedesign');
         const modelToUse = getModel();
 
         if (modelToUse === undefined) {
+            Logger.debug('[CustomAgentService] No model configured, throwing error');
             throw new Error('No model configured');
         }
+        Logger.debug('[CustomAgentService] Model configured', {
+            modelId: modelToUse.id,
+            providerId: modelToUse.providerId,
+        });
 
         // Create provider configuration
         const providerConfig: VsCodeConfiguration = {
             config: config,
-            outputChannel: this.outputChannel,
+            outputChannel: vscode.window.createOutputChannel('Securedesign [providers CM]'),
         };
 
         // Use provider service to create model instance
@@ -511,23 +512,28 @@ I've created the html design, please reveiw and let me know if you need any chan
         abortController?: AbortController,
         onMessage?: (message: any) => void
     ): Promise<any[]> {
-        this.outputChannel.appendLine('=== CUSTOM AGENT QUERY CALLED ===');
+        Logger.debug('[CustomAgentService] Query called', {
+            hasPrompt: !!prompt,
+            historyLength: conversationHistory?.length ?? 0,
+            hasOptions: !!options,
+            hasAbortController: !!abortController,
+            hasOnMessage: !!onMessage,
+        });
+        console.log('=== CUSTOM AGENT QUERY CALLED ===');
 
         // Determine which input format we're using
         const usingConversationHistory = !!conversationHistory && conversationHistory.length > 0;
 
         if (usingConversationHistory) {
-            this.outputChannel.appendLine(
-                `Query using conversation history: ${conversationHistory.length} messages`
-            );
+            console.log(`Query using conversation history: ${conversationHistory.length} messages`);
         } else if (prompt !== undefined) {
-            this.outputChannel.appendLine(`Query prompt: ${prompt}...`);
+            console.log(`Query prompt: ${prompt}...`);
         } else {
             throw new Error('Either prompt or conversationHistory must be provided');
         }
 
-        this.outputChannel.appendLine(`Query options: ${JSON.stringify(options, null, 2)}`);
-        this.outputChannel.appendLine(`Streaming enabled: ${!!onMessage}`);
+        console.log(`Query options: ${JSON.stringify(options, null, 2)}`);
+        console.log(`Streaming enabled: ${!!onMessage}`);
 
         if (!this.isInitialized) {
             await this.setupWorkingDirectory();
@@ -542,17 +548,19 @@ I've created the html design, please reveiw and let me know if you need any chan
         let toolCallBuffer = '';
 
         try {
-            this.outputChannel.appendLine('Starting AI SDK streamText...');
+            Logger.debug('[CustomAgentService] Starting AI SDK streamText');
+            console.log('Starting AI SDK streamText...');
 
             // Create execution context for tools
             const executionContext: ExecutionContext = {
                 workingDirectory: this.workingDirectory,
                 sessionId: sessionId,
-                outputChannel: this.outputChannel,
+                outputChannel: vscode.window.createOutputChannel('Securedesign [execCon]'),
                 abortController: abortController,
             };
 
             // Create tools with context
+            Logger.debug('[CustomAgentService] Creating tools with execution context');
             const tools = {
                 read: createReadTool(executionContext),
                 write: createWriteTool(executionContext),
@@ -564,6 +572,7 @@ I've created the html design, please reveiw and let me know if you need any chan
                 bash: createBashTool(executionContext),
                 generateTheme: createThemeTool(executionContext),
             };
+            Logger.debug('[CustomAgentService] Tools created successfully');
 
             // Prepare AI SDK input based on available data
             const streamTextConfig: any = {
@@ -579,40 +588,38 @@ I've created the html design, please reveiw and let me know if you need any chan
                 // Validate and repair conversation history to ensure proper tool call/result pairing
                 const validatedMessages = this.validateToolCallPairs(conversationHistory);
                 streamTextConfig.messages = validatedMessages;
-                this.outputChannel.appendLine(
+                console.log(
                     `Using conversation history with ${validatedMessages.length} messages (${conversationHistory.length} original)`
                 );
 
                 // Debug: Log the actual messages being sent to AI SDK
-                this.outputChannel.appendLine('=== AI SDK MESSAGES DEBUG ===');
+                console.log('=== AI SDK MESSAGES DEBUG ===');
                 validatedMessages.forEach((msg, index) => {
                     const content =
                         typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
-                    this.outputChannel.appendLine(`  [${index}] ${msg.role}: "${content}..."`);
+                    console.log(`  [${index}] ${msg.role}: "${content}..."`);
                 });
-                this.outputChannel.appendLine('=== END AI SDK MESSAGES DEBUG ===');
+                console.log('=== END AI SDK MESSAGES DEBUG ===');
             } else {
                 // Use single prompt
                 streamTextConfig.prompt = prompt;
-                this.outputChannel.appendLine(`Using single prompt: ${prompt}...`);
+                console.log(`Using single prompt: ${prompt}...`);
             }
 
             console.log('========streamTextConfig', streamTextConfig);
 
             const result = streamText(streamTextConfig);
 
-            this.outputChannel.appendLine(
-                'AI SDK streamText created, starting to process chunks...'
-            );
+            console.log('AI SDK streamText created, starting to process chunks...');
 
             for await (const chunk of result.fullStream) {
                 // Check for abort signal
                 if (abortController?.signal.aborted) {
-                    this.outputChannel.appendLine('Operation aborted by user');
+                    console.log('Operation aborted by user');
                     throw new Error('Operation cancelled');
                 }
 
-                this.outputChannel.appendLine(`Received chunk type: ${chunk.type}`);
+                console.log(`Received chunk type: ${chunk.type}`);
 
                 // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check
                 switch (chunk.type) {
@@ -631,11 +638,9 @@ I've created the html design, please reveiw and let me know if you need any chan
 
                     case 'finish':
                         // Final result message - CoreMessage format
-                        this.outputChannel.appendLine(
-                            `===Stream finished with reason: ${chunk.finishReason}`
-                        );
-                        this.outputChannel.appendLine(`${JSON.stringify(chunk)}`);
-                        this.outputChannel.appendLine(`========================================`);
+                        console.log(`===Stream finished with reason: ${chunk.finishReason}`);
+                        console.log(`${JSON.stringify(chunk)}`);
+                        console.log(`========================================`);
 
                         const resultMessage: ModelMessage = {
                             role: 'assistant',
@@ -652,7 +657,7 @@ I've created the html design, please reveiw and let me know if you need any chan
                     case 'error':
                         // Error handling - CoreMessage format
                         const errorMsg = (chunk as any).error?.message ?? 'Unknown error occurred';
-                        this.outputChannel.appendLine(`Stream error: ${errorMsg}`);
+                        console.log(`Stream error: ${errorMsg}`);
 
                         const errorMessage: ModelMessage = {
                             role: 'assistant',
@@ -671,7 +676,7 @@ I've created the html design, please reveiw and let me know if you need any chan
                         };
                         toolCallBuffer = '';
 
-                        this.outputChannel.appendLine(
+                        console.log(
                             `Tool call streaming started: ${chunk.toolName} (ID: ${chunk.id})`
                         );
 
@@ -723,7 +728,7 @@ I've created the html design, please reveiw and let me know if you need any chan
                             } catch {
                                 // JSON not complete yet, continue buffering
                                 if (toolCallBuffer.length % 100 === 0) {
-                                    this.outputChannel.appendLine(
+                                    console.log(
                                         `Tool call progress: ${toolCallBuffer.length} characters received (parsing...)`
                                     );
                                 }
@@ -733,10 +738,8 @@ I've created the html design, please reveiw and let me know if you need any chan
 
                     case 'tool-call':
                         // Handle final complete tool call - CoreAssistantMessage format
-                        this.outputChannel.appendLine(
-                            `=====Tool call complete: ${JSON.stringify(chunk)}`
-                        );
-                        this.outputChannel.appendLine(`========================================`);
+                        console.log(`=====Tool call complete: ${JSON.stringify(chunk)}`);
+                        console.log(`========================================`);
 
                         // Skip sending duplicate tool call message if we already sent streaming start
                         if (!currentToolCall) {
@@ -756,7 +759,7 @@ I've created the html design, please reveiw and let me know if you need any chan
                             onMessage?.(toolCallMessage);
                             responseMessages.push(toolCallMessage);
                         } else {
-                            this.outputChannel.appendLine(
+                            console.log(
                                 `Skipping duplicate tool call message - already sent streaming start for ID: ${chunk.toolCallId}`
                             );
                         }
@@ -770,7 +773,7 @@ I've created the html design, please reveiw and let me know if you need any chan
                         // Handle tool results and other unknown chunk types
                         if ((chunk as any).type === 'tool-result') {
                             const toolResult = chunk as any;
-                            this.outputChannel.appendLine(
+                            console.log(
                                 `Tool result received for ID: ${toolResult.toolCallId}: ${JSON.stringify(toolResult.result)}...`
                             );
 
@@ -790,23 +793,19 @@ I've created the html design, please reveiw and let me know if you need any chan
                             onMessage?.(toolResultMessage);
                             responseMessages.push(toolResultMessage);
                         } else {
-                            this.outputChannel.appendLine(`Unknown chunk type: ${chunk.type}`);
+                            console.log(`Unknown chunk type: ${chunk.type}`);
                         }
                         break;
                 }
             }
 
-            this.outputChannel.appendLine(
-                `Query completed successfully. Total messages: ${responseMessages.length}`
-            );
-            this.outputChannel.appendLine(`Complete response: "${messageBuffer}"`);
+            console.log(`Query completed successfully. Total messages: ${responseMessages.length}`);
+            console.log(`Complete response: "${messageBuffer}"`);
 
             return responseMessages;
         } catch (error) {
-            this.outputChannel.appendLine(`Custom Agent query failed: ${error}`);
-            this.outputChannel.appendLine(
-                `Error stack: ${error instanceof Error ? error.stack : 'No stack trace'}`
-            );
+            console.log(`Custom Agent query failed: ${error}`);
+            console.log(`Error stack: ${error instanceof Error ? error.stack : 'No stack trace'}`);
 
             // Send error message if streaming callback is available
             if (onMessage) {
@@ -845,7 +844,7 @@ I've created the html design, please reveiw and let me know if you need any chan
         // Create provider configuration
         const providerConfig: VsCodeConfiguration = {
             config: vscode.workspace.getConfiguration('securedesign'),
-            outputChannel: this.outputChannel,
+            outputChannel: vscode.window.createOutputChannel('Securedesign [validate]'),
         };
 
         // Use provider service to check credentials
@@ -920,7 +919,7 @@ I've created the html design, please reveiw and let me know if you need any chan
                         const missingToolIds = toolCalls
                             .map(tc => (tc as any).toolCallId)
                             .join(', ');
-                        this.outputChannel.appendLine(
+                        console.log(
                             `Removing incomplete tool calls from message ${i} - no matching results found for IDs: ${missingToolIds}`
                         );
 
@@ -941,7 +940,7 @@ I've created the html design, please reveiw and let me know if you need any chan
                 }
             } else if (message.role === 'tool') {
                 // Tool message without preceding assistant tool call - skip it
-                this.outputChannel.appendLine(`Skipping orphaned tool result message ${i}`);
+                console.log(`Skipping orphaned tool result message ${i}`);
                 continue;
             } else {
                 // User or system message, always include
@@ -949,7 +948,7 @@ I've created the html design, please reveiw and let me know if you need any chan
             }
         }
 
-        this.outputChannel.appendLine(
+        console.log(
             `Tool call validation: ${messages.length} -> ${validatedMessages.length} messages`
         );
 

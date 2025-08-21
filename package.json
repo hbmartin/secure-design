@@ -2,7 +2,7 @@
   "name": "securedesign",
   "displayName": "securedesign",
   "description": "The 1st Design Agent lives inside your IDE",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "publisher": "HaroldMartin",
   "icon": "icon.png",
   "repository": {
@@ -110,6 +110,12 @@
         "title": "Open Settings",
         "category": "Securedesign",
         "icon": "$(settings-gear)"
+      },
+      {
+        "command": "securedesign.dumpWorkspaceState",
+        "title": "Dump Workspace State",
+        "category": "Securedesign",
+        "icon": "$(debug)"
       }
     ],
     "menus": {
@@ -268,12 +274,12 @@
     "@ai-sdk/amazon-bedrock": "^3.0.9",
     "@ai-sdk/anthropic": "^2.0.5",
     "@ai-sdk/google": "^2.0.7",
-    "@ai-sdk/openai": "^2.0.16",
-    "@anthropic-ai/claude-code": "^1.0.84",
+    "@ai-sdk/openai": "^2.0.17",
+    "@anthropic-ai/claude-code": "^1.0.85",
     "@openrouter/ai-sdk-provider": "^1.1.2",
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
-    "ai": "^5.0.16",
+    "ai": "^5.0.19",
     "execa": "^9.6.0",
     "glob": "^11.0.3",
     "highlight.js": "^11.11.1",

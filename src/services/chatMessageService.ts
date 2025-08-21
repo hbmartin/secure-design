@@ -17,11 +17,20 @@ export class ChatMessageService {
     }
 
     async handleChatMessage(message: any, webview: vscode.Webview): Promise<void> {
+        Logger.debug('[ChatMessageService] handleChatMessage called', {
+            hasHistory: !!message.chatHistory,
+            historyLength: message.chatHistory?.length ?? 0,
+            hasMessage: !!message.message,
+        });
         try {
             const chatHistory: ModelMessage[] = message.chatHistory ?? [];
             const latestMessage = message.message ?? '';
 
             Logger.debug(`chatHistory size=${chatHistory.length}`);
+            Logger.debug('[ChatMessageService] Processing chat message', {
+                historyLength: chatHistory.length,
+                latestMessageLength: latestMessage.length,
+            });
 
             Logger.info(`Chat message received with ${chatHistory.length} history messages`);
             Logger.info(`Latest message: ${latestMessage}`);
@@ -30,6 +39,7 @@ export class ChatMessageService {
             this.currentRequestController = new AbortController();
 
             // Send initial streaming start message
+            Logger.debug('[ChatMessageService] Sending chatStreamStart command');
             webview.postMessage({
                 command: 'chatStreamStart',
             });
@@ -67,6 +77,7 @@ export class ChatMessageService {
             let response: any[];
             if (chatHistory.length > 0) {
                 // Use conversation history - CoreMessage format is already compatible
+                Logger.debug('[ChatMessageService] Using conversation history mode');
                 this.outputChannel.appendLine(
                     `Using conversation history with ${chatHistory.length} messages`
                 );
@@ -82,6 +93,7 @@ export class ChatMessageService {
                 );
             } else {
                 // Fallback to single prompt for first message
+                Logger.debug('[ChatMessageService] Using single prompt mode');
                 this.outputChannel.appendLine('No conversation history, using single prompt');
                 response = await this.agentService.query(
                     latestMessage, // use latest message as prompt
@@ -97,6 +109,7 @@ export class ChatMessageService {
 
             // Check if request was aborted
             if (this.currentRequestController.signal.aborted) {
+                Logger.debug('[ChatMessageService] Request was aborted');
                 Logger.warn('Request was aborted');
                 return;
             }

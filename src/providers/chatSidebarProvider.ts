@@ -16,12 +16,20 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
     ) {}
 
     public setMessageHandler(handler: (message: any) => void) {
+        Logger.debug('[ChatSidebarProvider] Setting custom message handler');
         this.customMessageHandler = handler;
     }
 
     public sendMessage(message: any) {
+        Logger.debug('[ChatSidebarProvider] Sending message to webview', {
+            hasView: !!this._view,
+            command: message.command,
+        });
         if (this._view) {
             this._view.webview.postMessage(message);
+            Logger.debug('[ChatSidebarProvider] Message sent successfully');
+        } else {
+            Logger.debug('[ChatSidebarProvider] No view available to send message');
         }
     }
 
@@ -30,6 +38,7 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
         _context: vscode.WebviewViewResolveContext,
         _token: vscode.CancellationToken
     ) {
+        Logger.debug('[ChatSidebarProvider] Resolving webview view');
         this._view = webviewView;
 
         webviewView.webview.options = {
@@ -56,18 +65,30 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
         // Initial chat history loading is now handled by the webview using the new API
 
         // Register this webview with the API provider
+        Logger.debug('[ChatSidebarProvider] Registering view with API provider');
         this.apiProvider.registerView('chat-sidebar', webviewView, 'chat-sidebar');
+        Logger.debug('[ChatSidebarProvider] View registered successfully');
 
         // Handle messages from the webview
         const messageListener = webviewView.webview.onDidReceiveMessage(async message => {
+            Logger.debug('[ChatSidebarProvider] Received message from webview', {
+                type: message.type,
+                command: message.command,
+                hasCustomHandler: !!this.customMessageHandler,
+            });
             // First try custom message handler for auto-canvas functionality
             if (this.customMessageHandler) {
+                Logger.debug('[ChatSidebarProvider] Calling custom message handler');
                 this.customMessageHandler(message);
             }
 
             // Check if this is a new API message format
             if (message.type === 'request') {
                 // Delegate to WebviewApiProvider for new API calls
+                Logger.debug('[ChatSidebarProvider] Delegating API request to WebviewApiProvider', {
+                    requestId: message.id,
+                    requestKey: message.key,
+                });
                 await this.apiProvider.handleMessage(message, webviewView.webview);
                 return;
             }
@@ -95,6 +116,7 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
     // handleGetCurrentProvider and handleChangeProvider have been migrated to WebviewApiProvider
 
     private async handleShowContextPicker(webview: vscode.Webview) {
+        Logger.debug('[ChatSidebarProvider] Handling show context picker');
         try {
             // Show quick pick with context options
             const options = [

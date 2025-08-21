@@ -34,6 +34,10 @@ export class WebviewApiProvider implements vscode.Disposable {
     private readonly api: ViewAPI = {
         sendChatMessage: async (message: string, history: ChatMessage[]): Promise<void> => {
             Logger.info('API: sendChatMessage called');
+            Logger.debug('[WebviewApiProvider] sendChatMessage', {
+                messageLength: message.length,
+                historyLength: history.length,
+            });
             if (!this.chatController) {
                 throw new Error(
                     'ChatController not initialized. Call initializeChatController() first.'
@@ -58,6 +62,7 @@ export class WebviewApiProvider implements vscode.Disposable {
 
         stopChat: (): void => {
             Logger.info('API: stopChat called');
+            Logger.debug('[WebviewApiProvider] stopChat called');
             if (!this.chatController) {
                 Logger.warn('ChatController not initialized. Cannot stop chat.');
                 return;
@@ -67,23 +72,27 @@ export class WebviewApiProvider implements vscode.Disposable {
 
         saveChatHistory: async (history: ChatMessage[]): Promise<void> => {
             Logger.info(`API: saveChatHistory called with ${history.length} messages`);
+            Logger.debug('[WebviewApiProvider] Saving chat history', { count: history.length });
             await this.workspaceState.saveChatHistory(history);
         },
 
         // eslint-disable-next-line @typescript-eslint/require-await
         loadChatHistory: async (): Promise<ChatMessage[]> => {
             Logger.info('API: loadChatHistory called');
+            Logger.debug('[WebviewApiProvider] Loading chat history');
             return this.workspaceState.getChatHistory();
         },
 
         clearChatHistory: async (): Promise<void> => {
             Logger.info('API: clearChatHistory called');
+            Logger.debug('[WebviewApiProvider] Clearing chat history');
             await this.workspaceState.clearChatHistory();
         },
 
         // eslint-disable-next-line @typescript-eslint/require-await
         getCurrentProvider: async (): Promise<{ providerId: string; model: string }> => {
             Logger.info('API: getCurrentProvider called');
+            Logger.debug('[WebviewApiProvider] Getting current provider');
             if (!this.chatController) {
                 throw new Error(
                     'ChatController not initialized. Call initializeChatController() first.'
@@ -94,6 +103,7 @@ export class WebviewApiProvider implements vscode.Disposable {
 
         changeProvider: async (providerId: string, model: string): Promise<void> => {
             Logger.info(`API: changeProvider called with ${providerId}, ${model}`);
+            Logger.debug('[WebviewApiProvider] Changing provider', { providerId, model });
             if (!this.chatController) {
                 throw new Error(
                     'ChatController not initialized. Call initializeChatController() first.'
@@ -187,16 +197,21 @@ export class WebviewApiProvider implements vscode.Disposable {
 
         openCanvas: async (): Promise<void> => {
             Logger.info('API: openCanvas called');
+            Logger.debug('[WebviewApiProvider] Opening canvas');
             await vscode.commands.executeCommand('securedesign.openCanvas');
+            Logger.debug('[WebviewApiProvider] Canvas open command executed');
         },
 
         initializeSecuredesign: async (): Promise<void> => {
             Logger.info('API: initializeSecuredesign called');
+            Logger.debug('[WebviewApiProvider] Initializing Securedesign project');
             await vscode.commands.executeCommand('securedesign.initializeProject');
+            Logger.debug('[WebviewApiProvider] Securedesign initialized');
         },
 
         getBase64Image: async (filePath: string): Promise<string> => {
             Logger.info(`API: getBase64Image called for: ${filePath}`);
+            Logger.debug('[WebviewApiProvider] Converting image to base64', { filePath });
             try {
                 const fileUri = vscode.Uri.file(filePath);
                 const fileData = await vscode.workspace.fs.readFile(fileUri);
@@ -247,6 +262,12 @@ export class WebviewApiProvider implements vscode.Disposable {
             size: number;
         }): Promise<void> => {
             Logger.info(`API: saveImageToMoodboard called for: ${data.fileName}`);
+            Logger.debug('[WebviewApiProvider] Saving image to moodboard', {
+                fileName: data.fileName,
+                originalName: data.originalName,
+                mimeType: data.mimeType,
+                size: data.size,
+            });
 
             const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
             if (!workspaceFolder) {
@@ -292,10 +313,9 @@ export class WebviewApiProvider implements vscode.Disposable {
         },
     };
 
-    constructor(workspaceState: WorkspaceStateService, _outputChannel: vscode.OutputChannel) {
+    constructor(workspaceState: WorkspaceStateService) {
         this.chatController = null;
         this.workspaceState = workspaceState;
-        // _outputChannel is prefixed with underscore to indicate it's unused
     }
 
     /**

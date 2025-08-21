@@ -8,68 +8,22 @@ export enum LogLevel {
 }
 
 export class Logger {
-    private static outputChannel: vscode.OutputChannel;
-    private static currentLevel: LogLevel = LogLevel.INFO;
+    private static readonly outputChannel = vscode.window.createOutputChannel('Securedesign');
 
-    public static initialize() {
-        if (!this.outputChannel) {
-            this.outputChannel = vscode.window.createOutputChannel('Securedesign');
-        }
+    public static debug(message: string, data: Record<any, any> | undefined = undefined) {
+        this.log(LogLevel.DEBUG, 'DEBUG', message, data);
     }
 
-    public static setLevel(level: LogLevel) {
-        this.currentLevel = level;
+    public static info(message: string, data: Record<any, any> | undefined = undefined) {
+        this.log(LogLevel.INFO, 'INFO', message, data);
     }
 
-    private static log(
-        level: LogLevel,
-        label: string,
-        message: string,
-        showNotification: boolean = false
-    ) {
-        if (level < this.currentLevel) {
-            return;
-        }
-
-        this.initialize();
-        const timestamp = new Date().toISOString();
-        this.outputChannel.appendLine(`[${timestamp}] [${label}] ${message}`);
-
-        if (showNotification) {
-            switch (level) {
-                case LogLevel.ERROR:
-                    vscode.window.showErrorMessage(message);
-                    break;
-                case LogLevel.WARN:
-                    vscode.window.showWarningMessage(message);
-                    break;
-                case LogLevel.INFO:
-                    vscode.window.showInformationMessage(message);
-                    break;
-                case LogLevel.DEBUG:
-                    // Debug messages don't show notifications
-                    break;
-                default:
-                    // No notification for debug
-                    break;
-            }
-        }
+    public static warn(message: string, data: Record<any, any> | undefined = undefined) {
+        this.log(LogLevel.WARN, 'WARN', message, data);
     }
 
-    public static debug(message: string, showNotification: boolean = false) {
-        this.log(LogLevel.DEBUG, 'DEBUG', message, showNotification);
-    }
-
-    public static info(message: string, showNotification: boolean = false) {
-        this.log(LogLevel.INFO, 'INFO', message, showNotification);
-    }
-
-    public static warn(message: string, showNotification: boolean = false) {
-        this.log(LogLevel.WARN, 'WARN', message, showNotification);
-    }
-
-    public static error(message: string, showNotification: boolean = false) {
-        this.log(LogLevel.ERROR, 'ERROR', message, showNotification);
+    public static error(message: string, data: Record<any, any> | undefined = undefined) {
+        this.log(LogLevel.ERROR, 'ERROR', message, data);
     }
 
     public static dispose() {
@@ -78,11 +32,28 @@ export class Logger {
         }
     }
 
-    /**
-     * Get the output channel for direct access if needed
-     */
-    public static getOutputChannel(): vscode.OutputChannel {
-        this.initialize();
-        return this.outputChannel;
+    private static log(
+        level: LogLevel,
+        label: string,
+        message: string,
+        data: Record<any, any> | undefined
+    ) {
+        const timestamp = new Date().toISOString();
+        this.outputChannel.appendLine(`[${timestamp}] [${label}] ${message}`);
+
+        switch (level) {
+            case LogLevel.ERROR:
+                console.error(message, data);
+                break;
+            case LogLevel.WARN:
+                console.warn(message, data);
+                break;
+            case LogLevel.INFO:
+                console.info(message, data);
+                break;
+            case LogLevel.DEBUG:
+                console.debug(message, data);
+                break;
+        }
     }
 }

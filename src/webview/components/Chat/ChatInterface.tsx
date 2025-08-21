@@ -27,6 +27,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         () => ({
             postMessage: (message: any) => {
                 console.warn('Legacy vscode.postMessage call:', message);
+                console.log('[ChatInterface] Legacy postMessage:', {
+                    command: message.command,
+                    hasArgs: !!message.args,
+                });
                 // Handle legacy messages appropriately
                 switch (message.command) {
                     case 'checkCanvasStatus':
@@ -47,6 +51,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
     const setChatHistory = useCallback((_updater: React.SetStateAction<ChatMessage[]>) => {
         // For the new API, we'll handle this through events instead of direct state updates
         console.warn('setChatHistory is deprecated with the new API - use event system instead');
+        console.log('[ChatInterface] Attempted setChatHistory call');
     }, []);
     const {
         isFirstTime,
@@ -88,9 +93,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
 
     // Request current provider on mount
     useEffect(() => {
+        console.log('[ChatInterface] Requesting current provider on mount');
         void (async () => {
             try {
                 const provider = await api.getCurrentProvider();
+                console.log('[ChatInterface] Current provider:', provider);
                 setSelectedModel(provider.model);
             } catch (error) {
                 console.error('Failed to get current provider:', error);
@@ -99,9 +106,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
     }, [api]);
 
     const handleModelChange = async (providerId: string, model: string) => {
+        console.log('[ChatInterface] Model change requested:', { providerId, model });
         try {
             await api.changeProvider(providerId, model);
             setSelectedModel(model);
+            console.log('[ChatInterface] Model changed successfully to:', model);
         } catch (error) {
             console.error('Failed to change provider:', error);
             api.showErrorMessage('Failed to change AI provider');
@@ -158,13 +167,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
 
         // Auto-open canvas if not already open
         const autoOpenCanvas = async () => {
+            console.log('[ChatInterface] Checking canvas status...');
             // Check if canvas panel is already open using the new API
             try {
                 const isCanvasOpen = await api.checkCanvasStatus();
+                console.log('[ChatInterface] Canvas status:', isCanvasOpen ? 'open' : 'closed');
                 if (!isCanvasOpen) {
                     // Canvas is not open, auto-open it
                     console.log('🎨 Auto-opening canvas view...');
                     await api.openCanvas();
+                    console.log('[ChatInterface] Canvas opened successfully');
                 }
             } catch (error) {
                 console.error('Failed to check canvas status or open canvas:', error);
@@ -173,6 +185,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             // Listen for context messages and other events
             const handleMessage = (event: MessageEvent) => {
                 const message = event.data;
+                console.log('[ChatInterface] Received message:', {
+                    command: message.command,
+                    hasData: !!message.data,
+                });
                 if (message.command === 'contextFromCanvas') {
                     // Handle context from canvas
                     console.log('📄 Received context from canvas:', message.data);
@@ -287,6 +303,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
 
             console.log('📤 Sending message with context:', currentContext);
             console.log('📤 Input message:', inputMessage);
+            console.log('[ChatInterface] handleSendMessage called:', {
+                hasContext: !!currentContext,
+                contextType: currentContext?.type,
+                messageLength: inputMessage.length,
+            });
 
             // Check if we have image context to include
             if (
@@ -357,8 +378,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 console.log('📤 No context available, sending message as-is');
             }
 
+            console.log(
+                '[ChatInterface] Sending message with content type:',
+                typeof messageContent
+            );
             void sendMessage(messageContent);
             setInputMessage('');
+            console.log('[ChatInterface] Message sent, input cleared');
         }
     };
 
@@ -400,6 +426,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
     };
 
     const handleWelcomeGetStarted = async () => {
+        console.log('[ChatInterface] Welcome Get Started clicked');
         setShowWelcome(false);
         markAsReturningUser();
         console.log('👋 User clicked Get Started, welcome dismissed');
@@ -468,6 +495,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
 
     const handleImageUpload = useCallback(
         async (file: File): Promise<void> => {
+            console.log('[ChatInterface] handleImageUpload called:', {
+                fileName: file.name,
+                fileType: file.type,
+                fileSize: file.size,
+            });
             const maxSize = 10 * 1024 * 1024; // 10MB limit
             if (file.size > maxSize) {
                 const displayName = file.name || 'clipboard image';
@@ -500,6 +532,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 });
 
                 // Send to extension to save in moodboard
+                console.log('[ChatInterface] Saving image to moodboard:', {
+                    fileName,
+                    originalName,
+                });
                 await api.saveImageToMoodboard({
                     fileName,
                     originalName,
@@ -508,6 +544,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                     size: file.size,
                 });
                 console.log('📎 Image saved to moodboard:', fileName);
+                console.log('[ChatInterface] Image save completed');
             } catch (error) {
                 console.error('Failed to process image:', error);
                 void api.showErrorMessage(
@@ -523,6 +560,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
 
     // Auto-set context when images finish uploading
     useEffect(() => {
+        console.log('[ChatInterface] Image upload state:', {
+            uploadingCount: uploadingImages.length,
+            pendingCount: pendingImages.length,
+        });
         if (uploadingImages.length === 0 && pendingImages.length > 0) {
             if (pendingImages.length === 1) {
                 // Single image - set as context with full path
@@ -567,6 +608,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
     // Manage countdown timers for tool calls
     useEffect(() => {
         const activeTimers = new Set<string>();
+        console.log('[ChatInterface] Processing tool timers, history length:', chatHistory.length);
 
         // Process each message to find tool calls
         chatHistory.forEach((msg, msgIndex) => {
@@ -1365,6 +1407,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
     ) => {
         const handleActionClick = (action: { text: string; command: string; args?: string }) => {
             console.log('Action clicked:', action);
+            console.log('[ChatInterface] Executing command:', {
+                command: action.command,
+                hasArgs: !!action.args,
+            });
             void api.executeCommand(action.command, action.args);
         };
 

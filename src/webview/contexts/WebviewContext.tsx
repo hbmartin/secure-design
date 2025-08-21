@@ -109,13 +109,13 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
 
     // Initialize VSCode API
     useEffect(() => {
-        try {
-            if (typeof acquireVsCodeApi === 'function') {
-                vscodeApi.current = acquireVsCodeApi();
-                setIsReady(true);
-            }
-        } catch (error) {
-            console.error('Failed to acquire VSCode API:', error);
+        console.log('[WebviewContext] Initializing VSCode API');
+        if (typeof acquireVsCodeApi === 'function') {
+            vscodeApi.current = acquireVsCodeApi();
+            setIsReady(true);
+            console.log('[WebviewContext] VSCode API acquired successfully');
+        } else {
+            throw new Error('[WebviewContext] acquireVsCodeApi function not available');
         }
     }, []);
 
@@ -153,6 +153,9 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
                 case 'saveChatHistory':
                 case 'clearChatHistory':
                     return 0; // No timeout for chat-related operations
+                case 'openCanvas':
+                case 'checkCanvasStatus':
+                    return 0; // No timeout for canvas operations
                 case 'selectFile':
                 case 'selectFolder':
                 case 'selectImages':
@@ -178,8 +181,14 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
 
         // Send the request
         try {
+            console.log(`[WebviewContext] Sending API request: ${key}`, {
+                params,
+                id,
+                context: contextRef.current,
+            });
             console.debug(`Sending API request: ${key}`, params);
             vscodeApi.current.postMessage(request);
+            console.log(`[WebviewContext] Request sent successfully: ${key}`);
         } catch (error) {
             console.error(`Failed to send API request ${key}:`, error);
             deferred.clearTimeout();
@@ -196,6 +205,9 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
     const api = new Proxy({} as WebviewContextValue['api'], {
         get: (_, key: string) => {
             return (...args: any[]) => {
+                console.log(`[WebviewContext] API method called: ${key}`, {
+                    argsCount: args.length,
+                });
                 // Type assertion is safe here because the proxy ensures correct typing at usage
                 return callApi(
                     key as keyof ViewAPI,
@@ -209,17 +221,27 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
      * Add an event listener with type safety
      */
     const addListener = <E extends keyof ViewEvents>(key: E, callback: ViewEvents[E]): void => {
+        console.log(`[WebviewContext] Adding listener for event: ${String(key)}`);
         if (!listeners.current.has(key)) {
             listeners.current.set(key, new Set());
         }
         listeners.current.get(key)!.add(callback as (...args: any[]) => void);
+        console.log(
+            `[WebviewContext] Listener added, total listeners for ${String(key)}:`,
+            listeners.current.get(key)?.size
+        );
     };
 
     /**
      * Remove an event listener
      */
     const removeListener = <E extends keyof ViewEvents>(key: E, callback: ViewEvents[E]): void => {
+        console.log(`[WebviewContext] Removing listener for event: ${String(key)}`);
         listeners.current.get(key)?.delete(callback as (...args: any[]) => void);
+        console.log(
+            `[WebviewContext] Listener removed, remaining listeners for ${String(key)}:`,
+            listeners.current.get(key)?.size
+        );
     };
 
     /**
@@ -228,11 +250,17 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
     useEffect(() => {
         const handleMessage = (event: MessageEvent<any>) => {
             const message = event.data;
+            console.log('[WebviewContext] Received message:', {
+                type: message.type,
+                id: message.id,
+                key: message.key,
+            });
 
             if (isViewApiResponse(message)) {
                 // Handle API response
                 const deferred = pendingRequests.current.get(message.id);
                 if (deferred) {
+                    console.log(`[WebviewContext] Processing response for request ${message.id}`);
                     console.debug(
                         'API response received for request %s:',
                         message.id,
@@ -257,8 +285,14 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
                 }
             } else if (isViewApiEvent(message)) {
                 // Handle event
+                console.log(`[WebviewContext] Processing event: ${String(message.key)}`, {
+                    valueLength: message.value?.length,
+                });
                 const callbacks = listeners.current.get(message.key);
                 if (callbacks && callbacks.size > 0) {
+                    console.log(
+                        `[WebviewContext] Calling ${callbacks.size} listener(s) for event: ${String(message.key)}`
+                    );
                     callbacks.forEach(cb => {
                         try {
                             cb(...message.value);
@@ -266,6 +300,10 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
                             console.error('Error in event listener for %s:', message.key, error);
                         }
                     });
+                } else {
+                    console.log(
+                        `[WebviewContext] No listeners registered for event: ${String(message.key)}`
+                    );
                 }
             } else {
                 // Handle legacy messages that don't follow the new format
