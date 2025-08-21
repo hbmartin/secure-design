@@ -13,6 +13,7 @@ import chatStyles from './ChatInterface.css';
 
 import welcomeStyles from '../Welcome/Welcome.css';
 import { ProviderService } from '../../../providers';
+import { useLogger } from '../../hooks/useLogger';
 
 interface ChatInterfaceProps {
     layout: WebviewLayout;
@@ -21,6 +22,7 @@ interface ChatInterfaceProps {
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
     const { messages: chatHistory, isLoading, sendMessage, clearHistory } = useChatTypeSafe();
     const { api } = useWebviewApi();
+    const logger = useLogger('ChatInterface');
 
     // Temporary compatibility bridge for gradual migration
     const vscode = useMemo(
@@ -93,7 +95,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
 
     // Request current provider on mount
     useEffect(() => {
-        console.log('[ChatInterface] Requesting current provider on mount');
+        logger.info('Requesting current provider on mount');
         void (async () => {
             try {
                 const provider = await api.getCurrentProvider();
@@ -103,7 +105,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 console.error('Failed to get current provider:', error);
             }
         })();
-    }, [api]);
+    }, [api, logger]);
 
     const handleModelChange = async (providerId: string, model: string) => {
         console.log('[ChatInterface] Model change requested:', { providerId, model });

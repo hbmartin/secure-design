@@ -169,15 +169,15 @@ export class BedrockProvider extends AIProvider {
             throw new Error(this.getCredentialsErrorMessage());
         }
 
-        params.config.outputChannel.appendLine(`AWS region: ${awsRegion}`);
-        params.config.outputChannel.appendLine('AWS credentials are configured');
+        params.config.logger.info(`AWS region: ${awsRegion}`);
+        params.config.logger.info('AWS credentials are configured');
         const bedrock = createAmazonBedrock({
             region: awsRegion,
             accessKeyId: awsAccessKeyId,
             secretAccessKey: awsSecretAccessKey,
         });
 
-        params.config.outputChannel.appendLine(`Using Bedrock model: ${params.model}`);
+        params.config.logger.info(`Using Bedrock model: ${params.model}`);
         return bedrock(params.model);
     }
 

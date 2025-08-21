@@ -12,6 +12,7 @@ import type { ChatMessage } from '../types/chatMessage';
 import type { WorkspaceStateService } from '../services/workspaceStateService';
 import type { ChatController } from '../controllers/ChatController';
 import { Logger } from '../services/logger';
+import { LogLevel } from '../services/ILogger';
 
 /**
  * WebviewApiProvider implements the type-safe API contract between host and webviews.
@@ -309,6 +310,24 @@ export class WebviewApiProvider implements vscode.Disposable {
                     error: error instanceof Error ? error.message : String(error),
                 });
                 throw error;
+            }
+        },
+
+        log: (level: LogLevel, message: string, data?: Record<any, any>): void => {
+            // Use the Logger static methods based on level
+            switch (level) {
+                case LogLevel.DEBUG:
+                    Logger.debug(message, data);
+                    break;
+                case LogLevel.INFO:
+                    Logger.info(message, data);
+                    break;
+                case LogLevel.WARN:
+                    Logger.warn(message, data);
+                    break;
+                case LogLevel.ERROR:
+                    Logger.error(message, data);
+                    break;
             }
         },
     };

@@ -5,6 +5,7 @@
 
 import type * as vscode from 'vscode';
 import type { LanguageModelV2 } from '@ai-sdk/provider';
+import type { ILogger } from '../services/ILogger';
 
 export type Brand<T, B> = T & { readonly __brand: B };
 
@@ -57,7 +58,7 @@ export interface VsCodeConfiguration {
     /** VS Code configuration object */
     config: vscode.WorkspaceConfiguration;
     /** Output channel for logging */
-    outputChannel: vscode.OutputChannel;
+    logger: ILogger;
 }
 
 /**

@@ -283,7 +283,7 @@ export class ChatController {
         // Validate credentials
         const providerConfig: VsCodeConfiguration = {
             config: config,
-            outputChannel: vscode.window.createOutputChannel('Securedesign [providers CC]'),
+            logger: Logger,
         };
 
         const validation = this.providerService.validateCredentialsForProvider(

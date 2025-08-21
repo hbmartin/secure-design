@@ -185,13 +185,13 @@ export class OpenRouterProvider extends AIProvider {
             throw new Error(this.getCredentialsErrorMessage());
         }
 
-        params.config.outputChannel.appendLine('OpenRouter API key found');
+        params.config.logger.info('OpenRouter API key found');
 
         const openrouter = createOpenRouter({
             apiKey: apiKey,
         });
 
-        params.config.outputChannel.appendLine(`Using OpenRouter model: ${params.model}`);
+        params.config.logger.info(`Using OpenRouter model: ${params.model}`);
         return openrouter.chat(params.model);
     }
 

@@ -282,7 +282,7 @@ export function createReadTool(context: ExecutionContext) {
 
                 // Detect file type
                 const fileType = detectFileType(absolutePath);
-                context.outputChannel.appendLine(
+                context.logger.info(
                     `[read] Reading ${fileType} file: ${filePath} (${(stats.size / 1024).toFixed(1)} KB)`
                 );
 
@@ -337,12 +337,12 @@ export function createReadTool(context: ExecutionContext) {
                 };
 
                 const duration = Date.now() - startTime;
-                context.outputChannel.appendLine(`[read] File read completed in ${duration}ms`);
+                context.logger.info(`[read] File read completed in ${duration}ms`);
 
                 return createSuccessResponse(fileReadResult);
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
-                context.outputChannel.appendLine(`[read] Read failed: ${errorMessage}`);
+                context.logger.info(`[read] Read failed: ${errorMessage}`);
                 return handleToolError(error, 'Read tool execution', 'execution');
             }
         },

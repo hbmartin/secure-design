@@ -76,13 +76,13 @@ export class GoogleProvider extends AIProvider {
             throw new Error(this.getCredentialsErrorMessage());
         }
 
-        params.config.outputChannel.appendLine('Google API key found.');
+        params.config.logger.info('Google API key found.');
 
         const google = createGoogleGenerativeAI({
             apiKey: apiKey,
         });
 
-        params.config.outputChannel.appendLine(`Using Google model: ${params.model}`);
+        params.config.logger.info(`Using Google model: ${params.model}`);
         return google(params.model);
     }
 

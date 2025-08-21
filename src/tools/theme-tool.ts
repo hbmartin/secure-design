@@ -76,14 +76,14 @@ export function createThemeTool(context: ExecutionContext) {
                     const dirPath = path.dirname(resolvedPath);
                     if (!fs.existsSync(dirPath)) {
                         fs.mkdirSync(dirPath, { recursive: true });
-                        context.outputChannel.appendLine(`[theme] Created directory: ${dirPath}`);
+                        context.logger.info(`[theme] Created directory: ${dirPath}`);
                     }
                 }
 
                 // Write the CSS content to file
                 fs.writeFileSync(resolvedPath, cssSheet, 'utf8');
 
-                context.outputChannel.appendLine(
+                context.logger.info(
                     `[theme] Successfully created theme "${theme_name}" at: ${resolvedPath}`
                 );
 
@@ -97,7 +97,7 @@ export function createThemeTool(context: ExecutionContext) {
                 });
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
-                context.outputChannel.appendLine(`[theme] Theme creation failed: ${errorMessage}`);
+                context.logger.info(`[theme] Theme creation failed: ${errorMessage}`);
                 return handleToolError(error, 'Theme tool execution', 'execution');
             }
         },

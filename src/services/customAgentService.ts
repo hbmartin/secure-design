@@ -117,7 +117,7 @@ export class CustomAgentService implements AgentService {
         // Create provider configuration
         const providerConfig: VsCodeConfiguration = {
             config: config,
-            outputChannel: vscode.window.createOutputChannel('Securedesign [providers CM]'),
+            logger: Logger,
         };
 
         // Use provider service to create model instance
@@ -555,7 +555,7 @@ I've created the html design, please reveiw and let me know if you need any chan
             const executionContext: ExecutionContext = {
                 workingDirectory: this.workingDirectory,
                 sessionId: sessionId,
-                outputChannel: vscode.window.createOutputChannel('Securedesign [execCon]'),
+                logger: Logger,
                 abortController: abortController,
             };
 
@@ -603,10 +603,8 @@ I've created the html design, please reveiw and let me know if you need any chan
             } else {
                 // Use single prompt
                 streamTextConfig.prompt = prompt;
-                console.log(`Using single prompt: ${prompt}...`);
+                console.log('Using single prompt');
             }
-
-            console.log('========streamTextConfig', streamTextConfig);
 
             const result = streamText(streamTextConfig);
 
@@ -844,7 +842,7 @@ I've created the html design, please reveiw and let me know if you need any chan
         // Create provider configuration
         const providerConfig: VsCodeConfiguration = {
             config: vscode.workspace.getConfiguration('securedesign'),
-            outputChannel: vscode.window.createOutputChannel('Securedesign [validate]'),
+            logger: Logger,
         };
 
         // Use provider service to check credentials

@@ -58,17 +58,15 @@ export class MoonshotProvider extends AIProvider {
             throw new Error(this.getCredentialsErrorMessage());
         }
 
-        params.config.outputChannel.appendLine('Moonshot API key found');
-        params.config.outputChannel.appendLine(
-            'Using Moonshot API baseURL: https://api.moonshot.ai/v1'
-        );
+        params.config.logger.info('Moonshot API key found');
+        params.config.logger.info('Using Moonshot API baseURL: https://api.moonshot.ai/v1');
 
         const moonshot = createOpenAI({
             apiKey: apiKey,
             baseURL: 'https://api.moonshot.ai/v1',
         });
 
-        params.config.outputChannel.appendLine(`Using Moonshot model: ${params.model}`);
+        params.config.logger.info(`Using Moonshot model: ${params.model}`);
         return moonshot(params.model);
     }
 

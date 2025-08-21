@@ -85,15 +85,15 @@ export class OpenAIProvider extends AIProvider {
             throw new Error(this.getCredentialsErrorMessage());
         }
 
-        params.config.outputChannel.appendLine('OpenAI API key found');
+        params.config.logger.info('OpenAI API key found');
 
         if (baseURL !== undefined) {
-            params.config.outputChannel.appendLine(`Using custom OpenAI base URL: ${baseURL}`);
+            params.config.logger.info(`Using custom OpenAI base URL: ${baseURL}`);
         }
 
         const openai = createOpenAI({ apiKey, baseURL });
 
-        params.config.outputChannel.appendLine(`Using OpenAI model: ${params.model}`);
+        params.config.logger.info(`Using OpenAI model: ${params.model}`);
         return openai(params.model);
     }
 
