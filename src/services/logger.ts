@@ -1,88 +1,73 @@
 import * as vscode from 'vscode';
+import { type ILogger, LogLevel } from './ILogger';
 
-export enum LogLevel {
-    DEBUG,
-    INFO,
-    WARN,
-    ERROR,
-}
-
-export class Logger {
-    private static outputChannel: vscode.OutputChannel;
-    private static currentLevel: LogLevel = LogLevel.INFO;
-
-    public static initialize() {
-        if (!this.outputChannel) {
-            this.outputChannel = vscode.window.createOutputChannel('Securedesign');
-        }
-    }
-
-    public static setLevel(level: LogLevel) {
-        this.currentLevel = level;
-    }
-
-    private static log(
-        level: LogLevel,
-        label: string,
-        message: string,
-        showNotification: boolean = false
-    ) {
-        if (level < this.currentLevel) {
-            return;
-        }
-
-        this.initialize();
-        const timestamp = new Date().toISOString();
-        this.outputChannel.appendLine(`[${timestamp}] [${label}] ${message}`);
-
-        if (showNotification) {
-            switch (level) {
-                case LogLevel.ERROR:
-                    vscode.window.showErrorMessage(message);
-                    break;
-                case LogLevel.WARN:
-                    vscode.window.showWarningMessage(message);
-                    break;
-                case LogLevel.INFO:
-                    vscode.window.showInformationMessage(message);
-                    break;
-                case LogLevel.DEBUG:
-                    // Debug messages don't show notifications
-                    break;
-                default:
-                    // No notification for debug
-                    break;
+function removePromptsFromData<T extends Record<string, any>>(dictionary: T): T {
+    for (const value of Object.values(dictionary)) {
+        if (Array.isArray(value)) {
+            for (const item of value) {
+                if (
+                    typeof item === 'object' &&
+                    item !== null &&
+                    'content' in item &&
+                    typeof item.content === 'string'
+                ) {
+                    delete item.content;
+                }
             }
         }
     }
 
-    public static debug(message: string, showNotification: boolean = false) {
-        this.log(LogLevel.DEBUG, 'DEBUG', message, showNotification);
+    return dictionary;
+}
+
+/**
+ * Static logger class for extension-wide logging
+ */
+class LoggerImpl {
+    private static outputChannel: vscode.OutputChannel | undefined =
+        vscode.window.createOutputChannel('Securedesign');
+
+    public static debug(message: string, data: Record<any, any> | undefined = undefined) {
+        this.log(LogLevel.DEBUG, '', message, data);
     }
 
-    public static info(message: string, showNotification: boolean = false) {
-        this.log(LogLevel.INFO, 'INFO', message, showNotification);
+    public static info(message: string, data: Record<any, any> | undefined = undefined) {
+        this.log(LogLevel.INFO, '', message, data);
     }
 
-    public static warn(message: string, showNotification: boolean = false) {
-        this.log(LogLevel.WARN, 'WARN', message, showNotification);
+    public static warn(message: string, data: Record<any, any> | undefined = undefined) {
+        this.log(LogLevel.WARN, '', message, data);
     }
 
-    public static error(message: string, showNotification: boolean = false) {
-        this.log(LogLevel.ERROR, 'ERROR', message, showNotification);
+    public static error(message: string, data: Record<any, any> | undefined = undefined) {
+        this.log(LogLevel.ERROR, '', message, data);
     }
 
     public static dispose() {
-        if (this.outputChannel) {
-            this.outputChannel.dispose();
-        }
+        this.outputChannel?.dispose();
+        this.outputChannel = undefined;
     }
 
-    /**
-     * Get the output channel for direct access if needed
-     */
-    public static getOutputChannel(): vscode.OutputChannel {
-        this.initialize();
-        return this.outputChannel;
+    private static log(
+        level: LogLevel,
+        tag: string,
+        message: string,
+        data: Record<any, any> | undefined
+    ) {
+        const timestamp = new Date().toISOString().split('T')[1];
+        const levelStr = LogLevel[level] || 'UNKNOWN';
+        this.outputChannel?.appendLine(`[${timestamp}] [${levelStr}] ${tag}${message}`);
+        if (data !== undefined) {
+            const cleanedData = removePromptsFromData(data);
+            this.outputChannel?.appendLine(JSON.stringify(cleanedData));
+        }
     }
 }
+
+export const Logger: ILogger = {
+    debug: (message: string, data?: Record<any, any>) => LoggerImpl.debug(message, data),
+    info: (message: string, data?: Record<any, any>) => LoggerImpl.info(message, data),
+    warn: (message: string, data?: Record<any, any>) => LoggerImpl.warn(message, data),
+    error: (message: string, data?: Record<any, any>) => LoggerImpl.error(message, data),
+    dispose: () => LoggerImpl.dispose(),
+};

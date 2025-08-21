@@ -73,9 +73,6 @@ const CANVAS_CONFIG: CanvasConfig = {
 };
 
 const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
-    console.log('🎨 CanvasView component starting...');
-    console.log('📞 CanvasView props - vscode:', !!vscode, 'nonce:', nonce);
-
     const [designFiles, setDesignFiles] = useState<DesignFile[]>([]);
     const [selectedFrames, setSelectedFrames] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -97,8 +94,6 @@ const CanvasView: React.FC<CanvasViewProps> = ({ vscode, nonce }) => {
     const [hierarchyTree, setHierarchyTree] = useState<HierarchyTree | null>(null);
     const [showConnections, setShowConnections] = useState(true);
     const transformRef = useRef<ReactZoomPanPinchRef>(null);
-
-    console.log('✅ CanvasView state initialized successfully');
 
     // Performance optimization: Switch render modes based on zoom level
     const getOptimalRenderMode = (_zoom: number): 'placeholder' | 'iframe' => {

@@ -25,16 +25,14 @@ export class ServiceContainer implements vscode.Disposable {
         // Initialize base services first
         const workspaceStateService = WorkspaceStateService.getInstance();
         const providerService = ProviderService.getInstance();
-        const customAgent = new CustomAgentService(Logger.getOutputChannel());
-        const outputChannel = Logger.getOutputChannel();
+        const customAgent = new CustomAgentService();
 
         this.services.set('workspaceStateService', workspaceStateService);
         this.services.set('providerService', providerService);
         this.services.set('customAgent', customAgent);
-        this.services.set('outputChannel', outputChannel);
 
         // Create WebviewApiProvider first
-        const apiProvider = new WebviewApiProvider(workspaceStateService, outputChannel);
+        const apiProvider = new WebviewApiProvider(workspaceStateService);
         this.services.set('apiProvider', apiProvider);
 
         // Create ChatController with apiProvider as EventTrigger
@@ -42,8 +40,7 @@ export class ServiceContainer implements vscode.Disposable {
             customAgent,
             workspaceStateService,
             providerService,
-            apiProvider, // apiProvider implements EventTrigger interface
-            outputChannel
+            apiProvider // apiProvider implements EventTrigger interface
         );
         this.services.set('chatController', chatController);
 

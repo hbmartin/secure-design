@@ -1,5 +1,5 @@
-import type * as vscode from 'vscode';
 import type { CoreMessage } from 'ai';
+import type { ILogger } from '../services/ILogger';
 
 export interface AgentService {
     query(
@@ -17,6 +17,6 @@ export interface AgentService {
 export interface ExecutionContext {
     workingDirectory: string;
     sessionId: string;
-    outputChannel: vscode.OutputChannel;
+    logger: ILogger;
     abortController?: AbortController;
 }

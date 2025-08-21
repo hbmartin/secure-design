@@ -29,8 +29,7 @@ export class ChatController {
         private readonly agentService: AgentService,
         private readonly workspaceState: WorkspaceStateService,
         private readonly providerService: ProviderService,
-        private readonly eventTrigger: EventTrigger,
-        private readonly outputChannel: vscode.OutputChannel
+        private readonly eventTrigger: EventTrigger
     ) {}
 
     /**
@@ -53,10 +52,7 @@ export class ChatController {
             this.eventTrigger.triggerEvent('chatStreamStart');
 
             // Debug log chat history
-            this.outputChannel.appendLine('=== CHAT HISTORY DEBUG ===');
-            this.outputChannel.appendLine(
-                `📥 Input: ${payload.chatHistory.length} ChatMessage messages`
-            );
+            Logger.info(`📥 Input: ${payload.chatHistory.length} ChatMessage messages`);
 
             // ChatMessage extends ModelMessage, so we can use them directly
             const modelMessages: ModelMessage[] = payload.chatHistory;
@@ -287,7 +283,7 @@ export class ChatController {
         // Validate credentials
         const providerConfig: VsCodeConfiguration = {
             config: config,
-            outputChannel: this.outputChannel,
+            logger: Logger,
         };
 
         const validation = this.providerService.validateCredentialsForProvider(

@@ -1292,18 +1292,21 @@ html.dark {
 
 export function activate(context: vscode.ExtensionContext): void {
     // Initialize the centralized logger
-    Logger.initialize();
     Logger.info('SecureDesign extension is now active!');
+    Logger.debug('[Extension] Starting activation sequence');
     // Note: Users can manually open output via View → Output → Select "SecureDesign" if needed
 
     // Initialize workspace state service
     const workspaceStateService = WorkspaceStateService.getInstance();
     workspaceStateService.initialize(context);
     Logger.info('WorkspaceStateService initialized');
+    Logger.debug('[Extension] WorkspaceStateService initialized successfully');
 
     // Initialize provider service
+    Logger.debug('[Extension] Initializing ProviderService');
     ProviderService.getInstance();
     Logger.info('ProviderService initialized');
+    Logger.debug('[Extension] ProviderService initialized successfully');
 
     // Initialize WebviewMessageGuard cleanup timer and ensure proper disposal
     WebviewMessageGuard.initialize();
@@ -1318,14 +1321,18 @@ export function activate(context: vscode.ExtensionContext): void {
     });
 
     // Initialize services using dependency injection container
+    Logger.debug('[Extension] Creating ServiceContainer');
     const serviceContainer = new ServiceContainer(context);
     serviceContainer.initialize();
+    Logger.debug('[Extension] ServiceContainer initialized');
 
     // Get services from container
     const apiProvider = serviceContainer.get<WebviewApiProvider>('apiProvider');
     const sidebarProvider = serviceContainer.get<ChatSidebarProvider>('sidebarProvider');
+    Logger.debug('[Extension] Services retrieved from container');
 
     // Register the webview view provider for sidebar
+    Logger.debug('[Extension] Registering sidebar webview provider');
     const sidebarDisposable = vscode.window.registerWebviewViewProvider(
         ChatSidebarProvider.VIEW_TYPE,
         sidebarProvider,
@@ -1335,6 +1342,7 @@ export function activate(context: vscode.ExtensionContext): void {
             },
         }
     );
+    Logger.debug('[Extension] Sidebar webview provider registered');
 
     // Register command to show sidebar
     const showSidebarDisposable = vscode.commands.registerCommand(
@@ -1493,6 +1501,21 @@ export function activate(context: vscode.ExtensionContext): void {
         initializeProjectDisposable,
         openSettingsDisposable,
         workspaceChangeDisposable
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('securedesign.dumpWorkspaceState', async () => {
+            const state = context.workspaceState; // Memento
+            const keys = state.keys(); // all keys for your ext
+            const data: Record<string, unknown> = {};
+            for (const k of keys) data[k] = state.get(k);
+
+            const doc = await vscode.workspace.openTextDocument({
+                language: 'json',
+                content: JSON.stringify(data, null, 2),
+            });
+            vscode.window.showTextDocument(doc, { preview: false });
+        })
     );
 }
 

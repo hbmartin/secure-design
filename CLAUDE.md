@@ -283,7 +283,6 @@ The project uses a modular testing approach:
 
 - Lazy-load modules with dynamic imports
 - Implement lazy activation to minimize startup impact
-- Use webpack for bundling production builds
 - Minimize extension size with tree-shaking
 - Debounce frequent events like `onDidChangeTextDocument`
 - Implement cancellation tokens for long operations
@@ -410,7 +409,7 @@ The project uses a modular testing approach:
 4. **Error Handling**: Implement robust error handling with user-friendly messages
 5. **Performance**: Monitor and optimize with time budgets and caching
 6. **Testing**: Include comprehensive test coverage. Include unit, integration, and fixture-based tests.
-7. **Build Flexibility**: Support multiple build systems (webpack, esbuild, tsc)
+7. **Build Flexibility**: Support multiple build systems (esbuild, tsc)
 8. **User Experience**: Provide clear status indication and migration paths
 9. **Documentation**: Maintain comprehensive documentation and examples
 10. **Standards**: Follow VSCode extension conventions and best practices

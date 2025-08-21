@@ -1,3 +1,4 @@
+import type { LogLevel } from '../services/ILogger';
 import type { ChatMessage } from '../types/chatMessage';
 import type { LanguageModelV2ToolResultOutput } from '@ai-sdk/provider';
 
@@ -43,6 +44,9 @@ export interface ViewAPI {
         mimeType: string;
         size: number;
     }) => Promise<void>;
+
+    // Logging operation
+    log: (level: LogLevel, message: string, data?: Record<any, any>) => void;
 }
 
 /**

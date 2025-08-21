@@ -12,9 +12,9 @@ interface CanvasPanelState {
 }
 
 export class SuperdesignCanvasPanel {
+    public static readonly viewType = 'superdesignCanvasPanel';
     // Map workspace URI to panel instance for multi-workspace support
     private static readonly panels: Map<string, SuperdesignCanvasPanel> = new Map();
-    public static readonly viewType = 'superdesignCanvasPanel';
 
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
