@@ -1,3 +1,4 @@
+import type { ProviderId } from '../providers';
 import type { LogLevel } from '../services/ILogger';
 import type { ChatMessage } from '../types/chatMessage';
 import type { LanguageModelV2ToolResultOutput } from '@ai-sdk/provider';
@@ -15,8 +16,11 @@ export interface ViewAPI {
     clearChatHistory: () => Promise<void>;
 
     // Provider operations
-    getCurrentProvider: () => Promise<{ providerId: string; model: string }>;
-    changeProvider: (providerId: string, model: string) => Promise<void>;
+    getCurrentProvider: () => Promise<{ providerId: ProviderId; model: string }>;
+    changeProvider: (
+        providerId: string,
+        model: string
+    ) => Promise<{ success: boolean; provider: string; model: string }>;
 
     // Context operations
     selectFile: () => Promise<string | null>;
@@ -43,7 +47,7 @@ export interface ViewAPI {
         base64Data: string;
         mimeType: string;
         size: number;
-    }) => Promise<void>;
+    }) => Promise<string | Error>;
 
     // Logging operation
     log: (level: LogLevel, message: string, data?: Record<any, any>) => void;
@@ -90,6 +94,7 @@ export interface ViewEvents {
     providerChanged: (providerId: string, model: string) => void;
     historyLoaded: (history: ChatMessage[], workspaceId?: string) => void;
     migrationComplete: (history: ChatMessage[], workspaceId?: string) => void;
+    clearChatRequested: () => void;
 
     // Context events
     contextFromCanvas: (data: { fileName: string; type: string }) => void;

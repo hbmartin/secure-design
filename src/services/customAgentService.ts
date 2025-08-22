@@ -640,6 +640,7 @@ I've created the html design, please reveiw and let me know if you need any chan
                         console.log(`${JSON.stringify(chunk)}`);
                         console.log(`========================================`);
 
+                        // TODO: prevent this from appearing in UI
                         const resultMessage: ModelMessage = {
                             role: 'assistant',
                             content:
@@ -739,9 +740,34 @@ I've created the html design, please reveiw and let me know if you need any chan
                         console.log(`=====Tool call complete: ${JSON.stringify(chunk)}`);
                         console.log(`========================================`);
 
-                        // Skip sending duplicate tool call message if we already sent streaming start
-                        if (!currentToolCall) {
-                            // Only send if we didn't already send a streaming start message
+                        if (currentToolCall) {
+                            // We already sent a streaming start message - update it with final parameters
+                            // Find and update the existing message in responseMessages
+                            for (let i = responseMessages.length - 1; i >= 0; i--) {
+                                const msg = responseMessages[i];
+                                if (msg.role === 'assistant' && Array.isArray(msg.content)) {
+                                    const toolCallIndex = msg.content.findIndex(
+                                        (part: any) =>
+                                            part.type === 'tool-call' &&
+                                            part.toolCallId === chunk.toolCallId
+                                    );
+                                    if (toolCallIndex !== -1) {
+                                        // Update the tool call with final parameters
+                                        msg.content[toolCallIndex] = {
+                                            type: 'tool-call',
+                                            toolCallId: chunk.toolCallId,
+                                            toolName: chunk.toolName,
+                                            input: chunk.input,
+                                        };
+                                        console.log(
+                                            `Updated tool call with final parameters for ID: ${chunk.toolCallId}`
+                                        );
+                                        break;
+                                    }
+                                }
+                            }
+                        } else {
+                            // No streaming start was sent, send complete tool call message
                             const toolCallMessage: ModelMessage = {
                                 role: 'assistant',
                                 content: [
@@ -756,10 +782,6 @@ I've created the html design, please reveiw and let me know if you need any chan
 
                             onMessage?.(toolCallMessage);
                             responseMessages.push(toolCallMessage);
-                        } else {
-                            console.log(
-                                `Skipping duplicate tool call message - already sent streaming start for ID: ${chunk.toolCallId}`
-                            );
                         }
 
                         // Reset tool call streaming state

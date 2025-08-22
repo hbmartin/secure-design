@@ -23,10 +23,6 @@ export interface WebviewToExtensionMessages {
         command: 'loadChatHistory';
     };
 
-    clearWorkspaceChatHistory: {
-        command: 'clearWorkspaceChatHistory';
-    };
-
     migrateLocalStorage: {
         command: 'migrateLocalStorage';
         oldChatHistory: ChatMessage[];
@@ -107,10 +103,6 @@ export interface ExtensionToWebviewMessages {
         command: 'chatHistoryLoaded';
         chatHistory: ChatMessage[];
         workspaceId?: string;
-    };
-
-    chatHistoryCleared: {
-        command: 'chatHistoryCleared';
     };
 
     migrationComplete: {
@@ -227,11 +219,6 @@ export interface ExtensionToWebviewMessages {
     canvasStatusResponse: {
         command: 'canvasStatusResponse';
         isOpen: boolean;
-    };
-
-    // Clear Chat
-    clearChat: {
-        command: 'clearChat';
     };
 }
 

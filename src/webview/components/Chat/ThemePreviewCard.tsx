@@ -79,8 +79,8 @@ const ThemePreviewCard: React.FC<ThemePreviewCardProps> = ({
                     // Request CSS file content from extension
                     const response = await new Promise<string>((resolve, reject) => {
                         const timeoutId = setTimeout(() => {
-                            reject(new Error('Timeout loading CSS file'));
-                        }, 3000); // Reduced timeout
+                            reject(new Error('⚠️ Timeout loading CSS file'));
+                        }, 10000); // Increased timeout to 10 seconds
 
                         const handler = (event: MessageEvent) => {
                             const message = event.data;
@@ -91,7 +91,7 @@ const ThemePreviewCard: React.FC<ThemePreviewCardProps> = ({
                                 clearTimeout(timeoutId);
                                 window.removeEventListener('message', handler);
                                 if (message.error) {
-                                    reject(new Error(message.error));
+                                    reject(new Error(`⚠️ ${message.error}`));
                                 } else {
                                     resolve(message.content);
                                 }
@@ -101,10 +101,16 @@ const ThemePreviewCard: React.FC<ThemePreviewCardProps> = ({
                         window.addEventListener('message', handler);
 
                         // Request CSS file content
-                        vscode.postMessage({
-                            command: 'getCssFileContent',
-                            filePath: cssFilePath,
-                        });
+                        try {
+                            vscode.postMessage({
+                                command: 'getCssFileContent',
+                                filePath: cssFilePath,
+                            });
+                        } catch (error) {
+                            clearTimeout(timeoutId);
+                            window.removeEventListener('message', handler);
+                            reject(new Error(`⚠️ Failed to request CSS file: ${error}`));
+                        }
                     });
 
                     setCurrentCssContent(response);

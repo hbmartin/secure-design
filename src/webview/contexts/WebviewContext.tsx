@@ -30,7 +30,7 @@ class DeferredPromise<T> {
             this.reject = (reason?: any) => {
                 if (!this.settled) {
                     this.settled = true;
-                    reject(new Error(reason));
+                    reject(reason instanceof Error ? reason : new Error(String(reason)));
                 }
             };
         });
@@ -161,7 +161,7 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
                 case 'selectImages':
                     return 60000; // 60 seconds for user interaction
                 case 'changeProvider':
-                    return 15000; // 15 seconds for configuration changes
+                    return 30000; // 30 seconds for configuration changes (increased from 15s)
                 default:
                     return 30000; // 30 seconds default
             }
@@ -328,8 +328,8 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
             // Clear timeouts and reject all pending requests
             currentRequests.forEach(deferred => {
                 deferred.clearTimeout(); // Clear timeout to prevent late firing
-                deferred.markSettled(); // Mark as settled to prevent subsequent resolve/reject calls
-                deferred.reject(new Error('WebviewProvider unmounted'));
+                deferred.reject(new Error('WebviewProvider unmounted')); // Reject first while not settled
+                deferred.markSettled(); // Then mark as settled to prevent subsequent resolve/reject calls
             });
             currentRequests.clear();
         };

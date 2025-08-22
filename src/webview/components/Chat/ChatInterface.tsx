@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useChatTypeSafe } from '../../hooks/useChatTypeSafe';
+import { useChat } from '../../hooks/useChat';
 import { useWebviewApi } from '../../contexts/WebviewContext';
 import type { ChatMessage } from '../../../types/chatMessage';
 import { useFirstTimeUser } from '../../hooks/useFirstTimeUser';
@@ -20,7 +20,7 @@ interface ChatInterfaceProps {
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
-    const { messages: chatHistory, isLoading, sendMessage, clearHistory } = useChatTypeSafe();
+    const { messages: chatHistory, isLoading, sendMessage, handleClearChatRequested } = useChat();
     const { api } = useWebviewApi();
     const logger = useLogger('ChatInterface');
 
@@ -28,8 +28,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
     const vscode = useMemo(
         () => ({
             postMessage: (message: any) => {
-                console.warn('Legacy vscode.postMessage call:', message);
-                console.log('[ChatInterface] Legacy postMessage:', {
+                logger.debug('Legacy postMessage:', {
                     command: message.command,
                     hasArgs: !!message.args,
                 });
@@ -46,15 +45,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 }
             },
         }),
-        [api]
+        [api, logger]
     );
 
-    // Create a compatibility setter for components that need to manually update chat history
-    const setChatHistory = useCallback((_updater: React.SetStateAction<ChatMessage[]>) => {
-        // For the new API, we'll handle this through events instead of direct state updates
-        console.warn('setChatHistory is deprecated with the new API - use event system instead');
-        console.log('[ChatInterface] Attempted setChatHistory call');
-    }, []);
     const {
         isFirstTime,
         isLoading: isCheckingFirstTime,
@@ -93,29 +86,25 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         );
     }, [chatHistory]);
 
-    // Request current provider on mount
     useEffect(() => {
         logger.info('Requesting current provider on mount');
         void (async () => {
-            try {
-                const provider = await api.getCurrentProvider();
-                console.log('[ChatInterface] Current provider:', provider);
-                setSelectedModel(provider.model);
-            } catch (error) {
-                console.error('Failed to get current provider:', error);
-            }
+            const provider = await api.getCurrentProvider();
+            logger.debug('Current provider:', provider);
+            setSelectedModel(provider.model);
         })();
     }, [api, logger]);
 
     const handleModelChange = async (providerId: string, model: string) => {
-        console.log('[ChatInterface] Model change requested:', { providerId, model });
+        logger.debug('Model change requested:', { providerId, model });
         try {
             await api.changeProvider(providerId, model);
             setSelectedModel(model);
-            console.log('[ChatInterface] Model changed successfully to:', model);
+            logger.debug(`Model changed successfully to: ${model}`);
         } catch (error) {
             console.error('Failed to change provider:', error);
-            api.showErrorMessage('Failed to change AI provider');
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+            api.showErrorMessage(`Failed to change AI provider: ${errorMessage}`);
         }
     };
 
@@ -133,16 +122,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
 
         markAsReturningUser();
 
-        // Then handle the async storage clearing
+        // Clear both UI and workspace state via the consolidated API
         try {
-            console.log('🗑️ Calling clearHistory...');
-            await clearHistory();
-            console.log('🗑️ clearHistory completed');
+            logger.debug('🗑️ Calling API clearChatHistory...');
+            await api.clearChatHistory();
+            logger.debug('🗑️ API clearChatHistory completed');
         } catch (error) {
             console.error('Failed to clear conversation:', error);
             api.showErrorMessage('Failed to clear chat history');
         }
-    }, [clearHistory, markAsReturningUser, api]);
+    }, [markAsReturningUser, api, logger]);
 
     useEffect(() => {
         // Inject ChatInterface CSS styles
@@ -169,88 +158,84 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
 
         // Auto-open canvas if not already open
         const autoOpenCanvas = async () => {
-            console.log('[ChatInterface] Checking canvas status...');
+            logger.debug('Checking canvas status...');
             // Check if canvas panel is already open using the new API
             try {
                 const isCanvasOpen = await api.checkCanvasStatus();
-                console.log('[ChatInterface] Canvas status:', isCanvasOpen ? 'open' : 'closed');
+                logger.debug(`Canvas isCanvasOpen: ${isCanvasOpen}`);
                 if (!isCanvasOpen) {
                     // Canvas is not open, auto-open it
-                    console.log('🎨 Auto-opening canvas view...');
+                    logger.debug('🎨 Auto-opening canvas view...');
                     await api.openCanvas();
-                    console.log('[ChatInterface] Canvas opened successfully');
+                    logger.debug('Canvas opened successfully');
                 }
             } catch (error) {
                 console.error('Failed to check canvas status or open canvas:', error);
             }
+        };
 
-            // Listen for context messages and other events
-            const handleMessage = (event: MessageEvent) => {
-                const message = event.data;
-                console.log('[ChatInterface] Received message:', {
+        // Listen for context messages and other events
+        const handleMessage = (event: MessageEvent) => {
+            const message = event.data;
+            // Only log specific commands to avoid log flooding and potential infinite loops
+            // Skip logging for 'event' type messages and internal API responses
+            if (message.command && message.type !== 'event' && message.type !== 'response') {
+                logger.debug('Received message:', {
                     command: message.command,
                     hasData: !!message.data,
                 });
-                if (message.command === 'contextFromCanvas') {
-                    // Handle context from canvas
-                    console.log('📄 Received context from canvas:', message.data);
-                    console.log('📄 Current context before setting:', currentContext);
-                    if (message.data.type === 'clear' || !message.data.fileName) {
-                        setCurrentContext(null);
-                        console.log('📄 Context cleared');
-                    } else {
-                        setCurrentContext(message.data);
-                        console.log('📄 Context set to:', message.data);
-                    }
-                } else if (message.command === 'imageSavedToMoodboard') {
-                    // Handle successful image save with full path
-                    console.log('📎 Image saved with full path:', message.data);
-                    setPendingImages(prev => [
-                        ...prev,
-                        {
-                            fileName: message.data.fileName,
-                            originalName: message.data.originalName,
-                            fullPath: message.data.fullPath,
-                        },
-                    ]);
-                    // Remove from uploading state
-                    setUploadingImages(prev =>
-                        prev.filter(name => name !== message.data.originalName)
-                    );
-                } else if (message.command === 'imageSaveError') {
-                    // Handle image save error
-                    console.error('📎 Image save error:', message.data);
-                    setUploadingImages(prev =>
-                        prev.filter(name => name !== message.data.originalName)
-                    );
-                } else if (message.command === 'clearChat') {
-                    // Handle clear chat command from toolbar
-                    void handleNewConversation();
-                } else if (message.command === 'resetWelcome') {
-                    // Handle reset welcome command from command palette
-                    resetFirstTimeUser();
-                    setShowWelcome(true);
-                    console.log('👋 Welcome screen reset and shown');
-                } else if (message.command === 'setChatPrompt') {
-                    // Handle prompt from canvas floating buttons
-                    console.log('📝 Received prompt from canvas:', message.data.prompt);
-                    setInputMessage(message.data.prompt);
+            }
+            if (message.command === 'contextFromCanvas') {
+                // Handle context from canvas
+                logger.debug('📄 Received context from canvas:', message.data);
+                if (message.data.type === 'clear' || !message.data.fileName) {
+                    setCurrentContext(null);
+                    logger.debug('📄 Context cleared');
+                } else {
+                    setCurrentContext(message.data);
+                    logger.debug('📄 Context set to:', message.data);
                 }
-            };
-
-            window.addEventListener('message', handleMessage);
-
-            // Cleanup listener
-            return () => {
-                window.removeEventListener('message', handleMessage);
-            };
+            } else if (message.command === 'imageSavedToMoodboard') {
+                // Handle successful image save with full path
+                logger.debug('📎 Image saved with full path:', message.data);
+                setPendingImages(prev => [
+                    ...prev,
+                    {
+                        fileName: message.data.fileName,
+                        originalName: message.data.originalName,
+                        fullPath: message.data.fullPath,
+                    },
+                ]);
+                // Remove from uploading state
+                setUploadingImages(prev => prev.filter(name => name !== message.data.originalName));
+            } else if (message.command === 'imageSaveError') {
+                // Handle image save error
+                console.error('📎 Image save error:', message.data);
+                setUploadingImages(prev => prev.filter(name => name !== message.data.originalName));
+            } else if (message.command === 'resetWelcome') {
+                // Handle reset welcome command from command palette
+                resetFirstTimeUser();
+                setShowWelcome(true);
+                logger.debug('👋 Welcome screen reset and shown');
+            } else if (message.command === 'setChatPrompt') {
+                // Handle prompt from canvas floating buttons
+                logger.debug('📝 Received prompt from canvas:', message.data.prompt);
+                setInputMessage(message.data.prompt);
+            } else if (message.command === 'clearChatRequested' || message.key === 'clearChatRequested') {
+                logger.debug('📝 Received prompt from canvas:', {message});
+                handleClearChatRequested();
+            }
         };
+
+        // Add message listener
+        window.addEventListener('message', handleMessage);
 
         // Delay the check slightly to ensure chat is fully loaded
         const timeoutId = setTimeout(() => void autoOpenCanvas(), 500);
 
         return () => {
             clearTimeout(timeoutId);
+            window.removeEventListener('message', handleMessage);
             // Clean up on unmount
             const existingStyle = document.getElementById(styleId);
             if (existingStyle) {
@@ -261,13 +246,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 document.head.removeChild(existingWelcomeStyle);
             }
         };
-    }, [api, vscode, currentContext, handleNewConversation, resetFirstTimeUser]);
+    }, [api, vscode, handleNewConversation, resetFirstTimeUser, logger, handleClearChatRequested]);
 
     // Handle first-time user welcome display
     useEffect(() => {
         if (!isCheckingFirstTime && isFirstTime && !hasConversationMessages()) {
             setShowWelcome(true);
-            console.log('👋 Showing welcome for first-time user');
         }
     }, [isCheckingFirstTime, isFirstTime, chatHistory, hasConversationMessages]);
 
@@ -302,10 +286,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
     const handleSendMessage = async () => {
         if (inputMessage.trim()) {
             let messageContent: any;
-
-            console.log('📤 Sending message with context:', currentContext);
-            console.log('📤 Input message:', inputMessage);
-            console.log('[ChatInterface] handleSendMessage called:', {
+            logger.debug('handleSendMessage called:', {
                 hasContext: !!currentContext,
                 contextType: currentContext?.type,
                 messageLength: inputMessage.length,
@@ -334,7 +315,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                     // Convert each image to base64
                     for (const imagePath of imagePaths) {
                         try {
-                            // Request base64 data from the extension using the new API
                             const base64Data = await api.getBase64Image(imagePath);
 
                             // Extract MIME type from base64 data URL
@@ -348,7 +328,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                 mimeType: mimeType,
                             });
 
-                            console.log('📎 Added image to message:', imagePath, 'MIME:', mimeType);
+                            logger.debug('📎 Added image to message:', { imagePath, mimeType });
                         } catch (error) {
                             console.error('Failed to load image:', imagePath, error);
                             // Add error note to text content instead
@@ -357,11 +337,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                     }
 
                     messageContent = contentParts;
-                    console.log(
-                        '📤 Final structured message content:',
-                        contentParts.length,
-                        'parts'
-                    );
+                    logger.debug(`📤 Final structured message content: ${contentParts.length}`);
                 } catch (error) {
                     console.error('Error processing images:', error);
                     // Fallback to text-only message with context info
@@ -373,24 +349,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             } else if (currentContext) {
                 // Non-image context - use simple text format
                 messageContent = `Context: ${currentContext.fileName}\n\nMessage: ${inputMessage}`;
-                console.log('📤 Final message with non-image context:', messageContent);
+                logger.debug('📤 Final message with non-image context:', messageContent);
             } else {
                 // No context - just the message text
                 messageContent = inputMessage;
-                console.log('📤 No context available, sending message as-is');
+                logger.debug('📤 No context available, sending message as-is');
             }
 
-            console.log(
-                '[ChatInterface] Sending message with content type:',
-                typeof messageContent
-            );
+            logger.debug(`Sending message with content type: ${typeof messageContent}`);
             void sendMessage(messageContent);
             setInputMessage('');
-            console.log('[ChatInterface] Message sent, input cleared');
+            logger.debug('Message sent, input cleared');
         }
     };
 
-    const handleKeyPress = (e: React.KeyboardEvent) => {
+    const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             void handleSendMessage();
@@ -424,19 +397,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
 
     const handleAddContext = () => {
         // TODO: Implement context addition functionality
-        console.log('Add Context clicked');
+        logger.debug('Add Context clicked');
     };
 
     const handleWelcomeGetStarted = async () => {
-        console.log('[ChatInterface] Welcome Get Started clicked');
+        logger.debug('Welcome Get Started clicked');
         setShowWelcome(false);
         markAsReturningUser();
-        console.log('👋 User clicked Get Started, welcome dismissed');
+        logger.debug('👋 User clicked Get Started, welcome dismissed');
 
         // Initialize Securedesign using the new API
         try {
             await api.initializeSecuredesign();
-            console.log('🚀 Successfully initialized Securedesign');
+            logger.debug('🚀 Successfully initialized Securedesign');
         } catch (error) {
             console.error('Failed to initialize Securedesign:', error);
             api.showErrorMessage('Failed to initialize Securedesign');
@@ -497,7 +470,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
 
     const handleImageUpload = useCallback(
         async (file: File): Promise<void> => {
-            console.log('[ChatInterface] handleImageUpload called:', {
+            logger.debug('handleImageUpload called:', {
                 fileName: file.name,
                 fileType: file.type,
                 fileSize: file.size,
@@ -534,7 +507,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 });
 
                 // Send to extension to save in moodboard
-                console.log('[ChatInterface] Saving image to moodboard:', {
+                logger.debug('Saving image to moodboard:', {
                     fileName,
                     originalName,
                 });
@@ -545,8 +518,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                     mimeType: file.type,
                     size: file.size,
                 });
-                console.log('📎 Image saved to moodboard:', fileName);
-                console.log('[ChatInterface] Image save completed');
+                logger.debug(`📎 Image saved to moodboard: ${fileName}`);
             } catch (error) {
                 console.error('Failed to process image:', error);
                 void api.showErrorMessage(
@@ -557,12 +529,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 setUploadingImages(prev => prev.filter(name => name !== originalName));
             }
         },
-        [api, setUploadingImages]
+        [api, setUploadingImages, logger]
     );
 
     // Auto-set context when images finish uploading
     useEffect(() => {
-        console.log('[ChatInterface] Image upload state:', {
+        logger.debug('Image upload state:', {
             uploadingCount: uploadingImages.length,
             pendingCount: pendingImages.length,
         });
@@ -584,7 +556,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             // Clear pending images after setting context
             setPendingImages([]);
         }
-    }, [uploadingImages.length, pendingImages.length, pendingImages]);
+    }, [uploadingImages.length, pendingImages.length, pendingImages, logger]);
 
     // Helper function to check if tool is loading
     const isToolLoading = useCallback(
@@ -610,7 +582,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
     // Manage countdown timers for tool calls
     useEffect(() => {
         const activeTimers = new Set<string>();
-        console.log('[ChatInterface] Processing tool timers, history length:', chatHistory.length);
+        logger.debug(`Processing tool timers, history length: ${chatHistory.length}`);
 
         // Process each message to find tool calls
         chatHistory.forEach((msg, msgIndex) => {
@@ -686,7 +658,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         return () => {
             Object.values(timerIntervals.current).forEach(timer => clearInterval(timer));
         };
-    }, [chatHistory, isToolLoading]);
+    }, [chatHistory, isToolLoading, logger]);
 
     // Global drag & drop fallback for VS Code webview
     useEffect(() => {
@@ -701,26 +673,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         const handleGlobalDrop = async (e: DragEvent) => {
             e.preventDefault();
             e.stopPropagation();
-            console.log('🎯 Global drop detected!', e.dataTransfer?.files.length, 'files');
+            logger.debug(`🎯 Global drop detected! ${e.dataTransfer?.files.length} files`);
 
             if (!e.dataTransfer?.files) {
                 return;
             }
 
             const files = Array.from(e.dataTransfer.files);
-            console.log(
+            logger.debug(
                 '🎯 Global files from drop:',
                 files.map(f => `${f.name} (${f.type})`)
             );
 
             const imageFiles = files.filter(file => file.type.startsWith('image/'));
-            console.log(
+            logger.debug(
                 '🎯 Global image files:',
                 imageFiles.map(f => f.name)
             );
 
             if (imageFiles.length > 0 && !isLoading) {
-                console.log(
+                logger.debug(
                     '📎 Processing images from global drop:',
                     imageFiles.map(f => f.name)
                 );
@@ -746,7 +718,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 return;
             }
 
-            console.log('📋 Paste detected, checking for images...');
+            logger.debug('📋 Paste detected, checking for images...');
 
             // Look for image items in clipboard
             const imageItems = Array.from(clipboardItems).filter(item =>
@@ -755,17 +727,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
 
             if (imageItems.length > 0) {
                 e.preventDefault();
-                console.log('📋 Found', imageItems.length, 'image(s) in clipboard');
+                logger.debug(`📋 Found ${imageItems.length} image(s) in clipboard`);
 
                 for (const item of imageItems) {
                     const file = item.getAsFile();
                     if (file) {
                         try {
-                            console.log(
-                                '📋 Processing pasted image:',
-                                file.name || 'clipboard-image',
-                                file.type
-                            );
+                            logger.debug('📋 Processing pasted image:', {
+                                name: file.name || 'clipboard-image',
+                                type: file.type,
+                            });
                             await handleImageUpload(file);
                         } catch (error) {
                             console.error('Error processing pasted image:', error);
@@ -792,7 +763,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             document.removeEventListener('drop', dropWrapper);
             document.removeEventListener('paste', pasteWrapper);
         };
-    }, [isLoading, handleImageUpload, showWelcome, api]);
+    }, [isLoading, handleImageUpload, showWelcome, api, logger]);
 
     const renderChatMessage = (msg: ChatMessage, index: number) => {
         // Helper function to extract text content from CoreMessage
@@ -892,7 +863,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
 
         // Handle error messages with actions specially
         if (msg.role === 'assistant' && msg.metadata?.is_error && msg.metadata?.actions) {
-            return renderErrorMessage(msg, index, setChatHistory);
+            return renderErrorMessage(msg, index);
         }
 
         // Determine message label and styling
@@ -1402,14 +1373,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         }
     };
 
-    const renderErrorMessage = (
-        msg: ChatMessage,
-        index: number,
-        setChatHistory: React.Dispatch<React.SetStateAction<ChatMessage[]>>
-    ) => {
+    const renderErrorMessage = (msg: ChatMessage, index: number) => {
         const handleActionClick = (action: { text: string; command: string; args?: string }) => {
-            console.log('Action clicked:', action);
-            console.log('[ChatInterface] Executing command:', {
+            logger.debug('Action clicked:', action);
+            logger.debug('Executing command:', {
                 command: action.command,
                 hasArgs: !!action.args,
             });
@@ -1417,8 +1384,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         };
 
         const handleCloseError = () => {
-            // Remove this error message from chat history
-            setChatHistory((prev: ChatMessage[]) => prev.filter((_, i: number) => i !== index));
+            // Since we can't directly modify chat history anymore,
+            // we'll just hide the error message visually
+            // The error will be cleared on next chat interaction
+            const errorElement = document.querySelector(
+                `.chat-message--result-error:nth-child(${index + 1})`
+            );
+            if (errorElement) {
+                (errorElement as HTMLElement).style.display = 'none';
+            }
         };
 
         return (
@@ -1596,7 +1570,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                 placeholder='Design a calculator UI...'
                                 value={inputMessage}
                                 onChange={handleInputChange}
-                                onKeyPress={handleKeyPress}
+                                onKeyDown={handleKeyDown}
                                 disabled={isLoading || showWelcome}
                                 className='message-input'
                                 rows={1}
@@ -1691,7 +1665,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                     <button
                                         onClick={() => {
                                             // Stop functionality can be added later
-                                            console.log('Stop requested');
+                                            logger.debug('Stop requested');
                                         }}
                                         className='send-btn stop-btn'
                                         title='Stop response'
