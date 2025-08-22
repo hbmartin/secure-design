@@ -90,7 +90,7 @@
         "icon": "$(window)"
       },
       {
-        "command": "securedesign.clearChat",
+        "command": "securedesign.clearChatHistory",
         "title": "Clear Chat",
         "category": "Securedesign",
         "icon": "$(clear-all)"
@@ -131,7 +131,7 @@
           "group": "navigation"
         },
         {
-          "command": "securedesign.clearChat",
+          "command": "securedesign.clearChatHistory",
           "when": "view == securedesign.chatView",
           "group": "navigation"
         }

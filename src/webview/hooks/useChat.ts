@@ -14,10 +14,9 @@ export interface ChatHookResult {
     isSaving: boolean;
     isReady: boolean;
     sendMessage: (message: string) => Promise<void>;
-    clearHistory: () => Promise<void>;
 }
 
-export function useChatTypeSafe(): ChatHookResult {
+export function useChat(): ChatHookResult {
     const { api, addListener, removeListener, isReady } = useWebviewApi();
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -306,6 +305,12 @@ export function useChatTypeSafe(): ChatHookResult {
             setMessages(history);
         };
 
+        const handleClearChatRequested = () => {
+            console.log('🗑️ Clear chat requested - clearing local state');
+            setMessages([]);
+            setIsLoading(false);
+        };
+
         // Register all event listeners
         addListener('chatStreamStart', handleStreamStart);
         addListener('chatResponseChunk', handleResponseChunk);
@@ -317,6 +322,7 @@ export function useChatTypeSafe(): ChatHookResult {
         addListener('workspaceChanged', handleWorkspaceChanged);
         addListener('historyLoaded', handleHistoryLoaded);
         addListener('migrationComplete', handleMigrationComplete);
+        addListener('clearChatRequested', handleClearChatRequested);
 
         // Cleanup function
         return () => {
@@ -330,6 +336,7 @@ export function useChatTypeSafe(): ChatHookResult {
             removeListener('workspaceChanged', handleWorkspaceChanged);
             removeListener('historyLoaded', handleHistoryLoaded);
             removeListener('migrationComplete', handleMigrationComplete);
+            removeListener('clearChatRequested', handleClearChatRequested);
         };
     }, [api, addListener, removeListener, isReady]);
 
@@ -376,35 +383,11 @@ export function useChatTypeSafe(): ChatHookResult {
         [api, messages, isReady]
     );
 
-    /**
-     * Clear chat history
-     */
-    const clearHistory = useCallback(async (): Promise<void> => {
-        console.log('🗑️ clearHistory called, isReady:', isReady);
-        if (!isReady) {
-            console.log('🗑️ clearHistory skipped - not ready');
-            return;
-        }
-
-        try {
-            console.log('🗑️ Clearing UI messages first...');
-            setMessages([]);
-            setIsLoading(false);
-
-            console.log('🗑️ Calling API clearChatHistory...');
-            await api.clearChatHistory();
-            console.log('🗑️ API clearChatHistory completed');
-        } catch (error) {
-            console.error('Failed to clear chat history:', error);
-        }
-    }, [api, isReady]);
-
     return {
         messages,
         isLoading,
         isSaving,
         isReady,
         sendMessage,
-        clearHistory,
     };
 }

@@ -11,6 +11,7 @@ import { WebviewMessageGuard } from './services/webviewMessageGuard';
 import * as path from 'path';
 import { registerProviderCommands } from './providerConfiguration';
 import { SuperdesignCanvasPanel } from './SuperdesignCanvasPanel';
+import type { ChatController } from './controllers/ChatController';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -148,6 +149,8 @@ async function getBase64Image(filePath: string, sidebarProvider: ChatSidebarProv
 
 // Function to read CSS file content for theme preview
 async function getCssFileContent(filePath: string, sidebarProvider: ChatSidebarProvider) {
+    console.log(`[CSS Loader] Received request for CSS file: ${filePath}`);
+    
     try {
         // Handle relative paths - resolve them to workspace root
         let resolvedPath = filePath;
@@ -169,14 +172,23 @@ async function getCssFileContent(filePath: string, sidebarProvider: ChatSidebarP
             resolvedPath = path.join(workspaceFolder.uri.fsPath, resolvedPath);
         }
 
-        // Read the CSS file
+        console.log(`[CSS Loader] Resolved path: ${resolvedPath}`);
+
+        // Check if file exists first
         const fileUri = vscode.Uri.file(resolvedPath);
+        try {
+            await vscode.workspace.fs.stat(fileUri);
+        } catch {
+            throw new Error(`CSS file not found: ${resolvedPath}`);
+        }
+
+        // Read the CSS file
         const fileData = await vscode.workspace.fs.readFile(fileUri);
 
         // Convert to string
         const cssContent = Buffer.from(fileData).toString('utf8');
 
-        console.log(`Read CSS file: ${resolvedPath} (${(fileData.length / 1024).toFixed(1)} KB)`);
+        console.log(`[CSS Loader] Successfully read CSS file: ${resolvedPath} (${(fileData.length / 1024).toFixed(1)} KB)`);
 
         // Send back the CSS content to webview
         sidebarProvider.sendMessage({
@@ -185,15 +197,20 @@ async function getCssFileContent(filePath: string, sidebarProvider: ChatSidebarP
             content: cssContent,
             size: fileData.length,
         });
+        
+        console.log(`[CSS Loader] Response sent to webview for: ${filePath}`);
     } catch (error) {
-        console.error('Error reading CSS file:', error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`[CSS Loader] Error reading CSS file (${filePath}):`, errorMessage);
 
         // Send error back to webview
         sidebarProvider.sendMessage({
             command: 'cssFileContentResponse',
             filePath: filePath,
-            error: error instanceof Error ? error.message : String(error),
+            error: errorMessage,
         });
+        
+        console.log(`[CSS Loader] Error response sent to webview for: ${filePath}`);
     }
 }
 
@@ -1376,11 +1393,20 @@ export function activate(context: vscode.ExtensionContext): void {
     );
 
     // Register clear chat command
-    const clearChatDisposable = vscode.commands.registerCommand('securedesign.clearChat', () => {
-        sidebarProvider.sendMessage({
-            command: 'clearChat',
-        });
-    });
+    const clearChatDisposable = vscode.commands.registerCommand(
+        'securedesign.clearChatHistory',
+        async () => {
+            try {
+                await serviceContainer.get<ChatController>('chatController').clearChatHistory();
+                Logger.info('[Extension] Chat history cleared via command');
+            } catch (error) {
+                Logger.error('[Extension] Failed to clear chat history:', {
+                    error: error instanceof Error ? error.message : String(error),
+                });
+                vscode.window.showErrorMessage('Failed to clear chat history');
+            }
+        }
+    );
 
     // Register reset welcome command
     const resetWelcomeDisposable = vscode.commands.registerCommand(

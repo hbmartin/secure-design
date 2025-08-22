@@ -31,8 +31,7 @@ export class ServiceContainer implements vscode.Disposable {
         this.services.set('providerService', providerService);
         this.services.set('customAgent', customAgent);
 
-        // Create WebviewApiProvider first
-        const apiProvider = new WebviewApiProvider(workspaceStateService);
+        const apiProvider = new WebviewApiProvider();
         this.services.set('apiProvider', apiProvider);
 
         // Create ChatController with apiProvider as EventTrigger
@@ -44,11 +43,12 @@ export class ServiceContainer implements vscode.Disposable {
         );
         this.services.set('chatController', chatController);
 
-        // Complete the wiring using proper initialization method
-        apiProvider.initializeChatController(chatController);
-
         // Create UI providers
-        const sidebarProvider = new ChatSidebarProvider(this.context.extensionUri, apiProvider);
+        const sidebarProvider = new ChatSidebarProvider(
+            this.context.extensionUri,
+            apiProvider,
+            chatController
+        );
         this.services.set('sidebarProvider', sidebarProvider);
 
         Logger.info('ServiceContainer initialization complete');
