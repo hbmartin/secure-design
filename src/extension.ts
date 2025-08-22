@@ -150,7 +150,7 @@ async function getBase64Image(filePath: string, sidebarProvider: ChatSidebarProv
 // Function to read CSS file content for theme preview
 async function getCssFileContent(filePath: string, sidebarProvider: ChatSidebarProvider) {
     console.log(`[CSS Loader] Received request for CSS file: ${filePath}`);
-    
+
     try {
         // Handle relative paths - resolve them to workspace root
         let resolvedPath = filePath;
@@ -188,7 +188,9 @@ async function getCssFileContent(filePath: string, sidebarProvider: ChatSidebarP
         // Convert to string
         const cssContent = Buffer.from(fileData).toString('utf8');
 
-        console.log(`[CSS Loader] Successfully read CSS file: ${resolvedPath} (${(fileData.length / 1024).toFixed(1)} KB)`);
+        console.log(
+            `[CSS Loader] Successfully read CSS file: ${resolvedPath} (${(fileData.length / 1024).toFixed(1)} KB)`
+        );
 
         // Send back the CSS content to webview
         sidebarProvider.sendMessage({
@@ -197,7 +199,7 @@ async function getCssFileContent(filePath: string, sidebarProvider: ChatSidebarP
             content: cssContent,
             size: fileData.length,
         });
-        
+
         console.log(`[CSS Loader] Response sent to webview for: ${filePath}`);
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -209,7 +211,7 @@ async function getCssFileContent(filePath: string, sidebarProvider: ChatSidebarP
             filePath: filePath,
             error: errorMessage,
         });
-        
+
         console.log(`[CSS Loader] Error response sent to webview for: ${filePath}`);
     }
 }

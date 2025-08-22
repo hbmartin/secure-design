@@ -472,7 +472,10 @@ export class ChatController implements ViewAPI {
     /**
      * Change provider configuration
      */
-    async changeProvider(providerId: string, model: string): Promise<{ success: boolean; provider: string; model: string }> {
+    async changeProvider(
+        providerId: string,
+        model: string
+    ): Promise<{ success: boolean; provider: string; model: string }> {
         Logger.info(`[ChatController] Starting changeProvider: ${providerId}, ${model}`);
 
         try {
@@ -527,12 +530,12 @@ export class ChatController implements ViewAPI {
             Logger.info(
                 `[ChatController] Successfully changed provider to: ${providerId}, ${model}`
             );
-            
+
             // Return success response
             return {
                 success: true,
                 provider: providerId,
-                model: model
+                model: model,
             };
         } catch (error) {
             Logger.error('[ChatController] changeProvider failed:', {

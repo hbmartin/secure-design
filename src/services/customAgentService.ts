@@ -640,6 +640,7 @@ I've created the html design, please reveiw and let me know if you need any chan
                         console.log(`${JSON.stringify(chunk)}`);
                         console.log(`========================================`);
 
+                        // TODO: prevent this from appearing in UI
                         const resultMessage: ModelMessage = {
                             role: 'assistant',
                             content:

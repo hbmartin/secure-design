@@ -20,7 +20,7 @@ interface ChatInterfaceProps {
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
-    const { messages: chatHistory, isLoading, sendMessage } = useChat();
+    const { messages: chatHistory, isLoading, sendMessage, handleClearChatRequested } = useChat();
     const { api } = useWebviewApi();
     const logger = useLogger('ChatInterface');
 
@@ -86,17 +86,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         );
     }, [chatHistory]);
 
-    // Request current provider on mount
     useEffect(() => {
         logger.info('Requesting current provider on mount');
         void (async () => {
-            try {
-                const provider = await api.getCurrentProvider();
-                logger.debug('Current provider:', provider);
-                setSelectedModel(provider.model);
-            } catch (error) {
-                console.error('Failed to get current provider:', error);
-            }
+            const provider = await api.getCurrentProvider();
+            logger.debug('Current provider:', provider);
+            setSelectedModel(provider.model);
         })();
     }, [api, logger]);
 
@@ -226,6 +221,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 // Handle prompt from canvas floating buttons
                 logger.debug('📝 Received prompt from canvas:', message.data.prompt);
                 setInputMessage(message.data.prompt);
+            } else if (message.command === 'clearChatRequested' || message.key === 'clearChatRequested') {
+                logger.debug('📝 Received prompt from canvas:', {message});
+                handleClearChatRequested();
             }
         };
 
@@ -248,7 +246,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 document.head.removeChild(existingWelcomeStyle);
             }
         };
-    }, [api, vscode, handleNewConversation, resetFirstTimeUser, logger]);
+    }, [api, vscode, handleNewConversation, resetFirstTimeUser, logger, handleClearChatRequested]);
 
     // Handle first-time user welcome display
     useEffect(() => {
@@ -317,7 +315,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                     // Convert each image to base64
                     for (const imagePath of imagePaths) {
                         try {
-                            // Request base64 data from the extension using the new API
                             const base64Data = await api.getBase64Image(imagePath);
 
                             // Extract MIME type from base64 data URL
@@ -1376,10 +1373,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         }
     };
 
-    const renderErrorMessage = (
-        msg: ChatMessage,
-        index: number
-    ) => {
+    const renderErrorMessage = (msg: ChatMessage, index: number) => {
         const handleActionClick = (action: { text: string; command: string; args?: string }) => {
             logger.debug('Action clicked:', action);
             logger.debug('Executing command:', {
@@ -1393,7 +1387,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             // Since we can't directly modify chat history anymore,
             // we'll just hide the error message visually
             // The error will be cleared on next chat interaction
-            const errorElement = document.querySelector(`.chat-message--result-error:nth-child(${index + 1})`);
+            const errorElement = document.querySelector(
+                `.chat-message--result-error:nth-child(${index + 1})`
+            );
             if (errorElement) {
                 (errorElement as HTMLElement).style.display = 'none';
             }

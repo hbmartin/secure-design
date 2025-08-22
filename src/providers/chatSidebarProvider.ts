@@ -95,13 +95,10 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
                 // Delegate to WebviewApiProvider for new API calls
                 // Only log non-log messages to avoid infinite loop
                 if (message.key !== 'log') {
-                    this.logger.debug(
-                        'Delegating API request to WebviewApiProvider',
-                        {
-                            requestId: message.id,
-                            requestKey: message.key,
-                        }
-                    );
+                    this.logger.debug('Delegating API request to WebviewApiProvider', {
+                        requestId: message.id,
+                        requestKey: message.key,
+                    });
                 }
                 await this.handleMessage(message, webviewView.webview);
                 return;
@@ -138,7 +135,7 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
         const contextInfo = message.context
             ? `from ${message.context.viewType}:${message.context.viewId}`
             : 'without context';
-        
+
         // Log request context for debugging and analytics (except for log messages to avoid infinite loop)
         if (message.key !== 'log') {
             this.logger.debug(`Handling API request: ${message.key} ${contextInfo}`);
@@ -151,11 +148,17 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
             );
 
             if (message.key === 'clearChatHistory') {
+                this.logger.info('Posting clearChatRequested', { webview });
                 webview.postMessage({ type: 'event', key: 'clearChatRequested' });
             }
             if (message.key === 'saveImageToMoodboard') {
                 const imageData = message.params[0];
-                if (imageData && typeof imageData === 'object' && 'fileName' in imageData && 'originalName' in imageData) {
+                if (
+                    imageData &&
+                    typeof imageData === 'object' &&
+                    'fileName' in imageData &&
+                    'originalName' in imageData
+                ) {
                     if (typeof result === 'string') {
                         webview.postMessage({
                             type: 'event',

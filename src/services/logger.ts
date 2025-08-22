@@ -5,7 +5,7 @@ function removePromptsFromData<T extends Record<string, any>>(dictionary: T): T 
     if (!dictionary || typeof dictionary !== 'object') {
         return dictionary;
     }
-    
+
     try {
         for (const value of Object.values(dictionary)) {
             if (Array.isArray(value)) {

@@ -17,7 +17,10 @@ export interface ViewAPI {
 
     // Provider operations
     getCurrentProvider: () => Promise<{ providerId: ProviderId; model: string }>;
-    changeProvider: (providerId: string, model: string) => Promise<{ success: boolean; provider: string; model: string }>;
+    changeProvider: (
+        providerId: string,
+        model: string
+    ) => Promise<{ success: boolean; provider: string; model: string }>;
 
     // Context operations
     selectFile: () => Promise<string | null>;

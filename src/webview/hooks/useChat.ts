@@ -3,6 +3,7 @@ import { useWebviewApi } from '../contexts/WebviewContext';
 import type { ChatMessage } from '../../types/chatMessage';
 import type { ToolResultPart } from 'ai';
 import type { ChatChunkMetadata } from '../../api/viewApi';
+import { useLogger } from './useLogger';
 
 /**
  * Type-safe chat hook using the new API contract
@@ -14,6 +15,7 @@ export interface ChatHookResult {
     isSaving: boolean;
     isReady: boolean;
     sendMessage: (message: string) => Promise<void>;
+    handleClearChatRequested: () => void;
 }
 
 export function useChat(): ChatHookResult {
@@ -21,6 +23,7 @@ export function useChat(): ChatHookResult {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const logger = useLogger('useChat');
 
     /**
      * Load initial chat history when webview becomes ready
@@ -107,7 +110,9 @@ export function useChat(): ChatHookResult {
                     // - 'args' field expected by UI components (ChatInterface.tsx line 994)
                     const toolCallPart = {
                         type: 'tool-call' as const,
-                        toolCallId: metadata?.tool_id ?? 'unknown',
+                        toolCallId:
+                            metadata?.tool_id ??
+                            `tool-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                         toolName: metadata?.tool_name ?? 'unknown',
                         input: metadata?.args ?? {}, // AI SDK compatibility
                         args: metadata?.args ?? {}, // UI component compatibility
@@ -171,7 +176,9 @@ export function useChat(): ChatHookResult {
 
                     const toolResultPart: ToolResultPart = {
                         type: 'tool-result' as const,
-                        toolCallId: metadata.tool_id ?? 'unknown',
+                        toolCallId:
+                            metadata.tool_id ??
+                            `result-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                         toolName: metadata.tool_name ?? 'unknown',
                         output: metadata.output, // Type-safe: guaranteed to be LanguageModelV2ToolResultOutput
                     };
@@ -305,12 +312,6 @@ export function useChat(): ChatHookResult {
             setMessages(history);
         };
 
-        const handleClearChatRequested = () => {
-            console.log('🗑️ Clear chat requested - clearing local state');
-            setMessages([]);
-            setIsLoading(false);
-        };
-
         // Register all event listeners
         addListener('chatStreamStart', handleStreamStart);
         addListener('chatResponseChunk', handleResponseChunk);
@@ -322,7 +323,6 @@ export function useChat(): ChatHookResult {
         addListener('workspaceChanged', handleWorkspaceChanged);
         addListener('historyLoaded', handleHistoryLoaded);
         addListener('migrationComplete', handleMigrationComplete);
-        addListener('clearChatRequested', handleClearChatRequested);
 
         // Cleanup function
         return () => {
@@ -336,10 +336,14 @@ export function useChat(): ChatHookResult {
             removeListener('workspaceChanged', handleWorkspaceChanged);
             removeListener('historyLoaded', handleHistoryLoaded);
             removeListener('migrationComplete', handleMigrationComplete);
-            removeListener('clearChatRequested', handleClearChatRequested);
         };
     }, [api, addListener, removeListener, isReady]);
 
+    const handleClearChatRequested = useCallback(() => {
+        logger.info('🗑️ Clear chat requested - clearing local state');
+        setMessages([]);
+        setIsLoading(false);
+    }, []);
     /**
      * Send a chat message
      */
@@ -389,5 +393,6 @@ export function useChat(): ChatHookResult {
         isSaving,
         isReady,
         sendMessage,
+        handleClearChatRequested,
     };
 }
