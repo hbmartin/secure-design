@@ -273,7 +273,7 @@
   "dependencies": {
     "@ai-sdk/amazon-bedrock": "^3.0.9",
     "@ai-sdk/anthropic": "^2.0.5",
-    "@ai-sdk/google": "^2.0.7",
+    "@ai-sdk/google": "^2.0.8",
     "@ai-sdk/openai": "^2.0.17",
     "@openrouter/ai-sdk-provider": "^1.1.2",
     "@types/react": "^19.1.10",
