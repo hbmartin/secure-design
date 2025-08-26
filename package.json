@@ -276,7 +276,7 @@
     "@ai-sdk/google": "^2.0.8",
     "@ai-sdk/openai": "^2.0.17",
     "@openrouter/ai-sdk-provider": "^1.1.2",
-    "@types/react": "^19.1.10",
+    "@types/react": "^19.1.11",
     "@types/react-dom": "^19.1.7",
     "ai": "^5.0.19",
     "execa": "^9.6.0",
