@@ -278,7 +278,7 @@
     "@openrouter/ai-sdk-provider": "^1.1.2",
     "@types/react": "^19.1.11",
     "@types/react-dom": "^19.1.7",
-    "ai": "^5.0.19",
+    "ai": "^5.0.23",
     "execa": "^9.6.0",
     "glob": "^11.0.3",
     "highlight.js": "^11.11.1",
