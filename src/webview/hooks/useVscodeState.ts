@@ -39,8 +39,12 @@ export function useVscodeState<S, A extends object, P extends BasePatches<A>>(
         const handler = (event: MessageEvent) => {
             const data = event.data;
             if (isMyPatchMessage<P>(data, providerId)) {
-                const patchFn = postReducer[data.key];
-                setState(prev => patchFn(prev, data.patch));
+                if (Object.prototype.hasOwnProperty.call(postReducer, data.key)) {
+                    const patchFn = postReducer[data.key];
+                    if (typeof patchFn === 'function') {
+                        setState(prev => patchFn(prev, data.patch));
+                    }
+                }
             }
         };
         window.addEventListener('message', handler);
