@@ -12,6 +12,7 @@ import {
     validateDirectoryExists,
     type ToolResponse,
 } from './tool-utils';
+import { getLogger } from '../services/logger';
 
 const bashParametersSchema = z.object({
     command: z
@@ -175,6 +176,7 @@ async function executeCommand(
 }
 
 export function createBashTool(context: ExecutionContext) {
+    const logger = getLogger('bash tool');
     return tool({
         description:
             'Execute shell/bash commands within the workspace. Supports timeouts, output capture, and secure execution.',
@@ -214,10 +216,10 @@ export function createBashTool(context: ExecutionContext) {
                     return dirError;
                 }
 
-                console.log(
+                logger.info(
                     `Executing command: ${command}${description ? ` (${description})` : ''}`
                 );
-                console.log(`Working directory: ${workingDir}`);
+                logger.info(`Working directory: ${workingDir}`);
 
                 // Prepare environment
                 const processEnv = {
@@ -235,11 +237,11 @@ export function createBashTool(context: ExecutionContext) {
 
                 // Log results
                 if (result.timedOut) {
-                    console.log(`Command timed out after ${timeout}ms`);
+                    logger.info(`Command timed out after ${timeout}ms`);
                 } else if (result.exitCode === 0) {
-                    console.log(`Command completed successfully in ${result.duration}ms`);
+                    logger.info(`Command completed successfully in ${result.duration}ms`);
                 } else {
-                    console.log(
+                    logger.info(
                         `Command failed with exit code ${result.exitCode} in ${result.duration}ms`
                     );
                 }

@@ -8,26 +8,22 @@ import type { GroupedColors } from './types';
 
 interface ThemePreviewCardProps {
     themeName: string;
-    cssSheet?: string | null;
-    cssFilePath?: string | null;
-    isLoading?: boolean;
-    vscode?: any;
+    currentCssContent: string | undefined;
+    isLoadingCss: boolean;
+    cssLoadError?: string;
 }
 
 const ThemePreviewCard: React.FC<ThemePreviewCardProps> = ({
     themeName,
-    cssSheet,
-    cssFilePath,
-    isLoading = false,
-    vscode,
+    currentCssContent,
+    isLoadingCss,
+    cssLoadError,
 }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [parsedTheme, setParsedTheme] = useState<ParsedTheme | null>(null);
     const [activeTab, setActiveTab] = useState<'theme' | 'components'>('theme');
     const [isDarkMode, setIsDarkMode] = useState(false);
-    const [currentCssContent, setCurrentCssContent] = useState<string>('');
-    const [isLoadingCss, setIsLoadingCss] = useState(false);
-    const [cssLoadError, setCssLoadError] = useState<string | null>(null);
+    const [cssParseError, setCssParseError] = useState<undefined | string>(undefined);
 
     // Pre-inject minimal CSS to avoid FOUC (Flash of Unstyled Content)
     useEffect(() => {
@@ -62,74 +58,10 @@ const ThemePreviewCard: React.FC<ThemePreviewCardProps> = ({
 
     // Set initial loading state immediately when cssFilePath is provided
     useEffect(() => {
-        if (cssFilePath && vscode) {
-            setIsLoadingCss(true);
+        if (currentCssContent) {
             setIsExpanded(true); // Auto-expand to show loading state
         }
-    }, [cssFilePath, vscode]);
-
-    // Load CSS from file if cssFilePath is provided
-    useEffect(() => {
-        const loadCssFromFile = async () => {
-            // Reset states
-            setCssLoadError(null);
-
-            if (cssFilePath && vscode) {
-                try {
-                    // Request CSS file content from extension
-                    const response = await new Promise<string>((resolve, reject) => {
-                        const timeoutId = setTimeout(() => {
-                            reject(new Error('⚠️ Timeout loading CSS file'));
-                        }, 10000); // Increased timeout to 10 seconds
-
-                        const handler = (event: MessageEvent) => {
-                            const message = event.data;
-                            if (
-                                message.command === 'cssFileContentResponse' &&
-                                message.filePath === cssFilePath
-                            ) {
-                                clearTimeout(timeoutId);
-                                window.removeEventListener('message', handler);
-                                if (message.error) {
-                                    reject(new Error(`⚠️ ${message.error}`));
-                                } else {
-                                    resolve(message.content);
-                                }
-                            }
-                        };
-
-                        window.addEventListener('message', handler);
-
-                        // Request CSS file content
-                        try {
-                            vscode.postMessage({
-                                command: 'getCssFileContent',
-                                filePath: cssFilePath,
-                            });
-                        } catch (error) {
-                            clearTimeout(timeoutId);
-                            window.removeEventListener('message', handler);
-                            reject(new Error(`⚠️ Failed to request CSS file: ${error}`));
-                        }
-                    });
-
-                    setCurrentCssContent(response);
-                    setIsExpanded(true); // Auto-expand when CSS loads successfully
-                } catch (error) {
-                    console.warn('Failed to load CSS from file, falling back to cssSheet:', error);
-                    setCssLoadError(error instanceof Error ? error.message : 'Failed to load CSS');
-                    setCurrentCssContent(cssSheet ?? '');
-                } finally {
-                    setIsLoadingCss(false);
-                }
-            } else if (cssSheet) {
-                setCurrentCssContent(cssSheet);
-                setIsExpanded(true); // Auto-expand when CSS is available
-            }
-        };
-
-        void loadCssFromFile();
-    }, [cssFilePath, cssSheet, vscode]);
+    }, [currentCssContent]);
 
     // Parse CSS when content is available
     useEffect(() => {
@@ -139,7 +71,7 @@ const ThemePreviewCard: React.FC<ThemePreviewCardProps> = ({
                 setParsedTheme(theme);
             } catch (error) {
                 console.error('Failed to parse theme:', error);
-                setCssLoadError('Failed to parse theme CSS');
+                setCssParseError('Failed to parse theme CSS');
             }
         }
     }, [currentCssContent, isLoadingCss]);
@@ -169,8 +101,16 @@ const ThemePreviewCard: React.FC<ThemePreviewCardProps> = ({
         );
     };
 
-    // Show component if we're loading, have a theme, or have an error to display
-    if (!parsedTheme && !isLoading && !isLoadingCss && !cssLoadError) {
+    console.log(
+        `[ChatInterface] isExpanded : ${isExpanded} ; cssParseError: ${cssParseError} ; cssLoadError: ${cssLoadError} ; isLoadingCss: ${isLoadingCss}`,
+        parsedTheme
+    );
+    if (
+        !parsedTheme &&
+        !isLoadingCss &&
+        cssLoadError !== undefined &&
+        cssParseError !== undefined
+    ) {
         return null;
     }
 
@@ -240,7 +180,7 @@ const ThemePreviewCard: React.FC<ThemePreviewCardProps> = ({
                     themeName={themeName}
                     isExpanded={isExpanded}
                     onToggleExpanded={handleToggleExpanded}
-                    isLoading={isLoading || isLoadingCss}
+                    isLoading={isLoadingCss}
                     onCopyCSS={handleCopyCSS}
                 />
 
@@ -279,189 +219,180 @@ const ThemePreviewCard: React.FC<ThemePreviewCardProps> = ({
                         )}
 
                         {/* Error State */}
-                        {cssLoadError && !isLoadingCss && (
-                            <div className='theme-preview-content'>
-                                <div
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        padding: '2rem',
-                                        color: 'var(--vscode-errorForeground)',
-                                        fontSize: '12px',
-                                        backgroundColor:
-                                            'var(--vscode-inputValidation-errorBackground)',
-                                        border: '1px solid var(--vscode-inputValidation-errorBorder)',
-                                        borderRadius: '4px',
-                                        margin: '8px',
-                                    }}
-                                >
-                                    ⚠️ {cssLoadError}
+                        {(cssLoadError !== undefined || cssParseError !== undefined) &&
+                            !isLoadingCss && (
+                                <div className='theme-preview-content'>
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            padding: '2rem',
+                                            color: 'var(--vscode-errorForeground)',
+                                            fontSize: '12px',
+                                            backgroundColor:
+                                                'var(--vscode-inputValidation-errorBackground)',
+                                            border: '1px solid var(--vscode-inputValidation-errorBorder)',
+                                            borderRadius: '4px',
+                                            margin: '8px',
+                                        }}
+                                    >
+                                        ⚠️ {cssLoadError ?? cssParseError}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
 
                         {/* Normal Content */}
-                        {!isLoadingCss && !cssLoadError && parsedTheme && (
-                            <>
-                                <div className='theme-preview-tabs'>
-                                    <button
-                                        className={`theme-preview-tab ${activeTab === 'theme' ? 'active' : ''}`}
-                                        onClick={() => setActiveTab('theme')}
-                                    >
-                                        Theme
-                                    </button>
-                                    <button
-                                        className={`theme-preview-tab ${activeTab === 'components' ? 'active' : ''}`}
-                                        onClick={() => setActiveTab('components')}
-                                    >
-                                        UI Components
-                                    </button>
-                                </div>
+                        {!isLoadingCss &&
+                            cssLoadError === undefined &&
+                            cssParseError === undefined &&
+                            parsedTheme && (
+                                <>
+                                    <div className='theme-preview-tabs'>
+                                        <button
+                                            className={`theme-preview-tab ${activeTab === 'theme' ? 'active' : ''}`}
+                                            onClick={() => setActiveTab('theme')}
+                                        >
+                                            Theme
+                                        </button>
+                                        <button
+                                            className={`theme-preview-tab ${activeTab === 'components' ? 'active' : ''}`}
+                                            onClick={() => setActiveTab('components')}
+                                        >
+                                            UI Components
+                                        </button>
+                                    </div>
 
-                                <div className='theme-preview-content'>
-                                    {activeTab === 'theme' && (
-                                        <>
-                                            {/* CSS File Name - Subtle Display */}
-                                            {cssFilePath && (
+                                    <div className='theme-preview-content'>
+                                        {activeTab === 'theme' && (
+                                            <>
+                                                {/* Typography Preview */}
                                                 <div
                                                     style={{
-                                                        marginBottom: '0.75rem',
-                                                        fontSize: '10px',
-                                                        color: 'var(--vscode-descriptionForeground)',
-                                                        opacity: 0.7,
-                                                        textAlign: 'right',
+                                                        marginBottom: '1rem',
+                                                        padding: '0.75rem',
+                                                        backgroundColor:
+                                                            'var(--vscode-editor-background)',
+                                                        border: '1px solid var(--vscode-panel-border)',
+                                                        borderRadius: '4px',
                                                     }}
                                                 >
-                                                    {cssFilePath.split('/').pop()}
-                                                </div>
-                                            )}
+                                                    <div
+                                                        style={{
+                                                            display: 'grid',
+                                                            gridTemplateColumns: '1fr 1fr 1fr',
+                                                            gap: '1rem',
+                                                            textAlign: 'center',
+                                                        }}
+                                                    >
+                                                        <div>
+                                                            <div
+                                                                style={{
+                                                                    fontSize: '10px',
+                                                                    color: 'var(--vscode-descriptionForeground)',
+                                                                    marginBottom: '0.25rem',
+                                                                    fontWeight: 500,
+                                                                }}
+                                                            >
+                                                                Sans
+                                                            </div>
+                                                            <div
+                                                                style={{
+                                                                    fontSize: '12px',
+                                                                    color: 'var(--vscode-foreground)',
+                                                                    fontFamily:
+                                                                        parsedTheme.fonts?.sans ||
+                                                                        'inherit',
+                                                                }}
+                                                            >
+                                                                {parsedTheme.fonts?.sans
+                                                                    ?.split(',')[0]
+                                                                    ?.trim() || 'Default'}
+                                                            </div>
+                                                        </div>
 
-                                            {/* Typography Preview */}
-                                            <div
-                                                style={{
-                                                    marginBottom: '1rem',
-                                                    padding: '0.75rem',
-                                                    backgroundColor:
-                                                        'var(--vscode-editor-background)',
-                                                    border: '1px solid var(--vscode-panel-border)',
-                                                    borderRadius: '4px',
-                                                }}
-                                            >
-                                                <div
-                                                    style={{
-                                                        display: 'grid',
-                                                        gridTemplateColumns: '1fr 1fr 1fr',
-                                                        gap: '1rem',
-                                                        textAlign: 'center',
-                                                    }}
-                                                >
-                                                    <div>
-                                                        <div
-                                                            style={{
-                                                                fontSize: '10px',
-                                                                color: 'var(--vscode-descriptionForeground)',
-                                                                marginBottom: '0.25rem',
-                                                                fontWeight: 500,
-                                                            }}
-                                                        >
-                                                            Sans
+                                                        <div>
+                                                            <div
+                                                                style={{
+                                                                    fontSize: '10px',
+                                                                    color: 'var(--vscode-descriptionForeground)',
+                                                                    marginBottom: '0.25rem',
+                                                                    fontWeight: 500,
+                                                                }}
+                                                            >
+                                                                Serif
+                                                            </div>
+                                                            <div
+                                                                style={{
+                                                                    fontSize: '12px',
+                                                                    color: 'var(--vscode-foreground)',
+                                                                    fontFamily:
+                                                                        parsedTheme.fonts?.serif ||
+                                                                        'inherit',
+                                                                }}
+                                                            >
+                                                                {parsedTheme.fonts?.serif
+                                                                    ?.split(',')[0]
+                                                                    ?.trim() || 'Default'}
+                                                            </div>
                                                         </div>
-                                                        <div
-                                                            style={{
-                                                                fontSize: '12px',
-                                                                color: 'var(--vscode-foreground)',
-                                                                fontFamily:
-                                                                    parsedTheme.fonts?.sans ||
-                                                                    'inherit',
-                                                            }}
-                                                        >
-                                                            {parsedTheme.fonts?.sans
-                                                                ?.split(',')[0]
-                                                                ?.trim() || 'Default'}
-                                                        </div>
-                                                    </div>
 
-                                                    <div>
-                                                        <div
-                                                            style={{
-                                                                fontSize: '10px',
-                                                                color: 'var(--vscode-descriptionForeground)',
-                                                                marginBottom: '0.25rem',
-                                                                fontWeight: 500,
-                                                            }}
-                                                        >
-                                                            Serif
-                                                        </div>
-                                                        <div
-                                                            style={{
-                                                                fontSize: '12px',
-                                                                color: 'var(--vscode-foreground)',
-                                                                fontFamily:
-                                                                    parsedTheme.fonts?.serif ||
-                                                                    'inherit',
-                                                            }}
-                                                        >
-                                                            {parsedTheme.fonts?.serif
-                                                                ?.split(',')[0]
-                                                                ?.trim() || 'Default'}
-                                                        </div>
-                                                    </div>
-
-                                                    <div>
-                                                        <div
-                                                            style={{
-                                                                fontSize: '10px',
-                                                                color: 'var(--vscode-descriptionForeground)',
-                                                                marginBottom: '0.25rem',
-                                                                fontWeight: 500,
-                                                            }}
-                                                        >
-                                                            Mono
-                                                        </div>
-                                                        <div
-                                                            style={{
-                                                                fontSize: '12px',
-                                                                color: 'var(--vscode-foreground)',
-                                                                fontFamily:
-                                                                    parsedTheme.fonts?.mono ||
-                                                                    'inherit',
-                                                            }}
-                                                        >
-                                                            {parsedTheme.fonts?.mono
-                                                                ?.split(',')[0]
-                                                                ?.trim() || 'Default'}
+                                                        <div>
+                                                            <div
+                                                                style={{
+                                                                    fontSize: '10px',
+                                                                    color: 'var(--vscode-descriptionForeground)',
+                                                                    marginBottom: '0.25rem',
+                                                                    fontWeight: 500,
+                                                                }}
+                                                            >
+                                                                Mono
+                                                            </div>
+                                                            <div
+                                                                style={{
+                                                                    fontSize: '12px',
+                                                                    color: 'var(--vscode-foreground)',
+                                                                    fontFamily:
+                                                                        parsedTheme.fonts?.mono ||
+                                                                        'inherit',
+                                                                }}
+                                                            >
+                                                                {parsedTheme.fonts?.mono
+                                                                    ?.split(',')[0]
+                                                                    ?.trim() || 'Default'}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
-                                            </div>
 
-                                            {/* Color Palette */}
-                                            <ColorPalette colors={getGroupedColors(parsedTheme)} />
-                                        </>
-                                    )}
+                                                {/* Color Palette */}
+                                                <ColorPalette
+                                                    colors={getGroupedColors(parsedTheme)}
+                                                />
+                                            </>
+                                        )}
 
-                                    {activeTab === 'components' && (
-                                        <div className='component-preview-section'>
-                                            <div className='component-preview-header'>
-                                                <h4 className='component-preview-title'>
-                                                    Component Preview
-                                                </h4>
-                                                <ModeToggle
+                                        {activeTab === 'components' && (
+                                            <div className='component-preview-section'>
+                                                <div className='component-preview-header'>
+                                                    <h4 className='component-preview-title'>
+                                                        Component Preview
+                                                    </h4>
+                                                    <ModeToggle
+                                                        isDarkMode={isDarkMode}
+                                                        onToggle={setIsDarkMode}
+                                                    />
+                                                </div>
+                                                <ThemePreview
+                                                    theme={parsedTheme}
                                                     isDarkMode={isDarkMode}
-                                                    onToggle={setIsDarkMode}
+                                                    cssSheet={currentCssContent}
                                                 />
                                             </div>
-                                            <ThemePreview
-                                                theme={parsedTheme}
-                                                isDarkMode={isDarkMode}
-                                                cssSheet={currentCssContent}
-                                            />
-                                        </div>
-                                    )}
-                                </div>
-                            </>
-                        )}
+                                        )}
+                                    </div>
+                                </>
+                            )}
                     </>
                 )}
             </div>

@@ -71,6 +71,7 @@ interface WebviewContextValue {
     addListener: <E extends keyof ViewEvents>(key: E, callback: ViewEvents[E]) => void;
     removeListener: <E extends keyof ViewEvents>(key: E, callback: ViewEvents[E]) => void;
     isReady: boolean;
+    vscode: VsCodeApi | undefined;
 }
 
 const WebviewContext = createContext<WebviewContextValue | null>(null);
@@ -226,10 +227,7 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
             listeners.current.set(key, new Set());
         }
         listeners.current.get(key)!.add(callback as (...args: any[]) => void);
-        console.log(
-            `[WebviewContext] Listener added, total listeners for ${String(key)}:`,
-            listeners.current.get(key)?.size
-        );
+        console.log(`[WebviewContext] Listener added, total listeners for ${String(key)}:`);
     };
 
     /**
@@ -238,10 +236,7 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
     const removeListener = <E extends keyof ViewEvents>(key: E, callback: ViewEvents[E]): void => {
         console.log(`[WebviewContext] Removing listener for event: ${String(key)}`);
         listeners.current.get(key)?.delete(callback as (...args: any[]) => void);
-        console.log(
-            `[WebviewContext] Listener removed, remaining listeners for ${String(key)}:`,
-            listeners.current.get(key)?.size
-        );
+        console.log(`[WebviewContext] Listener removed, remaining listeners for ${String(key)}:`);
     };
 
     /**
@@ -340,6 +335,7 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
         addListener,
         removeListener,
         isReady,
+        vscode: vscodeApi.current,
     };
 
     return <WebviewContext.Provider value={contextValue}>{children}</WebviewContext.Provider>;

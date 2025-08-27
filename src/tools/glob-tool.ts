@@ -11,6 +11,7 @@ import {
     validateDirectoryExists,
     type ToolResponse,
 } from './tool-utils';
+import { getLogger } from '../services/logger';
 
 const globParametersSchema = z.object({
     pattern: z
@@ -233,6 +234,7 @@ function sortResults(results: GlobFileEntry[], sortByTime: boolean): GlobFileEnt
 }
 
 export function createGlobTool(context: ExecutionContext) {
+    const logger = getLogger('glob tool');
     return tool({
         description:
             'Find files and directories matching glob patterns (e.g., "*.js", "src/**/*.ts"). Efficient for locating files by name or path structure.',
@@ -264,7 +266,7 @@ export function createGlobTool(context: ExecutionContext) {
                     return dirError;
                 }
 
-                console.log(`Finding files matching pattern "${pattern}" in ${searchPath}`);
+                logger.info(`Finding files matching pattern "${pattern}" in ${searchPath}`);
 
                 // Convert glob pattern to regex
                 const regex = globToRegex(pattern, case_sensitive);
@@ -296,7 +298,7 @@ export function createGlobTool(context: ExecutionContext) {
                     summary += ` - results truncated at ${max_results}`;
                 }
 
-                console.log(summary);
+                logger.info(summary);
 
                 return createSuccessResponse({
                     pattern,

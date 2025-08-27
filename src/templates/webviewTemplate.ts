@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
 import type { WebviewContext } from '../types/context';
 
-export async function generateWebviewHtml(
+export function generateWebviewHtml(
     webview: vscode.Webview,
     extensionUri: vscode.Uri,
     context: WebviewContext
-): Promise<string> {
+): string {
     const scriptUri = webview.asWebviewUri(
         vscode.Uri.joinPath(extensionUri, 'dist', 'webview.js')
     );
@@ -18,19 +18,6 @@ export async function generateWebviewHtml(
         lovable: webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'src', 'assets', 'lovable_logo.png')).toString(),
         bolt: webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'src', 'assets', 'bolt_logo.jpg')).toString(),
     };
-
-    // Debug logging
-    console.log('Extension URI:', extensionUri.toString());
-    console.log('Generated logo URIs:', logoUris);
-    
-    // Check if files exist
-    const fs = await import('fs');
-    const path = await import('path');
-    Object.entries(logoUris).forEach(([name, _uri]) => {
-        const filePath = path.join(extensionUri.fsPath, 'src', 'assets', name === 'bolt' ? 'bolt_logo.jpg' : `${name === 'claudeCode' ? 'claude_code' : name}_logo.png`);
-        const exists = fs.existsSync(filePath);
-        console.log(`${name} logo exists at ${filePath}:`, exists);
-    });
 
     return `<!DOCTYPE html>
     <html lang="en">

@@ -587,7 +587,7 @@ will appear in the uri that is passed to the [UriHandler](https://code.visualstu
 vscode.window.registerUriHandler({
   handleUri(uri: vscode.Uri): vscode.ProviderResult<void> {
     if (uri.path === '/did-authenticate') {
-      console.log(uri.toString());
+      logger.info(uri.toString());
     }
   }
 });
@@ -681,7 +681,7 @@ and the [exports](https://code.visualstudio.com/api/references/vscode-api#Extens
 let mathExt = extensions.getExtension('genius.math');
 let importedApi = mathExt.exports;
 
-console.log(importedApi.mul(42, 1));
+logger.info(importedApi.mul(42, 1));
 Copy
 ```
 
@@ -9325,7 +9325,7 @@ a listener function as argument.
 
 ```
 item.onDidChange(function(event) {
-  console.log('Event happened: ' + event);
+  logger.info('Event happened: ' + event);
 });
 Copy
 ```
@@ -12075,9 +12075,9 @@ try {
   // consume stream
   for await (const chunk of response.stream) {
     if (chunk instanceof LanguageModelTextPart) {
-      console.log('TEXT', chunk);
+      logger.info('TEXT', chunk);
     } else if (chunk instanceof LanguageModelToolCallPart) {
-      console.log('TOOL CALL', chunk);
+      logger.info('TOOL CALL', chunk);
     }
   }
 } catch (e) {
@@ -19214,11 +19214,11 @@ fired.\
 // Log the details of the command line on start and end\
 window.onDidStartTerminalShellExecution(event => {\
   const commandLine = event.execution.commandLine;\
-  console.log(`Command started\n${summarizeCommandLine(commandLine)}`);\
+  logger.info(`Command started\n${summarizeCommandLine(commandLine)}`);\
 });\
 window.onDidEndTerminalShellExecution(event => {\
   const commandLine = event.execution.commandLine;\
-  console.log(`Command ended\n${summarizeCommandLine(commandLine)}`);\
+  logger.info(`Command ended\n${summarizeCommandLine(commandLine)}`);\
 });\
 function summarizeCommandLine(commandLine: TerminalShellExecutionCommandLine) {\
   return [\
@@ -19252,7 +19252,7 @@ the first time, ie. you must call `read` immediately after the command is execut
 const command = term.shellIntegration.executeCommand({ commandLine: 'echo "Hello world"' });\
 const stream = command.read();\
 for await (const data of stream) {\
-  console.log(data);\
+  logger.info(data);\
 }\
 Copy\
 ```\
@@ -19356,11 +19356,11 @@ const execution = shellIntegration.executeCommand({\
 window.onDidEndTerminalShellExecution(event => {\
   if (event.execution === execution) {\
     if (event.exitCode === undefined) {\
-      console.log('Command finished but exit code is unknown');\
+      logger.info('Command finished but exit code is unknown');\
     } else if (event.exitCode === 0) {\
-      console.log('Command succeeded');\
+      logger.info('Command succeeded');\
     } else {\
-      console.log('Command failed');\
+      logger.info('Command failed');\
     }\
   }\
 });\
@@ -19421,7 +19421,7 @@ window.onDidChangeTerminalShellIntegration(async ({ terminal, shellIntegration }
     const execution = shellIntegration.executeCommand('echo "Hello world"');\
     window.onDidEndTerminalShellExecution(event => {\
       if (event.execution === execution) {\
-        console.log(`Command exited with code ${event.exitCode}`);\
+        logger.info(`Command exited with code ${event.exitCode}`);\
       }\
     });\
   }\
@@ -19445,7 +19445,7 @@ if (term.shellIntegration) {\
   const execution = shellIntegration.executeCommand({ commandLine });\
   window.onDidEndTerminalShellExecution(event => {\
     if (event.execution === execution) {\
-      console.log(`Command exited with code ${event.exitCode}`);\
+      logger.info(`Command exited with code ${event.exitCode}`);\
     }\
   });\
 } else {\
@@ -19485,7 +19485,7 @@ window.onDidChangeTerminalShellIntegration(async ({ terminal, shellIntegration }
       args: ['Hello world']\
     });\
     const code = await command.exitCode;\
-    console.log(`Command exited with code ${code}`);\
+    logger.info(`Command exited with code ${code}`);\
   }\
 }));\
 // Fallback to sendText if there is no shell integration within 3 seconds of launching\
@@ -19509,7 +19509,7 @@ if (term.shellIntegration) {\
     args: ['Hello world']\
   });\
   const code = await command.exitCode;\
-  console.log(`Command exited with code ${code}`);\
+  logger.info(`Command exited with code ${code}`);\
 } else {\
   term.sendText(commandLine);\
   // Without shell integration, we can't know when the command has finished or what the\
@@ -23736,7 +23736,7 @@ Events in the VS Code API are exposed as functions which you call with a listene
 \
 ```\
 var listener = function(event) {\
-  console.log('It happened', event);\
+  logger.info('It happened', event);\
 };\
 \
 // start listening\

@@ -1,22 +1,38 @@
 import * as vscode from 'vscode';
-import { generateWebviewHtml } from '../templates/webviewTemplate';
+import { generateWebviewHtml as _generateWebviewHtml } from '../templates/webviewTemplate';
 import type { WebviewContext } from '../types/context';
-import { getLogger } from '../services/logger';
 import type { WebviewApiProvider } from './WebviewApiProvider';
-import type { ViewApiError, ViewApiRequest, ViewApiResponse } from '../api/viewApi';
+import { isViewApiRequest, type ViewApiError, type ViewApiResponse } from '../api/viewApi';
 import type { ChatController } from '../controllers/ChatController';
+import { BasedWebviewViewProvider } from './BaseWebviewViewProvider';
+import {
+    type ChatSidebarActions,
+    ChatSidebarKey,
+    type ChatSidebarPatches,
+} from '../types/chatSidebarTypes';
 
-export class ChatSidebarProvider implements vscode.WebviewViewProvider {
-    public static readonly VIEW_TYPE = 'securedesign.chatView';
-    private _view?: vscode.WebviewView;
+export class ChatSidebarProvider extends BasedWebviewViewProvider<
+    ChatSidebarActions,
+    ChatSidebarPatches
+> {
+    static readonly providerId: string = ChatSidebarKey;
     private customMessageHandler?: (message: any) => void;
-    private readonly logger = getLogger('ChatSidebarProvider');
 
     constructor(
-        private readonly _extensionUri: vscode.Uri,
-        private readonly apiProvider: WebviewApiProvider,
+        _extensionUri: vscode.Uri,
+        apiProvider: WebviewApiProvider,
         private readonly chatController: ChatController
-    ) {}
+    ) {
+        super(ChatSidebarKey, _extensionUri, apiProvider);
+    }
+
+    generateWebviewHtml(
+        webview: vscode.Webview,
+        extensionUri: vscode.Uri,
+        context: WebviewContext
+    ): string {
+        return _generateWebviewHtml(webview, extensionUri, context);
+    }
 
     public setMessageHandler(handler: (message: any) => void) {
         this.logger.debug('Setting custom message handler');
@@ -36,101 +52,31 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    public async resolveWebviewView(
-        webviewView: vscode.WebviewView,
-        _context: vscode.WebviewViewResolveContext,
-        _token: vscode.CancellationToken
-    ) {
-        this.logger.debug('Resolving webview view');
-        this._view = webviewView;
-
-        webviewView.webview.options = {
-            enableScripts: true,
-            localResourceRoots: [
-                vscode.Uri.joinPath(this._extensionUri, 'dist'),
-                vscode.Uri.joinPath(this._extensionUri, 'src', 'assets'),
-            ],
-        };
-
-        const webviewContext: WebviewContext = {
-            layout: 'sidebar',
-            extensionUri: this._extensionUri.toString(),
-        };
-
-        const html = await generateWebviewHtml(
-            webviewView.webview,
-            this._extensionUri,
-            webviewContext
-        );
-        // eslint-disable-next-line require-atomic-updates
-        webviewView.webview.html = html;
-
-        // Initial chat history loading is now handled by the webview using the new API
-
-        // Register this webview with the API provider
-        this.logger.debug('Registering view with API provider');
-        this.apiProvider.registerView('chat-sidebar', webviewView, 'chat-sidebar');
-        this.logger.debug('View registered successfully');
-
-        // Handle messages from the webview
-        const messageListener = webviewView.webview.onDidReceiveMessage(async message => {
-            // Only log non-log messages to avoid infinite loop
-            if (message.key !== 'log') {
-                this.logger.debug('Received message from webview', {
-                    type: message.type,
-                    command: message.command,
-                    hasCustomHandler: !!this.customMessageHandler,
-                });
-            }
-            // First try custom message handler for auto-canvas functionality
-            if (this.customMessageHandler) {
-                if (message.key !== 'log') {
-                    this.logger.debug('Calling custom message handler');
-                }
-                this.customMessageHandler(message);
-            }
-
-            // Check if this is a new API message format
-            if (message.type === 'request') {
-                // Delegate to WebviewApiProvider for new API calls
-                // Only log non-log messages to avoid infinite loop
-                if (message.key !== 'log') {
-                    this.logger.debug('Delegating API request to WebviewApiProvider', {
-                        requestId: message.id,
-                        requestKey: message.key,
-                    });
-                }
-                await this.handleMessage(message, webviewView.webview);
-                return;
-            }
-
-            // Handle special legacy messages that aren't yet migrated to the new API
-            switch (message.command) {
-                case 'showContextPicker':
-                    // Keep this until we have a proper UI component replacement
-                    await this.handleShowContextPicker(webviewView.webview);
-                    break;
-
-                default:
-                    // All other commands should now use the new API
-                    this.logger.warn(
-                        `Received unmigrated legacy command: ${message.command}`,
-                        message
-                    );
-                    break;
-            }
-        });
-
-        // Dispose of the message listener when webview is disposed
-        webviewView.onDidDispose(() => {
-            messageListener.dispose();
-        });
-    }
-
     /**
      * Handle incoming messages from webview with full type safety
      */
-    private async handleMessage(message: ViewApiRequest, webview: vscode.Webview): Promise<void> {
+    protected async handleMessage(message: any, webview: vscode.Webview): Promise<void> {
+        // First try custom message handler for auto-canvas functionality
+        if (this.customMessageHandler) {
+            if (message.key !== 'log') {
+                this.logger.debug('Calling custom message handler');
+            }
+            this.customMessageHandler(message);
+        }
+
+        // Handle special legacy messages that aren't yet migrated to the new API
+        switch (message.command) {
+            case 'showContextPicker':
+                // Keep this until we have a proper UI component replacement
+                await this.handleShowContextPicker(webview);
+                break;
+
+            default:
+                // All other commands should now use the new API
+                this.logger.warn(`Received unmigrated legacy command: ${message.command}`, message);
+                break;
+        }
+
         // Prepare context info for logging
         const contextInfo = message.context
             ? `from ${message.context.viewType}:${message.context.viewId}`
@@ -139,6 +85,11 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
         // Log request context for debugging and analytics (except for log messages to avoid infinite loop)
         if (message.key !== 'log') {
             this.logger.debug(`Handling API request: ${message.key} ${contextInfo}`);
+        }
+
+        // Check if this is a new API message format
+        if (!isViewApiRequest(message)) {
+            return;
         }
 
         try {
@@ -217,6 +168,30 @@ export class ChatSidebarProvider implements vscode.WebviewViewProvider {
                 this.logger.error(
                     `Failed to send error response for ${message.key}: ${String(postError)}`
                 );
+            }
+        }
+    }
+
+    protected async handleAction<K extends keyof ChatSidebarActions = keyof ChatSidebarActions>(
+        key: K,
+        params: ChatSidebarActions[K] extends (...args: any[]) => any
+            ? Parameters<ChatSidebarActions[K]>
+            : never
+    ): Promise<[K, ChatSidebarPatches[K]]> {
+        console.log('handleAction', params);
+        switch (key) {
+            case 'dummyAction': {
+                throw new Error('Not implemented yet: "dummyAction" case');
+            }
+            case 'getCssFileContent': {
+                const [filePath] = params as Parameters<ChatSidebarActions['getCssFileContent']>;
+                try {
+                    const content = await this.chatController.getCssFileContent(filePath);
+                    // Return the patch key and its parameters (excluding prevState)
+                    return [key, { filePath, content }];
+                } catch (e) {
+                    return [key, { filePath, error: e instanceof Error ? e.message : String(e) }];
+                }
             }
         }
     }

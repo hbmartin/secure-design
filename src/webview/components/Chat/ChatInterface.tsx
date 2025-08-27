@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useChat } from '../../hooks/useChat';
 import { useWebviewApi } from '../../contexts/WebviewContext';
 import type { ChatMessage } from '../../../types/chatMessage';
@@ -14,38 +14,46 @@ import chatStyles from './ChatInterface.css';
 import welcomeStyles from '../Welcome/Welcome.css';
 import { ProviderService } from '../../../providers';
 import { useLogger } from '../../hooks/useLogger';
+import { useVscodeState } from '../../hooks/useVscodeState';
+import {
+    ChatSidebarKey,
+    type ChatSidebarPatches,
+    type ChatSidebarActions,
+    type ChatSidebarState,
+} from '../../../types/chatSidebarTypes';
+import type { StateReducer } from '../../../types/ipcReducer';
 
 interface ChatInterfaceProps {
     layout: WebviewLayout;
 }
 
+const postReducer: StateReducer<ChatSidebarState, ChatSidebarPatches> = {
+    dummyAction: function (prevState: ChatSidebarState, patch: object): ChatSidebarState {
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
+        throw new Error(`Function not implemented. ${prevState} ${patch}`);
+    },
+    getCssFileContent: function (
+        prevState: ChatSidebarState,
+        patch: { filePath: string; content: string }
+    ): ChatSidebarState {
+        prevState.css[patch.filePath] = {
+            filePath: patch.filePath,
+            content: patch.content,
+        };
+        return prevState;
+    },
+};
+
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
     const { messages: chatHistory, isLoading, sendMessage, handleClearChatRequested } = useChat();
     const { api } = useWebviewApi();
     const logger = useLogger('ChatInterface');
-
-    // Temporary compatibility bridge for gradual migration
-    const vscode = useMemo(
-        () => ({
-            postMessage: (message: any) => {
-                logger.debug('Legacy postMessage:', {
-                    command: message.command,
-                    hasArgs: !!message.args,
-                });
-                // Handle legacy messages appropriately
-                switch (message.command) {
-                    case 'checkCanvasStatus':
-                        // Stub for canvas status checks
-                        break;
-                    case 'executeCommand':
-                        void api.executeCommand(message.command, message.args);
-                        break;
-                    default:
-                        console.warn('Unhandled legacy message:', message);
-                }
-            },
-        }),
-        [api, logger]
+    const [state, actor] = useVscodeState<ChatSidebarState, ChatSidebarActions, ChatSidebarPatches>(
+        ChatSidebarKey,
+        postReducer,
+        {
+            css: {},
+        } satisfies ChatSidebarState
     );
 
     const {
@@ -221,8 +229,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 // Handle prompt from canvas floating buttons
                 logger.debug('📝 Received prompt from canvas:', message.data.prompt);
                 setInputMessage(message.data.prompt);
-            } else if (message.command === 'clearChatRequested' || message.key === 'clearChatRequested') {
-                logger.debug('📝 Received prompt from canvas:', {message});
+            } else if (
+                message.command === 'clearChatRequested' ||
+                message.key === 'clearChatRequested'
+            ) {
+                logger.debug('📝 Received prompt from canvas:', { message });
                 handleClearChatRequested();
             }
         };
@@ -246,7 +257,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 document.head.removeChild(existingWelcomeStyle);
             }
         };
-    }, [api, vscode, handleNewConversation, resetFirstTimeUser, logger, handleClearChatRequested]);
+    }, [api, handleNewConversation, resetFirstTimeUser, logger, handleClearChatRequested]);
 
     // Handle first-time user welcome display
     useEffect(() => {
@@ -1019,22 +1030,40 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 const toolCallId = toolCallPart.toolCallId;
                 const toolResultPart = findToolResult(toolCallId);
                 const hasResult = !!toolResultPart;
-                const resultIsError = toolResultPart?.isError ?? false;
+                const resultIsError = 'isError' in toolResultPart ? toolResultPart?.isError : false;
 
                 // Tool is loading if we don't have a result yet, or if metadata indicates loading
-                const isLoading = !hasResult || (toolCallPart.metadata?.is_loading ?? false);
+                const isLoading: boolean =
+                    !hasResult || (toolCallPart.metadata?.is_loading ?? false);
 
                 // Extract theme data from tool input
                 const themeName = toolInput.theme_name ?? 'Untitled Theme';
-                const cssSheet = toolInput.cssSheet ?? '';
+                const cssSheet = toolInput.cssSheet ?? undefined;
+                const cssFilePath: string | undefined =
+                    toolInput.cssFilePath ?? toolResultPart?.result?.cssFilePath;
 
                 // Try to get CSS file path from metadata or result
-                let cssFilePath = null;
-                if (hasResult && !resultIsError) {
-                    // Check both input and result for cssFilePath
-                    cssFilePath = toolInput.cssFilePath ?? toolResultPart?.result?.cssFilePath;
+                if (
+                    hasResult &&
+                    !resultIsError &&
+                    cssFilePath !== undefined &&
+                    !(cssFilePath in state.css)
+                ) {
+                    actor.getCssFileContent(cssFilePath);
                 }
 
+                let cssContent: string | undefined = String(cssSheet);
+                let cssLoadError: string | undefined = undefined;
+                let isLoadingCss: boolean = true;
+                if (cssFilePath !== undefined && cssFilePath in state.css) {
+                    if (state.css[cssFilePath].content !== undefined) {
+                        cssContent = state.css[cssFilePath].content;
+                    } else {
+                        cssLoadError = state.css[cssFilePath].error;
+                    }
+
+                    isLoadingCss = false;
+                }
                 return (
                     <div
                         key={uniqueKey}
@@ -1042,10 +1071,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                     >
                         <ThemePreviewCard
                             themeName={themeName}
-                            cssSheet={cssFilePath ? null : cssSheet}
-                            cssFilePath={cssFilePath}
-                            isLoading={isLoading}
-                            vscode={vscode}
+                            currentCssContent={cssContent}
+                            isLoadingCss={isLoading || !!isLoadingCss}
+                            cssLoadError={cssLoadError}
                         />
                         {resultIsError && (
                             <div

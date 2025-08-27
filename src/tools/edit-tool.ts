@@ -10,6 +10,7 @@ import {
     createSuccessResponse,
     type ToolResponse,
 } from './tool-utils';
+import { getLogger } from '../services/logger';
 
 const editParametersSchema = z.object({
     file_path: z
@@ -151,6 +152,7 @@ function calculateEdit(
 }
 
 export function createEditTool(context: ExecutionContext) {
+    const logger = getLogger('edit tool');
     return tool({
         description:
             'Replace text within a file using exact string matching. Accepts both relative and absolute file paths within the workspace.',
@@ -168,7 +170,7 @@ export function createEditTool(context: ExecutionContext) {
                     return pathError;
                 }
 
-                console.log(`Editing file: ${file_path}`);
+                logger.info(`Editing file: ${file_path}`);
 
                 // Calculate the edit
                 const editResult = calculateEdit(
@@ -190,7 +192,7 @@ export function createEditTool(context: ExecutionContext) {
                     const dirName = path.dirname(absolutePath);
                     if (!fs.existsSync(dirName)) {
                         fs.mkdirSync(dirName, { recursive: true });
-                        console.log(`Created parent directories for: ${file_path}`);
+                        logger.info(`Created parent directories for: ${file_path}`);
                     }
                 }
 
@@ -201,9 +203,9 @@ export function createEditTool(context: ExecutionContext) {
                 const newSize = Buffer.byteLength(editResult.newContent, 'utf8');
 
                 if (editResult.isNewFile) {
-                    console.log(`Created new file: ${file_path} (${newLines} lines)`);
+                    logger.info(`Created new file: ${file_path} (${newLines} lines)`);
                 } else {
-                    console.log(
+                    logger.info(
                         `Applied ${editResult.occurrences} replacement(s) to: ${file_path} (${newLines} lines)`
                     );
                 }

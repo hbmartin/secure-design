@@ -60,12 +60,17 @@ class LoggerImpl {
     private static log(level: LogLevel, message: string, data: Record<any, any> | undefined) {
         const timestamp = new Date().toISOString().split('T')[1];
         const levelStr = LogLevel[level] || 'UNKNOWN';
-        this.outputChannel.appendLine(`[${timestamp}] [${levelStr}] ${message}`);
         if (data !== undefined && data !== null) {
             const cleanedData = removePromptsFromData(data);
             if (cleanedData) {
-                this.outputChannel.appendLine(JSON.stringify(cleanedData));
+                this.outputChannel.appendLine(
+                    `[${timestamp}] [${levelStr}] ${message} : ${JSON.stringify(cleanedData)}`
+                );
+            } else {
+                this.outputChannel.appendLine(`[${timestamp}] [${levelStr}] ${message}`);
             }
+        } else {
+            this.outputChannel.appendLine(`[${timestamp}] [${levelStr}] ${message}`);
         }
     }
 }

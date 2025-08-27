@@ -8,6 +8,7 @@ import type { LanguageModelV2ToolResultOutput } from '@ai-sdk/provider';
  * This ensures compile-time safety for all cross-boundary communication
  */
 export interface ViewAPI {
+    getCssFileContent: (filePath: string) => Promise<string>;
     // Chat operations
     sendChatMessage: (message: string, history: ChatMessage[]) => Promise<void>;
     stopChat: () => void;
