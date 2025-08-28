@@ -101,10 +101,6 @@ const ThemePreviewCard: React.FC<ThemePreviewCardProps> = ({
         );
     };
 
-    console.log(
-        `[ChatInterface] isExpanded : ${isExpanded} ; cssParseError: ${cssParseError} ; cssLoadError: ${cssLoadError} ; isLoadingCss: ${isLoadingCss}`,
-        parsedTheme
-    );
     if (
         !parsedTheme &&
         !isLoadingCss &&

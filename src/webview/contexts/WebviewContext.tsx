@@ -74,7 +74,7 @@ interface WebviewContextValue {
     vscode: VsCodeApi | undefined;
 }
 
-const WebviewContext = createContext<WebviewContextValue | null>(null);
+export const WebviewContext = createContext<WebviewContextValue | null>(null);
 
 /**
  * Hook to access the webview API
@@ -110,11 +110,9 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
 
     // Initialize VSCode API
     useEffect(() => {
-        console.log('[WebviewContext] Initializing VSCode API');
         if (typeof acquireVsCodeApi === 'function') {
             vscodeApi.current = acquireVsCodeApi();
             setIsReady(true);
-            console.log('[WebviewContext] VSCode API acquired successfully');
         } else {
             throw new Error('[WebviewContext] acquireVsCodeApi function not available');
         }
@@ -187,9 +185,7 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
                 id,
                 context: contextRef.current,
             });
-            console.debug(`Sending API request: ${key}`, params);
             vscodeApi.current.postMessage(request);
-            console.log(`[WebviewContext] Request sent successfully: ${key}`);
         } catch (error) {
             console.error(`Failed to send API request ${key}:`, error);
             deferred.clearTimeout();
@@ -222,21 +218,17 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
      * Add an event listener with type safety
      */
     const addListener = <E extends keyof ViewEvents>(key: E, callback: ViewEvents[E]): void => {
-        console.log(`[WebviewContext] Adding listener for event: ${String(key)}`);
         if (!listeners.current.has(key)) {
             listeners.current.set(key, new Set());
         }
         listeners.current.get(key)!.add(callback as (...args: any[]) => void);
-        console.log(`[WebviewContext] Listener added, total listeners for ${String(key)}:`);
     };
 
     /**
      * Remove an event listener
      */
     const removeListener = <E extends keyof ViewEvents>(key: E, callback: ViewEvents[E]): void => {
-        console.log(`[WebviewContext] Removing listener for event: ${String(key)}`);
         listeners.current.get(key)?.delete(callback as (...args: any[]) => void);
-        console.log(`[WebviewContext] Listener removed, remaining listeners for ${String(key)}:`);
     };
 
     /**
@@ -256,11 +248,6 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
                 const deferred = pendingRequests.current.get(message.id);
                 if (deferred) {
                     console.log(`[WebviewContext] Processing response for request ${message.id}`);
-                    console.debug(
-                        'API response received for request %s:',
-                        message.id,
-                        message.value
-                    );
                     deferred.clearTimeout(); // Clear timeout to prevent race condition
                     pendingRequests.current.delete(message.id);
                     deferred.resolve(message.value);
@@ -280,14 +267,8 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
                 }
             } else if (isViewApiEvent(message)) {
                 // Handle event
-                console.log(`[WebviewContext] Processing event: ${String(message.key)}`, {
-                    valueLength: message.value?.length,
-                });
                 const callbacks = listeners.current.get(message.key);
                 if (callbacks && callbacks.size > 0) {
-                    console.log(
-                        `[WebviewContext] Calling ${callbacks.size} listener(s) for event: ${String(message.key)}`
-                    );
                     callbacks.forEach(cb => {
                         try {
                             cb(...message.value);

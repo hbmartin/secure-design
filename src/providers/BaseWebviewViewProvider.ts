@@ -11,7 +11,7 @@ import {
     type Patch,
 } from '../types/ipcReducer';
 
-export abstract class BasedWebviewViewProvider<A, P extends BasePatches<A>>
+export abstract class BaseWebviewViewProvider<A, P extends BasePatches<A>>
     implements vscode.WebviewViewProvider
 {
     protected _view?: vscode.WebviewView;
@@ -53,26 +53,17 @@ export abstract class BasedWebviewViewProvider<A, P extends BasePatches<A>>
 
         webviewView.webview.html = html;
 
-        // Register this webview with the API provider
-        this.logger.debug('Registering view with API provider');
         this.apiProvider.registerView(this.providerId, webviewView, this.providerId);
-        this.logger.debug('View registered successfully');
 
-        // Handle messages from the webview
         const messageListener = webviewView.webview.onDidReceiveMessage(async message => {
-            // Only log non-log messages to avoid infinite loop
-            if (message.key !== 'log') {
-                this.logger.debug('Received message from webview', message);
-            }
-
             if (isMyActionMessage<A>(message, this.providerId)) {
-                const key = message.key;
+                this.logger.debug('Received action message from webview', message);
                 // Cast args to the correct parameter type for this specific method
                 const params = message.params as A[keyof A] extends (...args: any[]) => any
                     ? Parameters<A[keyof A]>
                     : never;
 
-                const [patchKey, patchParams] = await this.handleAction(key, params);
+                const [patchKey, patchParams] = await this.handleAction(message.key, params);
                 const patch = {
                     type: PATCH,
                     providerId: this.providerId,

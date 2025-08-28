@@ -18,7 +18,7 @@ function isMyPatchMessage<P>(msg: any, id: WebviewKey): msg is Patch<P> {
         typeof msg === 'object' &&
         'providerId' in msg &&
         'type' in msg &&
-        'patch' in msg &&
+        'key' in msg &&
         msg.type === PATCH &&
         typeof msg.providerId === 'string' &&
         msg.providerId === id
@@ -37,13 +37,18 @@ export function useVscodeState<S, A extends object, P extends BasePatches<A>>(
 
     useEffect(() => {
         const handler = (event: MessageEvent) => {
-            const data = event.data;
+            const { data } = event;
             if (isMyPatchMessage<P>(data, providerId)) {
-                if (Object.prototype.hasOwnProperty.call(postReducer, data.key)) {
+                if (
+                    Object.prototype.hasOwnProperty.call(postReducer, data.key) &&
+                    typeof postReducer[data.key] === 'function'
+                ) {
                     const patchFn = postReducer[data.key];
-                    if (typeof patchFn === 'function') {
-                        setState(prev => patchFn(prev, data.patch));
-                    }
+                    setState(prev => patchFn(prev, data.patch));
+                } else {
+                    throw new Error(
+                        `Could not find a function for ${String(data.key)} in postReducer`
+                    );
                 }
             }
         };
@@ -64,14 +69,16 @@ export function useVscodeState<S, A extends object, P extends BasePatches<A>>(
                 providerId: providerId,
                 key: arg.key,
                 params: arg.params,
-                prev: state,
-            } as Action<A>);
+            } satisfies Action<A>);
         },
         [webviewApi, state]
     );
 
     const actor = new Proxy({} as A, {
         get(_, prop) {
+            if (!Object.prototype.hasOwnProperty.call(postReducer, prop)) {
+                throw new Error(`Unknown action: ${String(prop)}`);
+            }
             return (...args: any[]) => {
                 const key = prop as keyof A;
                 // Cast args to the correct parameter type for this specific method

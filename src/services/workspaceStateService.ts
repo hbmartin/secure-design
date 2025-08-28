@@ -96,7 +96,6 @@ export class WorkspaceStateService {
         return currentWorkspaceId !== previousWorkspaceId;
     }
 
-
     private ensureContext(): vscode.ExtensionContext {
         if (!this.context) {
             throw new Error('WorkspaceStateService not initialized. Call initialize() first.');
@@ -127,7 +126,7 @@ export class WorkspaceStateService {
         for (let i = 0; i < workspaceId.length; i++) {
             const char = workspaceId.charCodeAt(i);
             hash = (hash << 5) - hash + char;
-            hash = hash & hash; // Convert to 32-bit integer
+            hash &= hash; // Convert to 32-bit integer
         }
         return Math.abs(hash).toString(36);
     }

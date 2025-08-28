@@ -63,7 +63,7 @@ export class ChatController implements ViewAPI {
         try {
             await vscode.workspace.fs.stat(fileUri);
         } catch {
-            const workspaceFolders = vscode.workspace.workspaceFolders;
+            const { workspaceFolders } = vscode.workspace;
             if (
                 workspaceFolders !== undefined &&
                 !filePath.startsWith('.superdesign/') &&

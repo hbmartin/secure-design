@@ -4,14 +4,14 @@ import type { WebviewContext } from '../types/context';
 import type { WebviewApiProvider } from './WebviewApiProvider';
 import { isViewApiRequest, type ViewApiError, type ViewApiResponse } from '../api/viewApi';
 import type { ChatController } from '../controllers/ChatController';
-import { BasedWebviewViewProvider } from './BaseWebviewViewProvider';
+import { BaseWebviewViewProvider } from './BaseWebviewViewProvider';
 import {
     type ChatSidebarActions,
     ChatSidebarKey,
     type ChatSidebarPatches,
 } from '../types/chatSidebarTypes';
 
-export class ChatSidebarProvider extends BasedWebviewViewProvider<
+export class ChatSidebarProvider extends BaseWebviewViewProvider<
     ChatSidebarActions,
     ChatSidebarPatches
 > {
@@ -178,7 +178,6 @@ export class ChatSidebarProvider extends BasedWebviewViewProvider<
             ? Parameters<ChatSidebarActions[K]>
             : never
     ): Promise<[K, ChatSidebarPatches[K]]> {
-        console.log('handleAction', params);
         switch (key) {
             case 'dummyAction': {
                 throw new Error('Not implemented yet: "dummyAction" case');

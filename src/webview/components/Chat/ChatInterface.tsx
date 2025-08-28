@@ -34,13 +34,19 @@ const postReducer: StateReducer<ChatSidebarState, ChatSidebarPatches> = {
     },
     getCssFileContent: function (
         prevState: ChatSidebarState,
-        patch: { filePath: string; content: string }
+        patch: { filePath: string; content?: string; error?: string }
     ): ChatSidebarState {
-        prevState.css[patch.filePath] = {
-            filePath: patch.filePath,
-            content: patch.content,
+        return {
+            ...prevState,
+            css: {
+                ...prevState.css,
+                [patch.filePath]: {
+                    filePath: patch.filePath,
+                    content: patch.content,
+                    error: patch.error,
+                },
+            },
         };
-        return prevState;
     },
 };
 
@@ -1030,7 +1036,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 const toolCallId = toolCallPart.toolCallId;
                 const toolResultPart = findToolResult(toolCallId);
                 const hasResult = !!toolResultPart;
-                const resultIsError = 'isError' in toolResultPart ? toolResultPart?.isError : false;
+                const resultIsError =
+                    toolResultPart?.isError !== undefined
+                        ? Boolean(toolResultPart?.isError)
+                        : false;
 
                 // Tool is loading if we don't have a result yet, or if metadata indicates loading
                 const isLoading: boolean =
@@ -1052,7 +1061,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                     actor.getCssFileContent(cssFilePath);
                 }
 
-                let cssContent: string | undefined = String(cssSheet);
+                let cssContent: string | undefined =
+                    cssSheet !== undefined ? String(cssSheet) : undefined;
                 let cssLoadError: string | undefined = undefined;
                 let isLoadingCss: boolean = true;
                 if (cssFilePath !== undefined && cssFilePath in state.css) {
