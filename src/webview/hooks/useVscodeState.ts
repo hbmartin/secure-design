@@ -84,19 +84,18 @@ export function useVscodeState<S, A extends Actions>(
 
     const actor = new Proxy({} as A, {
         get(_, prop) {
-            if (typeof prop !== 'string') {
-                throw new Error(`Invalid non-string action: ${String(prop)}`);
+            if (typeof prop !== 'string' && typeof prop !== 'symbol' && typeof prop !== 'number') {
+                throw new Error(`Invalid action type: ${String(prop)}`);
             }
-            if (!Object.prototype.hasOwnProperty.call(postReducer, prop)) {
-                throw new Error(`Unknown action: ${String(prop)}`);
+            if (typeof prop === 'string' && dangerousKeys.has(prop)) {
+                throw new Error(`Dangerous action key is blocked: ${prop}`);
             }
             if (!isFnKey(prop, postReducer)) {
-                throw new Error(`Invalid action: ${String(prop)}`);
+                throw new Error(`Unknown or invalid action: ${String(prop)}`);
             }
             return (...args: unknown[]) => {
-                // Cast args to the correct parameter type for this specific method
-                const params = args as A[keyof A] extends (...args: unknown[]) => any
-                    ? Parameters<A[keyof A]>
+                const params = args as A[typeof prop] extends (...args: unknown[]) => any
+                    ? Parameters<A[typeof prop]>
                     : never;
 
                 postAction({

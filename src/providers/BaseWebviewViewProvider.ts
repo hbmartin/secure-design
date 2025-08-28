@@ -7,10 +7,10 @@ import {
     isMyActionMessage,
     type WebviewKey,
     PATCH,
-    type Patch,
     type Actions,
-    type IpcProviderResult,
-    type IpcProviderCall,
+    type IpcProviderCallFor,
+    type IpcProviderResultFor,
+    type FnKeys,
 } from '../types/ipcReducer';
 
 export abstract class BaseWebviewViewProvider<A extends Actions>
@@ -61,22 +61,19 @@ export abstract class BaseWebviewViewProvider<A extends Actions>
             if (isMyActionMessage<A>(message, this.providerId)) {
                 this.logger.debug('Received action message from webview', message);
                 // Cast args to the correct parameter type for this specific method
-                const params = message.params as A[keyof A] extends (...args: unknown[]) => any
-                    ? Parameters<A[keyof A]>
-                    : never;
+                const params = message.params as Readonly<Parameters<A[typeof message.key]>>;
 
                 const patchParams = await this.handleAction({
                     key: message.key,
                     params: params,
                 });
-                const patch = {
+
+                this._view?.webview.postMessage({
                     type: PATCH,
                     providerId: this.providerId,
                     key: message.key,
                     patch: patchParams,
-                } satisfies Patch<A>;
-
-                this._view?.webview.postMessage(patch);
+                });
                 return;
             }
 
@@ -106,5 +103,7 @@ export abstract class BaseWebviewViewProvider<A extends Actions>
         webview: vscode.Webview
     ): Promise<void>;
 
-    protected abstract handleAction(call: IpcProviderCall<A>): Promise<IpcProviderResult<A>>;
+    protected abstract handleAction<K extends FnKeys<A>>(
+        call: IpcProviderCallFor<A, K>
+    ): Promise<IpcProviderResultFor<A, K>>;
 }

@@ -6,7 +6,7 @@ import { isViewApiRequest, type ViewApiError, type ViewApiResponse } from '../ap
 import type { ChatController } from '../controllers/ChatController';
 import { BaseWebviewViewProvider } from './BaseWebviewViewProvider';
 import { type ChatSidebarActions, ChatSidebarKey } from '../types/chatSidebarTypes';
-import type { IpcProviderCall, IpcProviderResult } from '../types/ipcReducer';
+import type { FnKeys, IpcProviderCallFor, IpcProviderResultFor } from '../types/ipcReducer';
 
 export class ChatSidebarProvider extends BaseWebviewViewProvider<ChatSidebarActions> {
     static readonly providerId: string = ChatSidebarKey;
@@ -166,9 +166,9 @@ export class ChatSidebarProvider extends BaseWebviewViewProvider<ChatSidebarActi
         }
     }
 
-    protected async handleAction(
-        call: IpcProviderCall<ChatSidebarActions>
-    ): Promise<IpcProviderResult<ChatSidebarActions>> {
+    protected async handleAction<K extends FnKeys<ChatSidebarActions>>(
+        call: IpcProviderCallFor<ChatSidebarActions, K>
+    ): Promise<IpcProviderResultFor<ChatSidebarActions, K>> {
         switch (call.key) {
             case 'dummyAction': {
                 throw new Error('Not implemented yet: "dummyAction" case');

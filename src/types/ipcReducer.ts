@@ -5,7 +5,7 @@ export type WebviewKey = Brand<string, 'WebviewKey'>;
 export const PATCH = 'patch';
 export const ACT = 'act';
 
-type FnKeys<T> = {
+export type FnKeys<T> = {
     [K in keyof T]: T[K] extends (...args: unknown[]) => any ? K : never;
 }[keyof T];
 
@@ -13,7 +13,10 @@ export function isFnKey<T extends object>(
     prop: string | symbol | number,
     obj: T
 ): prop is FnKeys<T> {
-    return prop in obj && typeof obj[prop as keyof T] === 'function';
+    return (
+        Object.prototype.hasOwnProperty.call(obj, prop) &&
+        typeof obj[prop as keyof T] === 'function'
+    );
 }
 export interface Action<T extends Actions, K extends FnKeys<T> = FnKeys<T>> {
     readonly type: typeof ACT;
@@ -35,12 +38,6 @@ export interface Actions {
 type Patches<A extends Actions> = {
     [K in FnKeys<A>]: ReturnType<A[K]>;
 };
-
-export interface StateWrapper<S> {
-    type: 'state';
-    state: S;
-    providerId: WebviewKey;
-}
 
 export function isMyActionMessage<T extends Actions>(
     msg: any,
@@ -71,3 +68,10 @@ export type IpcProviderCall<T extends Actions> = {
 export type IpcProviderResult<A extends Actions> = {
     [K in FnKeys<A>]: Patches<A>[K];
 }[FnKeys<A>];
+
+export interface IpcProviderCallFor<A extends Actions, K extends FnKeys<A>> {
+    readonly key: K;
+    readonly params: Readonly<Parameters<A[K]>>;
+}
+
+export type IpcProviderResultFor<A extends Actions, K extends FnKeys<A>> = Patches<A>[K];
