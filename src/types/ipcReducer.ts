@@ -5,32 +5,21 @@ export type WebviewKey = Brand<string, 'WebviewKey'>;
 export const PATCH = 'patch';
 export const ACT = 'act';
 
-// Function keys whose parameter tuple is not `any[]`
 type FnKeys<T> = {
-    [K in KnownKeys<T>]-?: T[K] extends (...a: infer A) => any
-        ? IsAny<A> extends true
-            ? never
-            : K
-        : never;
-}[KnownKeys<T>];
+  [K in keyof T]: T[K] extends (...args: any[]) => any ? K : never
+}[keyof T];
 
-export function isFnKey<T extends object>(prop: string | symbol, obj: T): prop is FnKeys<T> {
+export function isFnKey<T extends object>(prop: string | symbol| number, obj: T): prop is FnKeys<T> {
     return prop in obj && typeof obj[prop as keyof T] === 'function';
 }
 export interface Action<T extends Actions, K extends FnKeys<T> = FnKeys<T>> {
     type: 'act';
     providerId: WebviewKey;
     key: K;
-    params: T[K] extends (...args: any[]) => any ? Parameters<T[K]> : never;
+    params: Patches<T>[K];
 }
 
-export type BasePatches<A> = {
-    [K in keyof A]-?: unknown;
-};
-
-// export type Patches<A, T extends BasePatches<A>> = T;
-
-export interface Patch<A extends Actions, K extends keyof A = keyof A> {
+export interface Patch<A extends Actions, K extends FnKeys<A> = FnKeys<A>> {
     type: 'patch';
     providerId: WebviewKey;
     key: K;
@@ -41,7 +30,7 @@ export interface Actions {
 }
 
 export type Patches<A extends Actions> = {
-    [K in keyof A]: ReturnType<A[K]>;
+  [K in FnKeys<A>]: ReturnType<A[K]>;
 };
 
 export interface StateWrapper<S> {
@@ -65,20 +54,8 @@ export function isMyActionMessage<T extends Actions>(
     );
 }
 
-export type StateReducer<S, A extends Actions, K extends keyof A = keyof A> = {
-    [Key in K]: (prevState: S, patch: ReturnType<Patches<A>[Key]>) => S;
-};
-
-type IsAny<T> = 0 extends 1 & T ? true : false;
-
-type KnownKeys<T> = keyof {
-    [K in keyof T as string extends K
-        ? never
-        : number extends K
-          ? never
-          : symbol extends K
-            ? never
-            : K]: unknown;
+export type StateReducer<S, A extends Actions, K extends FnKeys<A> = FnKeys<A>> = {
+    [Key in K]: (prevState: S, patch: Patches<A>[Key]) => S;
 };
 
 export type IpcProviderCall<T> = {

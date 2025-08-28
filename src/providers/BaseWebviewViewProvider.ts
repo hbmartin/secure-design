@@ -74,7 +74,7 @@ export abstract class BaseWebviewViewProvider<A extends Actions>
                     providerId: this.providerId,
                     key: message.key,
                     patch: patchParams,
-                } as Patch<A>;
+                } satisfies Patch<A>;
 
                 this._view?.webview.postMessage(patch);
                 return;

@@ -31,7 +31,7 @@ const dangerousKeys = new Set(['__proto__', 'constructor', 'prototype']);
 
 export function useVscodeState<S, A extends Actions>(
     providerId: WebviewKey,
-    postReducer: StateReducer<S, Patches<A>>,
+    postReducer: StateReducer<S, A>,
     initialState: S | (() => S)
 ): readonly [S, A] {
     const [state, setState] = useState<S>(
@@ -46,7 +46,7 @@ export function useVscodeState<S, A extends Actions>(
     useEffect(() => {
         const handler = (event: MessageEvent) => {
             const { data } = event;
-            if (isMyPatchMessage<Patches<A>>(data, providerId)) {
+            if (isMyPatchMessage<A>(data, providerId)) {
                 if (
                     validKeys.has(String(data.key)) &&
                     Object.prototype.hasOwnProperty.call(postReducer, data.key) &&
@@ -93,9 +93,7 @@ export function useVscodeState<S, A extends Actions>(
             }
             return (...args: any[]) => {
                 // Cast args to the correct parameter type for this specific method
-                const params = args as A[typeof prop] extends (...args: any[]) => any
-                    ? Parameters<A[typeof prop]>
-                    : never;
+                const params = args as Patches<A>[typeof prop];
 
                 postAction({
                     key: prop,
