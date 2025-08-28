@@ -1042,8 +1042,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                         : false;
 
                 // Tool is loading if we don't have a result yet, or if metadata indicates loading
-                const isLoading: boolean =
-                    !hasResult || (toolCallPart.metadata?.is_loading ?? false);
+                const isLoading: boolean = hasResult
+                    ? false
+                    : Boolean(toolCallPart.metadata?.is_loading ?? false);
 
                 // Extract theme data from tool input
                 const themeName = toolInput.theme_name ?? 'Untitled Theme';

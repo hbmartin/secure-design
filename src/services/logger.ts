@@ -11,8 +11,10 @@ function removePromptsFromData<T extends Record<any, any>>(
         return dictionary;
     }
 
+    const clone = structuredClone(dictionary);
+
     try {
-        for (const value of Object.values(dictionary)) {
+        for (const value of Object.values(clone)) {
             if (Array.isArray(value)) {
                 for (const item of value) {
                     if (
@@ -27,8 +29,7 @@ function removePromptsFromData<T extends Record<any, any>>(
             }
         }
     } catch (error) {
-        // Silently handle cases where Object.values fails
-        console.warn('Error processing log data:', error);
+        console.error('Error processing log data:', error);
         return dictionary;
     }
 

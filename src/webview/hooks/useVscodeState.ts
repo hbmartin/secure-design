@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWebviewApi } from '../contexts/WebviewContext';
 import {
     ACT,
@@ -25,6 +25,8 @@ function isMyPatchMessage<P>(msg: any, id: WebviewKey): msg is Patch<P> {
     );
 }
 
+const dangerousKeys = new Set(['__proto__', 'constructor', 'prototype']);
+
 export function useVscodeState<S, A extends object, P extends BasePatches<A>>(
     providerId: WebviewKey,
     postReducer: StateReducer<S, P>,
@@ -33,13 +35,18 @@ export function useVscodeState<S, A extends object, P extends BasePatches<A>>(
     const [state, setState] = useState<S>(
         typeof initialState === 'function' ? (initialState as () => S)() : initialState
     );
-    const webviewApi = useWebviewApi();
+    const { vscode } = useWebviewApi();
+    const validKeys = useMemo(
+        () => new Set(Object.keys(postReducer).filter(k => !dangerousKeys.has(k))),
+        [postReducer]
+    );
 
     useEffect(() => {
         const handler = (event: MessageEvent) => {
             const { data } = event;
             if (isMyPatchMessage<P>(data, providerId)) {
                 if (
+                    validKeys.has(String(data.key)) &&
                     Object.prototype.hasOwnProperty.call(postReducer, data.key) &&
                     typeof postReducer[data.key] === 'function'
                 ) {
@@ -56,22 +63,22 @@ export function useVscodeState<S, A extends object, P extends BasePatches<A>>(
         return () => {
             window.removeEventListener('message', handler);
         };
-    }, []);
+    }, [postReducer, providerId]);
 
     const postAction = useCallback(
         (arg: PostAction<A>) => {
-            if (webviewApi.vscode === undefined) {
+            if (vscode === undefined) {
                 throw new Error('Vscode api is undefined');
             }
 
-            webviewApi.vscode.postMessage({
+            vscode.postMessage({
                 type: ACT,
                 providerId: providerId,
                 key: arg.key,
                 params: arg.params,
             } satisfies Action<A>);
         },
-        [webviewApi, state]
+        [vscode, providerId]
     );
 
     const actor = new Proxy({} as A, {
