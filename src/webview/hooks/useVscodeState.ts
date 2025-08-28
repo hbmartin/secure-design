@@ -7,7 +7,6 @@ import {
     type Action,
     type WebviewKey,
     type StateReducer,
-    type Patches,
     type Actions,
     isFnKey,
 } from '../../types/ipcReducer';
@@ -85,15 +84,20 @@ export function useVscodeState<S, A extends Actions>(
 
     const actor = new Proxy({} as A, {
         get(_, prop) {
+            if (typeof prop !== 'string') {
+                throw new Error(`Invalid non-string action: ${String(prop)}`);
+            }
             if (!Object.prototype.hasOwnProperty.call(postReducer, prop)) {
                 throw new Error(`Unknown action: ${String(prop)}`);
             }
             if (!isFnKey(prop, postReducer)) {
                 throw new Error(`Invalid action: ${String(prop)}`);
             }
-            return (...args: any[]) => {
+            return (...args: unknown[]) => {
                 // Cast args to the correct parameter type for this specific method
-                const params = args as Patches<A>[typeof prop];
+                const params = args as A[keyof A] extends (...args: unknown[]) => any
+                    ? Parameters<A[keyof A]>
+                    : never;
 
                 postAction({
                     key: prop,

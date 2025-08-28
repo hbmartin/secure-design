@@ -6,31 +6,34 @@ export const PATCH = 'patch';
 export const ACT = 'act';
 
 type FnKeys<T> = {
-  [K in keyof T]: T[K] extends (...args: any[]) => any ? K : never
+    [K in keyof T]: T[K] extends (...args: unknown[]) => any ? K : never;
 }[keyof T];
 
-export function isFnKey<T extends object>(prop: string | symbol| number, obj: T): prop is FnKeys<T> {
+export function isFnKey<T extends object>(
+    prop: string | symbol | number,
+    obj: T
+): prop is FnKeys<T> {
     return prop in obj && typeof obj[prop as keyof T] === 'function';
 }
 export interface Action<T extends Actions, K extends FnKeys<T> = FnKeys<T>> {
-    type: 'act';
-    providerId: WebviewKey;
-    key: K;
-    params: Patches<T>[K];
+    readonly type: typeof ACT;
+    readonly providerId: WebviewKey;
+    readonly key: K;
+    readonly params: T[K] extends (...a: infer A) => any ? Readonly<A> : never;
 }
 
 export interface Patch<A extends Actions, K extends FnKeys<A> = FnKeys<A>> {
-    type: 'patch';
-    providerId: WebviewKey;
-    key: K;
-    patch: Patches<A>[K];
+    readonly type: typeof PATCH;
+    readonly providerId: WebviewKey;
+    readonly key: K;
+    readonly patch: Patches<A>[K];
 }
 export interface Actions {
     [key: string]: (...args: any[]) => any;
 }
 
-export type Patches<A extends Actions> = {
-  [K in FnKeys<A>]: ReturnType<A[K]>;
+type Patches<A extends Actions> = {
+    [K in FnKeys<A>]: ReturnType<A[K]>;
 };
 
 export interface StateWrapper<S> {
@@ -58,10 +61,10 @@ export type StateReducer<S, A extends Actions, K extends FnKeys<A> = FnKeys<A>> 
     [Key in K]: (prevState: S, patch: Patches<A>[Key]) => S;
 };
 
-export type IpcProviderCall<T> = {
+export type IpcProviderCall<T extends Actions> = {
     [P in FnKeys<T>]: {
-        key: P;
-        params: T[P] extends (...a: infer A) => any ? A : never;
+        readonly key: P;
+        readonly params: T[P] extends (...a: infer A) => any ? Readonly<A> : never;
     };
 }[FnKeys<T>];
 

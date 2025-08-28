@@ -9,8 +9,8 @@ import {
     PATCH,
     type Patch,
     type Actions,
-    type IpcProviderCall,
     type IpcProviderResult,
+    type IpcProviderCall,
 } from '../types/ipcReducer';
 
 export abstract class BaseWebviewViewProvider<A extends Actions>
@@ -61,7 +61,7 @@ export abstract class BaseWebviewViewProvider<A extends Actions>
             if (isMyActionMessage<A>(message, this.providerId)) {
                 this.logger.debug('Received action message from webview', message);
                 // Cast args to the correct parameter type for this specific method
-                const params = message.params as A[keyof A] extends (...args: any[]) => any
+                const params = message.params as A[keyof A] extends (...args: unknown[]) => any
                     ? Parameters<A[keyof A]>
                     : never;
 
