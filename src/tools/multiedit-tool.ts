@@ -10,6 +10,7 @@ import {
     validateFileExists,
     type ToolResponse,
 } from './tool-utils';
+import { getLogger } from '../services/logger';
 
 const singleEditSchema = z.object({
     old_string: z
@@ -101,6 +102,7 @@ function applySingleEdit(content: string, edit: SingleEdit): EditResult {
 }
 
 export function createMultieditTool(context: ExecutionContext) {
+    const logger = getLogger('multiedit tool');
     return tool({
         description:
             'Perform multiple find-and-replace operations on a single file in sequence. Each edit is applied to the result of the previous edit. Accepts both relative and absolute file paths within the workspace.',
@@ -124,7 +126,7 @@ export function createMultieditTool(context: ExecutionContext) {
                     return fileError;
                 }
 
-                console.log(`Performing ${edits.length} edit(s) on: ${file_path}`);
+                logger.info(`Performing ${edits.length} edit(s) on: ${file_path}`);
 
                 // Read current content
                 let currentContent: string;
@@ -145,7 +147,7 @@ export function createMultieditTool(context: ExecutionContext) {
                 for (let i = 0; i < edits.length; i++) {
                     const edit = edits[i];
 
-                    console.log(`Applying edit ${i + 1}/${edits.length}`);
+                    logger.info(`Applying edit ${i + 1}/${edits.length}`);
 
                     const editResult = applySingleEdit(currentContent, edit);
                     editResults.push(editResult);
@@ -157,11 +159,11 @@ export function createMultieditTool(context: ExecutionContext) {
                             .join(edit.new_string);
                         successCount++;
                         totalReplacements += editResult.occurrences;
-                        console.log(
+                        logger.info(
                             `✓ Edit ${i + 1} successful: ${editResult.occurrences} replacement(s)`
                         );
                     } else {
-                        console.log(`✗ Edit ${i + 1} failed: ${editResult.error}`);
+                        logger.info(`✗ Edit ${i + 1} failed: ${editResult.error}`);
 
                         if (fail_fast) {
                             return handleToolError(
@@ -181,7 +183,7 @@ export function createMultieditTool(context: ExecutionContext) {
                 const newLines = currentContent.split('\n').length;
                 const newSize = Buffer.byteLength(currentContent, 'utf8');
 
-                console.log(
+                logger.info(
                     `Multi-edit completed: ${successCount}/${edits.length} edits successful, ${totalReplacements} total replacements`
                 );
 

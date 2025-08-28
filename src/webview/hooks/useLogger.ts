@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { useWebviewApi } from '../contexts/WebviewContext';
+import { useContext, useMemo } from 'react';
+import { WebviewContext } from '../contexts/WebviewContext';
 import { WebviewLogger } from '../utils/WebviewLogger';
 import type { ILogger } from '../../services/ILogger';
 
@@ -9,10 +9,23 @@ import type { ILogger } from '../../services/ILogger';
  * where they are written to the VS Code output channel.
  */
 export function useLogger(tag: string): ILogger {
-    const { api } = useWebviewApi();
+    const context = useContext(WebviewContext);
+    return useMemo(
+        () => (context?.api ? new WebviewLogger(context.api, tag) : createConsoleLogger(tag)),
+        [context?.api, tag]
+    );
+}
 
-    // Memoize the logger instance to avoid recreating it on every render
-    const logger = useMemo(() => new WebviewLogger(api, tag), [api]);
-
-    return logger;
+function createConsoleLogger(tag: string): ILogger {
+    return {
+        debug: (message: string, data?: Record<any, any>) =>
+            console.debug(`[${tag}] ${message}`, data),
+        info: (message: string, data?: Record<any, any>) =>
+            console.info(`[${tag}] ${message}`, data),
+        warn: (message: string, data?: Record<any, any>) =>
+            console.warn(`[${tag}] ${message}`, data),
+        error: (message: string, data?: Record<any, any>) =>
+            console.error(`[${tag}] ${message}`, data),
+        dispose: () => {},
+    };
 }

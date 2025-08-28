@@ -1,13 +1,20 @@
 import * as vscode from 'vscode';
 import { type ILogger, LogLevel } from './ILogger';
 
-function removePromptsFromData<T extends Record<string, any>>(dictionary: T): T {
-    if (!dictionary || typeof dictionary !== 'object') {
+function removePromptsFromData<T extends Record<any, any>>(
+    dictionary: T | undefined | null
+): T | undefined {
+    if (dictionary === null || dictionary === undefined) {
+        return undefined;
+    }
+    if (typeof dictionary !== 'object') {
         return dictionary;
     }
 
+    const clone = structuredClone(dictionary);
+
     try {
-        for (const value of Object.values(dictionary)) {
+        for (const value of Object.values(clone)) {
             if (Array.isArray(value)) {
                 for (const item of value) {
                     if (
@@ -22,8 +29,7 @@ function removePromptsFromData<T extends Record<string, any>>(dictionary: T): T 
             }
         }
     } catch (error) {
-        // Silently handle cases where Object.values fails
-        console.warn('Error processing log data:', error);
+        console.error('Error processing log data:', error);
         return dictionary;
     }
 
@@ -60,12 +66,13 @@ class LoggerImpl {
     private static log(level: LogLevel, message: string, data: Record<any, any> | undefined) {
         const timestamp = new Date().toISOString().split('T')[1];
         const levelStr = LogLevel[level] || 'UNKNOWN';
-        this.outputChannel.appendLine(`[${timestamp}] [${levelStr}] ${message}`);
-        if (data !== undefined && data !== null) {
-            const cleanedData = removePromptsFromData(data);
-            if (cleanedData) {
-                this.outputChannel.appendLine(JSON.stringify(cleanedData));
-            }
+        const cleanedData = removePromptsFromData(data);
+        if (cleanedData !== undefined) {
+            this.outputChannel.appendLine(
+                `[${timestamp}] [${levelStr}] ${message} : ${JSON.stringify(cleanedData)}`
+            );
+        } else {
+            this.outputChannel.appendLine(`[${timestamp}] [${levelStr}] ${message}`);
         }
     }
 }

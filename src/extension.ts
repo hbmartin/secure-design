@@ -8,7 +8,6 @@ import { Logger } from './services/logger';
 import { WorkspaceStateService } from './services/workspaceStateService';
 import { ProviderService } from './providers/ProviderService';
 import { WebviewMessageGuard } from './services/webviewMessageGuard';
-import * as path from 'path';
 import { registerProviderCommands } from './providerConfiguration';
 import { SuperdesignCanvasPanel } from './SuperdesignCanvasPanel';
 import type { ChatController } from './controllers/ChatController';
@@ -123,10 +122,6 @@ async function getBase64Image(filePath: string, sidebarProvider: ChatSidebarProv
         const base64Content = Buffer.from(fileData).toString('base64');
         const base64DataUri = `data:${mimeType};base64,${base64Content}`;
 
-        console.log(
-            `Converted image to base64: ${filePath} (${(fileData.length / 1024).toFixed(1)} KB)`
-        );
-
         // Send back the base64 data to webview
         sidebarProvider.sendMessage({
             command: 'base64ImageResponse',
@@ -144,75 +139,6 @@ async function getBase64Image(filePath: string, sidebarProvider: ChatSidebarProv
             filePath: filePath,
             error: error instanceof Error ? error.message : String(error),
         });
-    }
-}
-
-// Function to read CSS file content for theme preview
-async function getCssFileContent(filePath: string, sidebarProvider: ChatSidebarProvider) {
-    console.log(`[CSS Loader] Received request for CSS file: ${filePath}`);
-
-    try {
-        // Handle relative paths - resolve them to workspace root
-        let resolvedPath = filePath;
-
-        if (!path.isAbsolute(filePath)) {
-            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-            if (!workspaceFolder) {
-                throw new Error('No workspace folder found');
-            }
-
-            // If path doesn't start with .superdesign, add it
-            if (
-                !filePath.startsWith('.superdesign/') &&
-                filePath.startsWith('design_iterations/')
-            ) {
-                resolvedPath = `.superdesign/${filePath}`;
-            }
-
-            resolvedPath = path.join(workspaceFolder.uri.fsPath, resolvedPath);
-        }
-
-        console.log(`[CSS Loader] Resolved path: ${resolvedPath}`);
-
-        // Check if file exists first
-        const fileUri = vscode.Uri.file(resolvedPath);
-        try {
-            await vscode.workspace.fs.stat(fileUri);
-        } catch {
-            throw new Error(`CSS file not found: ${resolvedPath}`);
-        }
-
-        // Read the CSS file
-        const fileData = await vscode.workspace.fs.readFile(fileUri);
-
-        // Convert to string
-        const cssContent = Buffer.from(fileData).toString('utf8');
-
-        console.log(
-            `[CSS Loader] Successfully read CSS file: ${resolvedPath} (${(fileData.length / 1024).toFixed(1)} KB)`
-        );
-
-        // Send back the CSS content to webview
-        sidebarProvider.sendMessage({
-            command: 'cssFileContentResponse',
-            filePath: filePath,
-            content: cssContent,
-            size: fileData.length,
-        });
-
-        console.log(`[CSS Loader] Response sent to webview for: ${filePath}`);
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`[CSS Loader] Error reading CSS file (${filePath}):`, errorMessage);
-
-        // Send error back to webview
-        sidebarProvider.sendMessage({
-            command: 'cssFileContentResponse',
-            filePath: filePath,
-            error: errorMessage,
-        });
-
-        console.log(`[CSS Loader] Error response sent to webview for: ${filePath}`);
     }
 }
 
@@ -1353,7 +1279,7 @@ export function activate(context: vscode.ExtensionContext): void {
     // Register the webview view provider for sidebar
     Logger.debug('[Extension] Registering sidebar webview provider');
     const sidebarDisposable = vscode.window.registerWebviewViewProvider(
-        ChatSidebarProvider.VIEW_TYPE,
+        ChatSidebarProvider.providerId,
         sidebarProvider,
         {
             webviewOptions: {
@@ -1480,11 +1406,6 @@ export function activate(context: vscode.ExtensionContext): void {
             case 'getBase64Image':
                 // Convert saved image to base64 for AI SDK
                 void getBase64Image(message.filePath, sidebarProvider);
-                break;
-
-            case 'getCssFileContent':
-                // Read CSS file content for theme preview
-                void getCssFileContent(message.filePath, sidebarProvider);
                 break;
 
             case 'showError':

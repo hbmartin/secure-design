@@ -19,41 +19,6 @@ export class WorkspaceStateService {
         this.context = context;
     }
 
-    private ensureContext(): vscode.ExtensionContext {
-        if (!this.context) {
-            throw new Error('WorkspaceStateService not initialized. Call initialize() first.');
-        }
-        return this.context;
-    }
-
-    /**
-     * Get the namespaced key for storing workspace-specific data
-     */
-    private getNamespacedKey(baseKey: string): string {
-        const workspaceId = this.getWorkspaceId();
-        if (!workspaceId) {
-            // Fallback to base key for no workspace scenario
-            return baseKey;
-        }
-        // Create a hash or truncated version of workspace ID to keep key manageable
-        const hashedId = this.hashWorkspaceId(workspaceId);
-        return `${baseKey}::${hashedId}`;
-    }
-
-    /**
-     * Create a stable hash from workspace ID to avoid overly long keys
-     */
-    private hashWorkspaceId(workspaceId: string): string {
-        // Simple hash function for creating a shorter, stable identifier
-        let hash = 0;
-        for (let i = 0; i < workspaceId.length; i++) {
-            const char = workspaceId.charCodeAt(i);
-            hash = (hash << 5) - hash + char;
-            hash = hash & hash; // Convert to 32-bit integer
-        }
-        return Math.abs(hash).toString(36);
-    }
-
     /**
      * Save chat history for the current workspace
      */
@@ -82,8 +47,7 @@ export class WorkspaceStateService {
 
         if (storedWorkspaceId && currentWorkspaceId && storedWorkspaceId !== currentWorkspaceId) {
             // Workspace has changed, return empty history
-            console.log('Workspace ID mismatch, returning empty chat history');
-            return [];
+            throw new Error('Workspace ID mismatch, returning empty chat history');
         }
 
         return context.workspaceState.get(key, []);
@@ -130,5 +94,40 @@ export class WorkspaceStateService {
     public hasWorkspaceChanged(previousWorkspaceId?: string): boolean {
         const currentWorkspaceId = this.getWorkspaceId();
         return currentWorkspaceId !== previousWorkspaceId;
+    }
+
+    private ensureContext(): vscode.ExtensionContext {
+        if (!this.context) {
+            throw new Error('WorkspaceStateService not initialized. Call initialize() first.');
+        }
+        return this.context;
+    }
+
+    /**
+     * Get the namespaced key for storing workspace-specific data
+     */
+    private getNamespacedKey(baseKey: string): string {
+        const workspaceId = this.getWorkspaceId();
+        if (!workspaceId) {
+            // Fallback to base key for no workspace scenario
+            return baseKey;
+        }
+        // Create a hash or truncated version of workspace ID to keep key manageable
+        const hashedId = this.hashWorkspaceId(workspaceId);
+        return `${baseKey}::${hashedId}`;
+    }
+
+    /**
+     * Create a stable hash from workspace ID to avoid overly long keys
+     */
+    private hashWorkspaceId(workspaceId: string): string {
+        // Simple hash function for creating a shorter, stable identifier
+        let hash = 0;
+        for (let i = 0; i < workspaceId.length; i++) {
+            const char = workspaceId.charCodeAt(i);
+            hash = (hash << 5) - hash + char;
+            hash &= hash; // Convert to 32-bit integer
+        }
+        return Math.abs(hash).toString(36);
     }
 }

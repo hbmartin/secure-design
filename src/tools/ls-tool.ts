@@ -11,6 +11,7 @@ import {
     validateDirectoryExists,
     type ToolResponse,
 } from './tool-utils';
+import { getLogger } from '../services/logger';
 
 const lsParametersSchema = z.object({
     path: z
@@ -109,6 +110,7 @@ function formatModifiedTime(date: Date): string {
 }
 
 export function createLsTool(context: ExecutionContext) {
+    const logger = getLogger('ls tool');
     return tool({
         description:
             'List the contents of a directory in the workspace. Shows files and subdirectories with optional filtering.',
@@ -131,7 +133,7 @@ export function createLsTool(context: ExecutionContext) {
                 // Resolve target directory
                 const absolutePath = resolveWorkspacePath(targetPath, context);
 
-                console.log(`Listing directory: ${targetPath}`);
+                logger.info(`Listing directory: ${targetPath}`);
 
                 // Check if path exists and is a directory
                 const dirError = validateDirectoryExists(absolutePath, targetPath);
@@ -143,7 +145,7 @@ export function createLsTool(context: ExecutionContext) {
                 const files = fs.readdirSync(absolutePath);
 
                 if (files.length === 0) {
-                    console.log(`Directory is empty: ${targetPath}`);
+                    logger.info(`Directory is empty: ${targetPath}`);
                     return createSuccessResponse({
                         path: targetPath,
                         absolute_path: absolutePath,
@@ -187,7 +189,7 @@ export function createLsTool(context: ExecutionContext) {
                         entries.push(entry);
                     } catch (error) {
                         // Log error but continue with other files
-                        console.log(
+                        logger.info(
                             `Error accessing ${file}: ${error instanceof Error ? error.message : String(error)}`
                         );
                     }
@@ -228,7 +230,7 @@ export function createLsTool(context: ExecutionContext) {
                         .join('\n');
                 }
 
-                console.log(`${summary}${detailedListing}`);
+                logger.info(`${summary}${detailedListing}`);
 
                 return createSuccessResponse({
                     path: targetPath,

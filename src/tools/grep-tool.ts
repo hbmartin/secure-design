@@ -11,6 +11,7 @@ import {
     validateDirectoryExists,
     type ToolResponse,
 } from './tool-utils';
+import { getLogger } from '../services/logger';
 
 const grepParametersSchema = z.object({
     pattern: z
@@ -267,6 +268,7 @@ async function searchInFile(
 }
 
 export function createGrepTool(context: ExecutionContext) {
+    const logger = getLogger('grep tool');
     return tool({
         description:
             'Search for text patterns within file contents using regular expressions. Can filter by file types and paths.',
@@ -308,7 +310,7 @@ export function createGrepTool(context: ExecutionContext) {
                     return dirError;
                 }
 
-                console.log(`Searching for pattern "${pattern}" in ${searchPath}`);
+                logger.info(`Searching for pattern "${pattern}" in ${searchPath}`);
 
                 // Create regex pattern
                 const regexFlags = case_sensitive ? 'g' : 'gi';
@@ -373,7 +375,7 @@ export function createGrepTool(context: ExecutionContext) {
                     matchesByFile[match.filePath].push(match);
                 });
 
-                console.log(summary);
+                logger.info(summary);
 
                 return createSuccessResponse({
                     pattern,

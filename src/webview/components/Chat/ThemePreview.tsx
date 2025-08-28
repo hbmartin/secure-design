@@ -3,7 +3,7 @@ import React, { useEffect, useRef } from 'react';
 interface ThemePreviewProps {
     theme: any;
     isDarkMode: boolean;
-    cssSheet: string;
+    cssSheet: string | undefined;
 }
 
 // System fonts that should not be loaded from Google Fonts
