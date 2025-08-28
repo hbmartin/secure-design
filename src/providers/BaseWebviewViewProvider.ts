@@ -7,11 +7,13 @@ import {
     isMyActionMessage,
     type WebviewKey,
     PATCH,
-    type BasePatches,
-    type Patch,
+    type Actions,
+    type IpcProviderCallFor,
+    type IpcProviderResultFor,
+    type FnKeys,
 } from '../types/ipcReducer';
 
-export abstract class BaseWebviewViewProvider<A, P extends BasePatches<A>>
+export abstract class BaseWebviewViewProvider<A extends Actions>
     implements vscode.WebviewViewProvider
 {
     protected _view?: vscode.WebviewView;
@@ -59,19 +61,19 @@ export abstract class BaseWebviewViewProvider<A, P extends BasePatches<A>>
             if (isMyActionMessage<A>(message, this.providerId)) {
                 this.logger.debug('Received action message from webview', message);
                 // Cast args to the correct parameter type for this specific method
-                const params = message.params as A[keyof A] extends (...args: any[]) => any
-                    ? Parameters<A[keyof A]>
-                    : never;
+                const params = message.params as Readonly<Parameters<A[typeof message.key]>>;
 
-                const [patchKey, patchParams] = await this.handleAction(message.key, params);
-                const patch = {
+                const patchParams = await this.handleAction({
+                    key: message.key,
+                    params: params,
+                });
+
+                this._view?.webview.postMessage({
                     type: PATCH,
                     providerId: this.providerId,
-                    key: patchKey,
+                    key: message.key,
                     patch: patchParams,
-                } as Patch<P>;
-
-                this._view?.webview.postMessage(patch);
+                });
                 return;
             }
 
@@ -101,8 +103,7 @@ export abstract class BaseWebviewViewProvider<A, P extends BasePatches<A>>
         webview: vscode.Webview
     ): Promise<void>;
 
-    protected abstract handleAction<K extends keyof A = keyof A>(
-        key: K,
-        params: A[K] extends (...args: any[]) => any ? Parameters<A[K]> : never
-    ): Promise<[K, P[K]]>;
+    protected abstract handleAction<K extends FnKeys<A>>(
+        call: IpcProviderCallFor<A, K>
+    ): Promise<IpcProviderResultFor<A, K>>;
 }

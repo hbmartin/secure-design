@@ -5,33 +5,44 @@ export type WebviewKey = Brand<string, 'WebviewKey'>;
 export const PATCH = 'patch';
 export const ACT = 'act';
 
-export interface Action<T, K extends keyof T = keyof T> {
-    type: 'act';
-    providerId: WebviewKey;
-    key: K;
-    params: T[K] extends (...args: any[]) => any ? Parameters<T[K]> : never;
+export type FnKeys<T> = {
+    [K in keyof T]: T[K] extends (...args: unknown[]) => any ? K : never;
+}[keyof T];
+
+export function isFnKey<T extends object>(
+    prop: string | symbol | number,
+    obj: T
+): prop is FnKeys<T> {
+    return (
+        Object.prototype.hasOwnProperty.call(obj, prop) &&
+        typeof obj[prop as keyof T] === 'function'
+    );
+}
+export interface Action<T extends Actions, K extends FnKeys<T> = FnKeys<T>> {
+    readonly type: typeof ACT;
+    readonly providerId: WebviewKey;
+    readonly key: K;
+    readonly params: T[K] extends (...a: infer A) => any ? Readonly<A> : never;
 }
 
-export type BasePatches<A> = {
-    [K in keyof A]-?: unknown;
+export interface Patch<A extends Actions, K extends FnKeys<A> = FnKeys<A>> {
+    readonly type: typeof PATCH;
+    readonly providerId: WebviewKey;
+    readonly key: K;
+    readonly patch: Patches<A>[K];
+}
+export interface Actions {
+    [key: string]: (...args: any[]) => any;
+}
+
+type Patches<A extends Actions> = {
+    [K in FnKeys<A>]: ReturnType<A[K]>;
 };
 
-export type Patches<A, T extends BasePatches<A>> = T;
-
-export interface Patch<P, K extends keyof P = keyof P> {
-    type: 'patch';
-    providerId: WebviewKey;
-    key: K;
-    patch: P[K];
-}
-
-export interface StateWrapper<S> {
-    type: 'state';
-    state: S;
-    providerId: WebviewKey;
-}
-
-export function isMyActionMessage<T>(msg: any, providerId: string): msg is Action<T> {
+export function isMyActionMessage<T extends Actions>(
+    msg: any,
+    providerId: string
+): msg is Action<T> {
     return (
         msg !== undefined &&
         typeof msg === 'object' &&
@@ -43,6 +54,24 @@ export function isMyActionMessage<T>(msg: any, providerId: string): msg is Actio
     );
 }
 
-export type StateReducer<S, P extends BasePatches<any>, K extends keyof P = keyof P> = {
-    [Key in K]: (prevState: S, patch: P[Key]) => S;
+export type StateReducer<S, A extends Actions, K extends FnKeys<A> = FnKeys<A>> = {
+    [Key in K]: (prevState: S, patch: Patches<A>[Key]) => S;
 };
+
+export type IpcProviderCall<T extends Actions> = {
+    [P in FnKeys<T>]: {
+        readonly key: P;
+        readonly params: T[P] extends (...a: infer A) => any ? Readonly<A> : never;
+    };
+}[FnKeys<T>];
+
+export type IpcProviderResult<A extends Actions> = {
+    [K in FnKeys<A>]: Patches<A>[K];
+}[FnKeys<A>];
+
+export interface IpcProviderCallFor<A extends Actions, K extends FnKeys<A>> {
+    readonly key: K;
+    readonly params: Readonly<Parameters<A[K]>>;
+}
+
+export type IpcProviderResultFor<A extends Actions, K extends FnKeys<A>> = Patches<A>[K];

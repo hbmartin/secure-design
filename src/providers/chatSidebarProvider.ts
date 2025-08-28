@@ -5,16 +5,10 @@ import type { WebviewApiProvider } from './WebviewApiProvider';
 import { isViewApiRequest, type ViewApiError, type ViewApiResponse } from '../api/viewApi';
 import type { ChatController } from '../controllers/ChatController';
 import { BaseWebviewViewProvider } from './BaseWebviewViewProvider';
-import {
-    type ChatSidebarActions,
-    ChatSidebarKey,
-    type ChatSidebarPatches,
-} from '../types/chatSidebarTypes';
+import { type ChatSidebarActions, ChatSidebarKey } from '../types/chatSidebarTypes';
+import type { FnKeys, IpcProviderCallFor, IpcProviderResultFor } from '../types/ipcReducer';
 
-export class ChatSidebarProvider extends BaseWebviewViewProvider<
-    ChatSidebarActions,
-    ChatSidebarPatches
-> {
+export class ChatSidebarProvider extends BaseWebviewViewProvider<ChatSidebarActions> {
     static readonly providerId: string = ChatSidebarKey;
     private customMessageHandler?: (message: any) => void;
 
@@ -172,24 +166,21 @@ export class ChatSidebarProvider extends BaseWebviewViewProvider<
         }
     }
 
-    protected async handleAction<K extends keyof ChatSidebarActions = keyof ChatSidebarActions>(
-        key: K,
-        params: ChatSidebarActions[K] extends (...args: any[]) => any
-            ? Parameters<ChatSidebarActions[K]>
-            : never
-    ): Promise<[K, ChatSidebarPatches[K]]> {
-        switch (key) {
+    protected async handleAction<K extends FnKeys<ChatSidebarActions>>(
+        call: IpcProviderCallFor<ChatSidebarActions, K>
+    ): Promise<IpcProviderResultFor<ChatSidebarActions, K>> {
+        switch (call.key) {
             case 'dummyAction': {
                 throw new Error('Not implemented yet: "dummyAction" case');
             }
             case 'getCssFileContent': {
-                const [filePath] = params as Parameters<ChatSidebarActions['getCssFileContent']>;
+                const [filePath] = call.params;
                 try {
                     const content = await this.chatController.getCssFileContent(filePath);
                     // Return the patch key and its parameters (excluding prevState)
-                    return [key, { filePath, content }];
+                    return { filePath, content };
                 } catch (e) {
-                    return [key, { filePath, error: e instanceof Error ? e.message : String(e) }];
+                    return { filePath, error: e instanceof Error ? e.message : String(e) };
                 }
             }
         }
