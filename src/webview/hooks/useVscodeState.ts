@@ -7,12 +7,14 @@ import {
     type Action,
     type WebviewKey,
     type StateReducer,
-    type BasePatches,
+    type Patches,
+    type Actions,
+    isFnKey,
 } from '../../types/ipcReducer';
 
-type PostAction<S> = Pick<Action<S>, 'key' | 'params'>;
+type PostAction<S extends Actions> = Pick<Action<S>, 'key' | 'params'>;
 
-function isMyPatchMessage<P>(msg: any, id: WebviewKey): msg is Patch<P> {
+function isMyPatchMessage<A extends Actions>(msg: any, id: WebviewKey): msg is Patch<A> {
     return (
         msg !== undefined &&
         typeof msg === 'object' &&
@@ -27,9 +29,9 @@ function isMyPatchMessage<P>(msg: any, id: WebviewKey): msg is Patch<P> {
 
 const dangerousKeys = new Set(['__proto__', 'constructor', 'prototype']);
 
-export function useVscodeState<S, A extends object, P extends BasePatches<A>>(
+export function useVscodeState<S, A extends Actions>(
     providerId: WebviewKey,
-    postReducer: StateReducer<S, P>,
+    postReducer: StateReducer<S, Patches<A>>,
     initialState: S | (() => S)
 ): readonly [S, A] {
     const [state, setState] = useState<S>(
@@ -44,7 +46,7 @@ export function useVscodeState<S, A extends object, P extends BasePatches<A>>(
     useEffect(() => {
         const handler = (event: MessageEvent) => {
             const { data } = event;
-            if (isMyPatchMessage<P>(data, providerId)) {
+            if (isMyPatchMessage<Patches<A>>(data, providerId)) {
                 if (
                     validKeys.has(String(data.key)) &&
                     Object.prototype.hasOwnProperty.call(postReducer, data.key) &&
@@ -86,17 +88,19 @@ export function useVscodeState<S, A extends object, P extends BasePatches<A>>(
             if (!Object.prototype.hasOwnProperty.call(postReducer, prop)) {
                 throw new Error(`Unknown action: ${String(prop)}`);
             }
+            if (!isFnKey(prop, postReducer)) {
+                throw new Error(`Invalid action: ${String(prop)}`);
+            }
             return (...args: any[]) => {
-                const key = prop as keyof A;
                 // Cast args to the correct parameter type for this specific method
-                const params = args as A[keyof A] extends (...args: any[]) => any
-                    ? Parameters<A[keyof A]>
+                const params = args as A[typeof prop] extends (...args: any[]) => any
+                    ? Parameters<A[typeof prop]>
                     : never;
 
                 postAction({
-                    key,
+                    key: prop,
                     params,
-                });
+                } satisfies PostAction<A>);
             };
         },
     });

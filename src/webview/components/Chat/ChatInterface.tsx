@@ -17,7 +17,6 @@ import { useLogger } from '../../hooks/useLogger';
 import { useVscodeState } from '../../hooks/useVscodeState';
 import {
     ChatSidebarKey,
-    type ChatSidebarPatches,
     type ChatSidebarActions,
     type ChatSidebarState,
 } from '../../../types/chatSidebarTypes';
@@ -27,7 +26,7 @@ interface ChatInterfaceProps {
     layout: WebviewLayout;
 }
 
-const postReducer: StateReducer<ChatSidebarState, ChatSidebarPatches> = {
+const postReducer: StateReducer<ChatSidebarState, ChatSidebarActions> = {
     dummyAction: function (prevState: ChatSidebarState, patch: object): ChatSidebarState {
         // eslint-disable-next-line @typescript-eslint/no-base-to-string
         throw new Error(`Function not implemented. ${prevState} ${patch}`);
@@ -54,7 +53,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
     const { messages: chatHistory, isLoading, sendMessage, handleClearChatRequested } = useChat();
     const { api } = useWebviewApi();
     const logger = useLogger('ChatInterface');
-    const [state, actor] = useVscodeState<ChatSidebarState, ChatSidebarActions, ChatSidebarPatches>(
+    const [state, actor] = useVscodeState<ChatSidebarState, ChatSidebarActions>(
         ChatSidebarKey,
         postReducer,
         {

@@ -7,11 +7,13 @@ import {
     isMyActionMessage,
     type WebviewKey,
     PATCH,
-    type BasePatches,
     type Patch,
+    type Actions,
+    type IpcProviderCall,
+    type IpcProviderResult,
 } from '../types/ipcReducer';
 
-export abstract class BaseWebviewViewProvider<A, P extends BasePatches<A>>
+export abstract class BaseWebviewViewProvider<A extends Actions>
     implements vscode.WebviewViewProvider
 {
     protected _view?: vscode.WebviewView;
@@ -63,13 +65,16 @@ export abstract class BaseWebviewViewProvider<A, P extends BasePatches<A>>
                     ? Parameters<A[keyof A]>
                     : never;
 
-                const [patchKey, patchParams] = await this.handleAction(message.key, params);
+                const patchParams = await this.handleAction({
+                    key: message.key,
+                    params: params,
+                });
                 const patch = {
                     type: PATCH,
                     providerId: this.providerId,
-                    key: patchKey,
+                    key: message.key,
                     patch: patchParams,
-                } as Patch<P>;
+                } as Patch<A>;
 
                 this._view?.webview.postMessage(patch);
                 return;
@@ -101,8 +106,5 @@ export abstract class BaseWebviewViewProvider<A, P extends BasePatches<A>>
         webview: vscode.Webview
     ): Promise<void>;
 
-    protected abstract handleAction<K extends keyof A = keyof A>(
-        key: K,
-        params: A[K] extends (...args: any[]) => any ? Parameters<A[K]> : never
-    ): Promise<[K, P[K]]>;
+    protected abstract handleAction(call: IpcProviderCall<A>): Promise<IpcProviderResult<A>>;
 }
