@@ -40,7 +40,7 @@ type Patches<A> = {
         : never;
 };
 
-export function isMyActionMessage<T>(msg: any, providerId: string): msg is Action<T> {
+export function isMyActionMessage<T>(msg: any, providerId: WebviewKey): msg is Action<T> {
     return (
         msg !== undefined &&
         typeof msg === 'object' &&

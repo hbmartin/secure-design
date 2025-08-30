@@ -44,7 +44,8 @@ const postReducer: StateReducer<ChatSidebarState, ChatSidebarActions> = {
         };
     },
     loadChats: function (prevState: ChatSidebarState, patch: ChatMessage[]): ChatSidebarState {
-        throw new Error('Function not implemented.');
+        console.log(`loadChats: ${JSON.stringify(patch)}`);
+        return prevState;
     },
 };
 

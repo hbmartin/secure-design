@@ -15,7 +15,7 @@ export abstract class BaseWebviewViewProvider<A extends object>
 {
     protected _view?: vscode.WebviewView;
     protected readonly logger;
-    protected abstract webviewActionDelegate: ActionDelegate<A>;
+    protected abstract readonly webviewActionDelegate: ActionDelegate<A>;
     constructor(
         private readonly providerId: WebviewKey,
         private readonly _extensionUri: vscode.Uri,
@@ -28,7 +28,7 @@ export abstract class BaseWebviewViewProvider<A extends object>
         webviewView: vscode.WebviewView,
         _context: vscode.WebviewViewResolveContext,
         _token: vscode.CancellationToken
-    ) {
+    ): Thenable<void> | void {
         this.logger.debug('Resolving webview view');
         this._view = webviewView;
 
@@ -59,7 +59,12 @@ export abstract class BaseWebviewViewProvider<A extends object>
             if (isMyActionMessage<A>(message, this.providerId)) {
                 this.logger.debug('Received action message from webview', message);
 
-                const patch = await this.webviewActionDelegate[message.key](message.params);
+                const delegateFn = this.webviewActionDelegate[message.key];
+                if (typeof delegateFn !== 'function') {
+                    throw new Error(`Unknown action key: ${String(message.key)}`);
+                }
+
+                const patch = await delegateFn(...message.params);
 
                 this._view?.webview.postMessage({
                     type: PATCH,

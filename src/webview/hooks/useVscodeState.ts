@@ -10,7 +10,7 @@ import {
     isFnKey,
 } from '../../types/ipcReducer';
 
-type PostAction<S> = Pick<Action<S>, 'key' | 'params'>;
+type PostAction<A> = Pick<Action<A>, 'key' | 'params'>;
 
 function isMyPatchMessage<A>(msg: any, id: WebviewKey): msg is Patch<A> {
     return (
@@ -83,7 +83,7 @@ export function useVscodeState<S, A extends object>(
 
     const actor = new Proxy({} as A, {
         get(_, prop) {
-            if (typeof prop !== 'string' && typeof prop !== 'symbol' && typeof prop !== 'number') {
+            if (typeof prop !== 'string' && typeof prop !== 'symbol') {
                 throw new Error(`Invalid action type: ${String(prop)}`);
             }
             if (typeof prop === 'string' && dangerousKeys.has(prop)) {

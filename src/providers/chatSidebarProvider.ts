@@ -3,13 +3,14 @@ import { generateWebviewHtml as _generateWebviewHtml } from '../templates/webvie
 import type { WebviewContext } from '../types/context';
 import type { WebviewApiProvider } from './WebviewApiProvider';
 import { isViewApiRequest, type ViewApiError, type ViewApiResponse } from '../api/viewApi';
-import type { ChatController } from '../controllers/ChatController';
+import type { ChatController } from '../chat/ChatController';
 import { BaseWebviewViewProvider } from './BaseWebviewViewProvider';
 import { type ChatSidebarActions, ChatSidebarKey } from '../types/chatSidebarTypes';
 import type { ActionDelegate } from '../types/ipcReducer';
 import type { ChatMessage } from '../types';
+import getCssFileContent from '../chat/getCssFileContent';
 
-function actionDelegate(chatController: ChatController): ActionDelegate<ChatSidebarActions> {
+function actionDelegate(): ActionDelegate<ChatSidebarActions> {
     return {
         loadChats: function (): ChatMessage[] {
             throw new Error('Function not implemented.');
@@ -18,8 +19,7 @@ function actionDelegate(chatController: ChatController): ActionDelegate<ChatSide
             filePath: string
         ): Promise<{ filePath: string; content?: string; error?: string }> {
             try {
-                const content = await chatController.getCssFileContent(filePath);
-                // Return the patch key and its parameters (excluding prevState)
+                const content = await getCssFileContent(filePath);
                 return { filePath, content };
             } catch (e) {
                 return { filePath, error: e instanceof Error ? e.message : String(e) };
@@ -39,7 +39,7 @@ export class ChatSidebarProvider extends BaseWebviewViewProvider<ChatSidebarActi
         private readonly chatController: ChatController
     ) {
         super(ChatSidebarKey, _extensionUri, apiProvider);
-        this.webviewActionDelegate = actionDelegate(chatController);
+        this.webviewActionDelegate = actionDelegate();
     }
 
     generateWebviewHtml(
