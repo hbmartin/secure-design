@@ -6,9 +6,30 @@ import { isViewApiRequest, type ViewApiError, type ViewApiResponse } from '../ap
 import type { ChatController } from '../controllers/ChatController';
 import { BaseWebviewViewProvider } from './BaseWebviewViewProvider';
 import { type ChatSidebarActions, ChatSidebarKey } from '../types/chatSidebarTypes';
-import type { FnKeys, IpcProviderCallFor, IpcProviderResultFor } from '../types/ipcReducer';
+import type { ActionDelegate } from '../types/ipcReducer';
+import type { ChatMessage } from '../types';
+
+function actionDelegate(chatController: ChatController): ActionDelegate<ChatSidebarActions> {
+    return {
+        loadChats: function (): ChatMessage[] {
+            throw new Error('Function not implemented.');
+        },
+        getCssFileContent: async function (
+            filePath: string
+        ): Promise<{ filePath: string; content?: string; error?: string }> {
+            try {
+                const content = await chatController.getCssFileContent(filePath);
+                // Return the patch key and its parameters (excluding prevState)
+                return { filePath, content };
+            } catch (e) {
+                return { filePath, error: e instanceof Error ? e.message : String(e) };
+            }
+        },
+    };
+}
 
 export class ChatSidebarProvider extends BaseWebviewViewProvider<ChatSidebarActions> {
+    protected webviewActionDelegate: ActionDelegate<ChatSidebarActions>;
     static readonly providerId: string = ChatSidebarKey;
     private customMessageHandler?: (message: any) => void;
 
@@ -18,6 +39,7 @@ export class ChatSidebarProvider extends BaseWebviewViewProvider<ChatSidebarActi
         private readonly chatController: ChatController
     ) {
         super(ChatSidebarKey, _extensionUri, apiProvider);
+        this.webviewActionDelegate = actionDelegate(chatController);
     }
 
     generateWebviewHtml(
@@ -146,7 +168,8 @@ export class ChatSidebarProvider extends BaseWebviewViewProvider<ChatSidebarActi
             }
         } catch (error) {
             this.logger.error(
-                `API call failed for ${message.key} ${contextInfo}: ${String(error)}`
+                `API call failed for ${message.key} ${contextInfo}: ${String(error)}`,
+                { error }
             );
 
             // Send typed error
@@ -162,26 +185,6 @@ export class ChatSidebarProvider extends BaseWebviewViewProvider<ChatSidebarActi
                 this.logger.error(
                     `Failed to send error response for ${message.key}: ${String(postError)}`
                 );
-            }
-        }
-    }
-
-    protected async handleAction<K extends FnKeys<ChatSidebarActions>>(
-        call: IpcProviderCallFor<ChatSidebarActions, K>
-    ): Promise<IpcProviderResultFor<ChatSidebarActions, K>> {
-        switch (call.key) {
-            case 'dummyAction': {
-                throw new Error('Not implemented yet: "dummyAction" case');
-            }
-            case 'getCssFileContent': {
-                const [filePath] = call.params;
-                try {
-                    const content = await this.chatController.getCssFileContent(filePath);
-                    // Return the patch key and its parameters (excluding prevState)
-                    return { filePath, content };
-                } catch (e) {
-                    return { filePath, error: e instanceof Error ? e.message : String(e) };
-                }
             }
         }
     }

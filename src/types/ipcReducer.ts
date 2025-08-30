@@ -6,7 +6,7 @@ export const PATCH = 'patch';
 export const ACT = 'act';
 
 export type FnKeys<T> = {
-    [K in keyof T]: T[K] extends (...args: unknown[]) => any ? K : never;
+    [K in keyof T]: T[K] extends (...args: any[]) => any ? K : never;
 }[keyof T];
 
 export function isFnKey<T extends object>(
@@ -18,31 +18,29 @@ export function isFnKey<T extends object>(
         typeof obj[prop as keyof T] === 'function'
     );
 }
-export interface Action<T extends Actions, K extends FnKeys<T> = FnKeys<T>> {
+export interface Action<T, K extends FnKeys<T> = FnKeys<T>> {
     readonly type: typeof ACT;
     readonly providerId: WebviewKey;
     readonly key: K;
     readonly params: T[K] extends (...a: infer A) => any ? Readonly<A> : never;
 }
 
-export interface Patch<A extends Actions, K extends FnKeys<A> = FnKeys<A>> {
+export interface Patch<A, K extends FnKeys<A> = FnKeys<A>> {
     readonly type: typeof PATCH;
     readonly providerId: WebviewKey;
     readonly key: K;
     readonly patch: Patches<A>[K];
 }
-export interface Actions {
-    [key: string]: (...args: any[]) => any;
-}
 
-type Patches<A extends Actions> = {
-    [K in FnKeys<A>]: ReturnType<A[K]>;
+type Patches<A> = {
+    [K in FnKeys<A>]: A[K] extends (...args: any) => infer R
+        ? R extends Promise<infer U>
+            ? U
+            : R
+        : never;
 };
 
-export function isMyActionMessage<T extends Actions>(
-    msg: any,
-    providerId: string
-): msg is Action<T> {
+export function isMyActionMessage<T>(msg: any, providerId: string): msg is Action<T> {
     return (
         msg !== undefined &&
         typeof msg === 'object' &&
@@ -54,24 +52,10 @@ export function isMyActionMessage<T extends Actions>(
     );
 }
 
-export type StateReducer<S, A extends Actions, K extends FnKeys<A> = FnKeys<A>> = {
-    [Key in K]: (prevState: S, patch: Patches<A>[Key]) => S;
+export type StateReducer<S, A> = {
+    [Key in FnKeys<A>]: (prevState: S, patch: Patches<A>[Key]) => S;
 };
 
-export type IpcProviderCall<T extends Actions> = {
-    [P in FnKeys<T>]: {
-        readonly key: P;
-        readonly params: T[P] extends (...a: infer A) => any ? Readonly<A> : never;
-    };
-}[FnKeys<T>];
-
-export type IpcProviderResult<A extends Actions> = {
-    [K in FnKeys<A>]: Patches<A>[K];
-}[FnKeys<A>];
-
-export interface IpcProviderCallFor<A extends Actions, K extends FnKeys<A>> {
-    readonly key: K;
-    readonly params: Readonly<Parameters<A[K]>>;
-}
-
-export type IpcProviderResultFor<A extends Actions, K extends FnKeys<A>> = Patches<A>[K];
+export type ActionDelegate<A> = {
+    [K in FnKeys<A>]: A[K] extends (...args: infer P) => infer R ? (...args: P) => R : never;
+};
