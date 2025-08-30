@@ -7,13 +7,12 @@ import {
     type Action,
     type WebviewKey,
     type StateReducer,
-    type Actions,
     isFnKey,
 } from '../../types/ipcReducer';
 
-type PostAction<S extends Actions> = Pick<Action<S>, 'key' | 'params'>;
+type PostAction<A> = Pick<Action<A>, 'key' | 'params'>;
 
-function isMyPatchMessage<A extends Actions>(msg: any, id: WebviewKey): msg is Patch<A> {
+function isMyPatchMessage<A>(msg: any, id: WebviewKey): msg is Patch<A> {
     return (
         msg !== undefined &&
         typeof msg === 'object' &&
@@ -28,7 +27,7 @@ function isMyPatchMessage<A extends Actions>(msg: any, id: WebviewKey): msg is P
 
 const dangerousKeys = new Set(['__proto__', 'constructor', 'prototype']);
 
-export function useVscodeState<S, A extends Actions>(
+export function useVscodeState<S, A extends object>(
     providerId: WebviewKey,
     postReducer: StateReducer<S, A>,
     initialState: S | (() => S)
@@ -84,7 +83,7 @@ export function useVscodeState<S, A extends Actions>(
 
     const actor = new Proxy({} as A, {
         get(_, prop) {
-            if (typeof prop !== 'string' && typeof prop !== 'symbol' && typeof prop !== 'number') {
+            if (typeof prop !== 'string' && typeof prop !== 'symbol') {
                 throw new Error(`Invalid action type: ${String(prop)}`);
             }
             if (typeof prop === 'string' && dangerousKeys.has(prop)) {

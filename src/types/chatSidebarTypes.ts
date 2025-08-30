@@ -1,4 +1,5 @@
-import type { Actions, WebviewKey } from './ipcReducer';
+import type { ChatMessage } from './chatMessage';
+import type { WebviewKey } from './ipcReducer';
 
 export const ChatSidebarKey = 'securedesign.chatView' as WebviewKey;
 
@@ -10,9 +11,12 @@ export interface CssContent {
 
 export interface ChatSidebarState {
     css: Record<string, CssContent>;
+    messages: ChatMessage[] | undefined;
 }
 
-export interface ChatSidebarActions extends Actions {
-    dummyAction(): void;
-    getCssFileContent(filePath: string): { filePath: string; content?: string; error?: string };
+export interface ChatSidebarActions {
+    loadChats(): ChatMessage[];
+    getCssFileContent(
+        filePath: string
+    ): Promise<{ filePath: string; content?: string; error?: string }>;
 }

@@ -7,17 +7,15 @@ import {
     isMyActionMessage,
     type WebviewKey,
     PATCH,
-    type Actions,
-    type IpcProviderCallFor,
-    type IpcProviderResultFor,
-    type FnKeys,
+    type ActionDelegate,
 } from '../types/ipcReducer';
 
-export abstract class BaseWebviewViewProvider<A extends Actions>
+export abstract class BaseWebviewViewProvider<A extends object>
     implements vscode.WebviewViewProvider
 {
     protected _view?: vscode.WebviewView;
     protected readonly logger;
+    protected abstract readonly webviewActionDelegate: ActionDelegate<A>;
     constructor(
         private readonly providerId: WebviewKey,
         private readonly _extensionUri: vscode.Uri,
@@ -30,7 +28,7 @@ export abstract class BaseWebviewViewProvider<A extends Actions>
         webviewView: vscode.WebviewView,
         _context: vscode.WebviewViewResolveContext,
         _token: vscode.CancellationToken
-    ) {
+    ): Thenable<void> | void {
         this.logger.debug('Resolving webview view');
         this._view = webviewView;
 
@@ -60,19 +58,19 @@ export abstract class BaseWebviewViewProvider<A extends Actions>
         const messageListener = webviewView.webview.onDidReceiveMessage(async message => {
             if (isMyActionMessage<A>(message, this.providerId)) {
                 this.logger.debug('Received action message from webview', message);
-                // Cast args to the correct parameter type for this specific method
-                const params = message.params as Readonly<Parameters<A[typeof message.key]>>;
 
-                const patchParams = await this.handleAction({
-                    key: message.key,
-                    params: params,
-                });
+                const delegateFn = this.webviewActionDelegate[message.key];
+                if (typeof delegateFn !== 'function') {
+                    throw new Error(`Unknown action key: ${String(message.key)}`);
+                }
+
+                const patch = await delegateFn(...message.params);
 
                 this._view?.webview.postMessage({
                     type: PATCH,
                     providerId: this.providerId,
                     key: message.key,
-                    patch: patchParams,
+                    patch,
                 });
                 return;
             }
@@ -102,8 +100,4 @@ export abstract class BaseWebviewViewProvider<A extends Actions>
         message: ViewApiRequest,
         webview: vscode.Webview
     ): Promise<void>;
-
-    protected abstract handleAction<K extends FnKeys<A>>(
-        call: IpcProviderCallFor<A, K>
-    ): Promise<IpcProviderResultFor<A, K>>;
 }

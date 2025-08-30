@@ -27,10 +27,6 @@ interface ChatInterfaceProps {
 }
 
 const postReducer: StateReducer<ChatSidebarState, ChatSidebarActions> = {
-    dummyAction: function (prevState: ChatSidebarState, patch: object): ChatSidebarState {
-        // eslint-disable-next-line @typescript-eslint/no-base-to-string
-        throw new Error(`Function not implemented. ${prevState} ${patch}`);
-    },
     getCssFileContent: function (
         prevState: ChatSidebarState,
         patch: { filePath: string; content?: string; error?: string }
@@ -47,6 +43,10 @@ const postReducer: StateReducer<ChatSidebarState, ChatSidebarActions> = {
             },
         };
     },
+    loadChats: function (prevState: ChatSidebarState, patch: ChatMessage[]): ChatSidebarState {
+        console.log(`loadChats: ${JSON.stringify(patch)}`);
+        return prevState;
+    },
 };
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
@@ -58,6 +58,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         postReducer,
         {
             css: {},
+            messages: undefined,
         } satisfies ChatSidebarState
     );
 
@@ -1680,7 +1681,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                 </button>
                                 <button
                                     className='clear-history-btn'
-                                    onClick={() => void handleNewConversation()}
+                                    onClick={() => {
+                                        console.log('clearchathistory button clicked');
+                                        void handleNewConversation();
+                                    }}
                                     disabled={
                                         isLoading || showWelcome || !hasConversationMessages()
                                     }
