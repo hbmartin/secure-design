@@ -2,6 +2,7 @@ const esbuild = require('esbuild');
 
 const production = process.argv.includes('--production');
 const watch = process.argv.includes('--watch');
+const debug = process.argv.includes('--debug');
 
 /**
  * @type {import('esbuild').Plugin}
@@ -29,8 +30,8 @@ async function main() {
         bundle: true,
         format: 'cjs',
         minify: production,
-        sourcemap: !production,
-        sourcesContent: false,
+        sourcemap: debug ? 'inline' : !production,
+        sourcesContent: debug ? true : false,
         platform: 'node',
         outfile: 'dist/extension.js',
         external: ['vscode'],
@@ -46,9 +47,9 @@ async function main() {
         entryPoints: ['src/webview/index.tsx'],
         bundle: true,
         format: 'esm',
-        minify: production,
-        sourcemap: !production,
-        sourcesContent: false,
+        minify: production && !debug,
+        sourcemap: debug ? 'inline' : !production,
+        sourcesContent: debug ? true : false,
         platform: 'browser',
         outfile: 'dist/webview.js',
         logLevel: 'silent',
@@ -63,6 +64,7 @@ async function main() {
             'process.env.NODE_ENV': production ? '"production"' : '"development"',
         },
         jsx: 'automatic', // This enables JSX support
+        keepNames: debug, // Preserve function names for better stack traces
     });
 
     if (watch) {

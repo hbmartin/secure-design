@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef } from 'react';
 import {
     isViewApiResponse,
     isViewApiError,
@@ -71,7 +71,7 @@ interface WebviewContextValue {
     addListener: <E extends keyof ViewEvents>(key: E, callback: ViewEvents[E]) => void;
     removeListener: <E extends keyof ViewEvents>(key: E, callback: ViewEvents[E]) => void;
     isReady: boolean;
-    vscode: VsCodeApi | undefined;
+    vscode: VsCodeApi;
 }
 
 export const WebviewContext = createContext<WebviewContextValue | null>(null);
@@ -91,12 +91,12 @@ interface WebviewProviderProps {
     children: React.ReactNode;
 }
 
+const vscodeApi = acquireVsCodeApi();
+
 /**
  * WebviewProvider provides type-safe API access to webview components
  */
 export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) => {
-    const [isReady, setIsReady] = useState(false);
-    const vscodeApi = useRef<VsCodeApi | undefined>(undefined);
     const pendingRequests = useRef<Map<string, DeferredPromise<any>>>(new Map());
     const listeners = useRef<Map<keyof ViewEvents, Set<(...args: any[]) => void>>>(new Map());
 
@@ -108,16 +108,6 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
         sessionId: `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     });
 
-    // Initialize VSCode API
-    useEffect(() => {
-        if (typeof acquireVsCodeApi === 'function') {
-            vscodeApi.current = acquireVsCodeApi();
-            setIsReady(true);
-        } else {
-            throw new Error('[WebviewContext] acquireVsCodeApi function not available');
-        }
-    }, []);
-
     /**
      * Type-safe API caller with request/response matching
      */
@@ -125,7 +115,7 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
         key: K,
         ...params: Parameters<ViewAPI[K]>
     ): ReturnType<ViewAPI[K]> => {
-        if (!vscodeApi.current) {
+        if (!vscodeApi) {
             console.error('VSCode API not available for call to', key);
             return Promise.reject(new Error('VSCode API not available')) as ReturnType<ViewAPI[K]>;
         }
@@ -148,9 +138,7 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
             switch (operation) {
                 case 'sendChatMessage':
                     return 0; // No timeout for chat messages - handled through events
-                case 'loadChatHistory':
                 case 'saveChatHistory':
-                case 'clearChatHistory':
                     return 0; // No timeout for chat-related operations
                 case 'openCanvas':
                 case 'checkCanvasStatus':
@@ -159,8 +147,6 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
                 case 'selectFolder':
                 case 'selectImages':
                     return 60000; // 60 seconds for user interaction
-                case 'changeProvider':
-                    return 30000; // 30 seconds for configuration changes (increased from 15s)
                 default:
                     return 30000; // 30 seconds default
             }
@@ -180,12 +166,14 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
 
         // Send the request
         try {
-            console.log(`[WebviewContext] Sending API request: ${key}`, {
-                params,
-                id,
-                context: contextRef.current,
-            });
-            vscodeApi.current.postMessage(request);
+            if (key !== 'log') {
+                console.log(`[WebviewContext] Sending API request: ${key}`, {
+                    params,
+                    id,
+                    context: contextRef.current,
+                });
+            }
+            vscodeApi.postMessage(request);
         } catch (error) {
             console.error(`Failed to send API request ${key}:`, error);
             deferred.clearTimeout();
@@ -202,9 +190,6 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
     const api = new Proxy({} as WebviewContextValue['api'], {
         get: (_, key: string) => {
             return (...args: any[]) => {
-                console.log(`[WebviewContext] API method called: ${key}`, {
-                    argsCount: args.length,
-                });
                 // Type assertion is safe here because the proxy ensures correct typing at usage
                 return callApi(
                     key as keyof ViewAPI,
@@ -315,8 +300,8 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
         api,
         addListener,
         removeListener,
-        isReady,
-        vscode: vscodeApi.current,
+        isReady: true,
+        vscode: vscodeApi,
     };
 
     return <WebviewContext.Provider value={contextValue}>{children}</WebviewContext.Provider>;

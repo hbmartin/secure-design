@@ -10,7 +10,7 @@ import { ProviderService } from './providers/ProviderService';
 import { WebviewMessageGuard } from './services/webviewMessageGuard';
 import { registerProviderCommands } from './providerConfiguration';
 import { SuperdesignCanvasPanel } from './SuperdesignCanvasPanel';
-import type { ChatController } from './controllers/ChatController';
+import type ChatMessagesRepository from './chat/ChatMessagesRepository';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -1324,8 +1324,11 @@ export function activate(context: vscode.ExtensionContext): void {
     const clearChatDisposable = vscode.commands.registerCommand(
         'securedesign.clearChatHistory',
         async () => {
+            Logger.info('clearChatDisposable called');
             try {
-                await serviceContainer.get<ChatController>('chatController').clearChatHistory();
+                await serviceContainer
+                    .get<ChatMessagesRepository>('chatMessagesRepository')
+                    .clearChatHistory();
                 Logger.info('[Extension] Chat history cleared via command');
             } catch (error) {
                 Logger.error('[Extension] Failed to clear chat history:', {

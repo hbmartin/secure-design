@@ -1,10 +1,8 @@
 import * as vscode from 'vscode';
-import type { ChatMessage } from '../types';
 
 export class WorkspaceStateService {
     private static instance: WorkspaceStateService;
     private context?: vscode.ExtensionContext;
-    private static readonly CHAT_HISTORY_KEY_PREFIX = 'securedesign.chatHistory';
 
     private constructor() {}
 
@@ -19,48 +17,16 @@ export class WorkspaceStateService {
         this.context = context;
     }
 
-    /**
-     * Save chat history for the current workspace
-     */
-    public async saveChatHistory(chatHistory: ChatMessage[]): Promise<void> {
+    public get<T>(key: string): T | undefined {
         const context = this.ensureContext();
-        const key = this.getNamespacedKey(WorkspaceStateService.CHAT_HISTORY_KEY_PREFIX);
-        await context.workspaceState.update(key, chatHistory);
-
-        // Also store the current workspace ID for validation
-        const workspaceId = this.getWorkspaceId();
-        if (workspaceId) {
-            await context.workspaceState.update(`${key}::workspaceId`, workspaceId);
-        }
+        const workspaceKey = this.getNamespacedKey(key);
+        return context.workspaceState.get(workspaceKey);
     }
 
-    /**
-     * Load chat history for the current workspace
-     */
-    public getChatHistory(): ChatMessage[] {
+    public update(key: string, value: any): Thenable<void> {
         const context = this.ensureContext();
-        const key = this.getNamespacedKey(WorkspaceStateService.CHAT_HISTORY_KEY_PREFIX);
-
-        // Validate that the stored workspace ID matches current workspace
-        const storedWorkspaceId = context.workspaceState.get<string>(`${key}::workspaceId`);
-        const currentWorkspaceId = this.getWorkspaceId();
-
-        if (storedWorkspaceId && currentWorkspaceId && storedWorkspaceId !== currentWorkspaceId) {
-            // Workspace has changed, return empty history
-            throw new Error('Workspace ID mismatch, returning empty chat history');
-        }
-
-        return context.workspaceState.get(key, []);
-    }
-
-    /**
-     * Clear chat history for the current workspace
-     */
-    public async clearChatHistory(): Promise<void> {
-        const context = this.ensureContext();
-        const key = this.getNamespacedKey(WorkspaceStateService.CHAT_HISTORY_KEY_PREFIX);
-        await context.workspaceState.update(key, undefined);
-        await context.workspaceState.update(`${key}::workspaceId`, undefined);
+        const workspaceKey = this.getNamespacedKey(key);
+        return context.workspaceState.update(workspaceKey, value);
     }
 
     /**

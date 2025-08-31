@@ -87,6 +87,7 @@ export abstract class BaseWebviewViewProvider<A extends object>
         // Dispose of the message listener when webview is disposed
         webviewView.onDidDispose(() => {
             messageListener.dispose();
+            this.onWebviewDispose();
         });
     }
 
@@ -100,4 +101,13 @@ export abstract class BaseWebviewViewProvider<A extends object>
         message: ViewApiRequest,
         webview: vscode.Webview
     ): Promise<void>;
+
+    /**
+     * Called when the webview is disposed
+     * Override this method to clean up resources
+     */
+    protected onWebviewDispose(): void {
+        // Default implementation does nothing
+        // Subclasses can override to clean up resources
+    }
 }

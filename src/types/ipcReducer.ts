@@ -18,7 +18,7 @@ export function isFnKey<T extends object>(
         typeof obj[prop as keyof T] === 'function'
     );
 }
-export interface Action<T, K extends FnKeys<T> = FnKeys<T>> {
+export interface Action<T extends object, K extends FnKeys<T> = FnKeys<T>> {
     readonly type: typeof ACT;
     readonly providerId: WebviewKey;
     readonly key: K;
@@ -40,12 +40,17 @@ type Patches<A> = {
         : never;
 };
 
-export function isMyActionMessage<T>(msg: any, providerId: WebviewKey): msg is Action<T> {
+export function isMyActionMessage<T extends object>(
+    msg: any,
+    providerId: WebviewKey
+): msg is Action<T> {
     return (
         msg !== undefined &&
         typeof msg === 'object' &&
         'providerId' in msg &&
         'type' in msg &&
+        'key' in msg &&
+        'params' in msg &&
         msg.type === ACT &&
         typeof msg.providerId === 'string' &&
         msg.providerId === providerId

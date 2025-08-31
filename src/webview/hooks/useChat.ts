@@ -3,7 +3,6 @@ import { useWebviewApi } from '../contexts/WebviewContext';
 import type { ChatMessage } from '../../types/chatMessage';
 import type { ToolResultPart } from 'ai';
 import type { ChatChunkMetadata } from '../../api/viewApi';
-import { useLogger } from './useLogger';
 
 /**
  * Type-safe chat hook using the new API contract
@@ -12,58 +11,29 @@ import { useLogger } from './useLogger';
 export interface ChatHookResult {
     messages: ChatMessage[];
     isLoading: boolean;
-    isSaving: boolean;
     isReady: boolean;
     sendMessage: (message: string) => Promise<void>;
-    handleClearChatRequested: () => void;
 }
 
-export function useChat(): ChatHookResult {
+export function useChat(initialMessages?: ChatMessage[]): ChatHookResult {
     const { api, addListener, removeListener, isReady } = useWebviewApi();
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [messages, setMessages] = useState<ChatMessage[]>(initialMessages ?? []);
     const [isLoading, setIsLoading] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-    const logger = useLogger('useChat');
 
     /**
-     * Load initial chat history when webview becomes ready
+     * Update messages when initialMessages prop changes
      */
     useEffect(() => {
-        if (!isReady) return;
-
-        const loadHistory = async () => {
-            try {
-                const history = await api.loadChatHistory();
-                setMessages(history);
-            } catch (error) {
-                console.error('Failed to load chat history:', error);
-            }
-        };
-
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        loadHistory();
-    }, [api, isReady]);
+        console.log('[useChat] loading initial messages', initialMessages);
+        if (initialMessages) {
+            setMessages(initialMessages);
+        }
+    }, [initialMessages]);
 
     /**
-     * Auto-save messages with debounce when they change
+     * Chat history is now saved by ChatController when sending messages
+     * Auto-save is handled at the controller level
      */
-    useEffect(() => {
-        if (!isReady || messages.length === 0) return;
-
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
-        const saveTimer = setTimeout(async () => {
-            setIsSaving(true);
-            try {
-                await api.saveChatHistory(messages);
-            } catch (error) {
-                console.error('Failed to save chat history:', error);
-            } finally {
-                setIsSaving(false);
-            }
-        }, 500);
-
-        return () => clearTimeout(saveTimer);
-    }, [api, messages, isReady]);
 
     /**
      * Set up event listeners for chat updates
@@ -293,19 +263,9 @@ export function useChat(): ChatHookResult {
         };
 
         const handleWorkspaceChanged = () => {
-            void (async () => {
-                try {
-                    const history = await api.loadChatHistory();
-                    setMessages(history);
-                } catch (error) {
-                    console.error('Failed to reload chat history after workspace change:', error);
-                    setMessages([]);
-                }
-            })();
-        };
-
-        const handleHistoryLoaded = (history: ChatMessage[]) => {
-            setMessages(history);
+            // Chat history will be updated via repository subscription
+            // Just clear the current messages for now
+            setMessages([]);
         };
 
         const handleMigrationComplete = (history: ChatMessage[]) => {
@@ -321,7 +281,6 @@ export function useChat(): ChatHookResult {
         addListener('chatError', handleChatError);
         addListener('chatStopped', handleChatStopped);
         addListener('workspaceChanged', handleWorkspaceChanged);
-        addListener('historyLoaded', handleHistoryLoaded);
         addListener('migrationComplete', handleMigrationComplete);
 
         // Cleanup function
@@ -334,16 +293,10 @@ export function useChat(): ChatHookResult {
             removeListener('chatError', handleChatError);
             removeListener('chatStopped', handleChatStopped);
             removeListener('workspaceChanged', handleWorkspaceChanged);
-            removeListener('historyLoaded', handleHistoryLoaded);
             removeListener('migrationComplete', handleMigrationComplete);
         };
     }, [api, addListener, removeListener, isReady]);
 
-    const handleClearChatRequested = useCallback(() => {
-        logger.info('🗑️ Clear chat requested - clearing local state');
-        setMessages([]);
-        setIsLoading(false);
-    }, []);
     /**
      * Send a chat message
      */
@@ -390,9 +343,7 @@ export function useChat(): ChatHookResult {
     return {
         messages,
         isLoading,
-        isSaving,
         isReady,
         sendMessage,
-        handleClearChatRequested,
     };
 }

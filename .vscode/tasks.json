@@ -6,7 +6,7 @@
 		{
             "label": "compile-fresh",
             "type": "npm",
-            "script": "compile",
+            "script": "compile:debug",
             "group": {
                 "kind": "build",
                 "isDefault": false

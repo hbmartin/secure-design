@@ -4,16 +4,24 @@ import type { WebviewContext } from '../types/context';
 import type { WebviewApiProvider } from './WebviewApiProvider';
 import { isViewApiRequest, type ViewApiError, type ViewApiResponse } from '../api/viewApi';
 import type { ChatController } from '../chat/ChatController';
+import type ChatMessagesRepository from '../chat/ChatMessagesRepository';
 import { BaseWebviewViewProvider } from './BaseWebviewViewProvider';
 import { type ChatSidebarActions, ChatSidebarKey } from '../types/chatSidebarTypes';
-import type { ActionDelegate } from '../types/ipcReducer';
+import { type ActionDelegate, PATCH } from '../types/ipcReducer';
 import type { ChatMessage } from '../types';
 import getCssFileContent from '../chat/getCssFileContent';
+import type { ProviderId } from './types';
+import { getModel, setModel } from './VsCodeConfiguration';
 
-function actionDelegate(): ActionDelegate<ChatSidebarActions> {
+function createActionDelegate(
+    chatMessagesRepository: ChatMessagesRepository
+): ActionDelegate<ChatSidebarActions> {
     return {
         loadChats: function (): ChatMessage[] {
-            throw new Error('Function not implemented.');
+            return chatMessagesRepository.getChatHistory() ?? [];
+        },
+        clearChats: async function (): Promise<void> {
+            await chatMessagesRepository.clearChatHistory();
         },
         getCssFileContent: async function (
             filePath: string
@@ -25,21 +33,43 @@ function actionDelegate(): ActionDelegate<ChatSidebarActions> {
                 return { filePath, error: e instanceof Error ? e.message : String(e) };
             }
         },
+        getCurrentProvider: function (): [ProviderId, string] {
+            const currentModel = getModel();
+            return [currentModel.provider.id, currentModel.model.id];
+        },
+        setProvider: function (providerId: ProviderId, modelId: string): [ProviderId, string] {
+            setModel(providerId, modelId);
+            return [providerId, modelId];
+        },
     };
 }
 
 export class ChatSidebarProvider extends BaseWebviewViewProvider<ChatSidebarActions> {
-    protected webviewActionDelegate: ActionDelegate<ChatSidebarActions>;
     static readonly providerId: string = ChatSidebarKey;
+    protected readonly webviewActionDelegate: ActionDelegate<ChatSidebarActions>;
     private customMessageHandler?: (message: any) => void;
+    private repositoryUnsubscribe?: () => void;
 
     constructor(
         _extensionUri: vscode.Uri,
         apiProvider: WebviewApiProvider,
-        private readonly chatController: ChatController
+        private readonly chatController: ChatController,
+        private readonly chatMessagesRepository: ChatMessagesRepository
     ) {
         super(ChatSidebarKey, _extensionUri, apiProvider);
-        this.webviewActionDelegate = actionDelegate();
+        this.webviewActionDelegate = createActionDelegate(chatMessagesRepository);
+
+        // Subscribe to repository changes and send patches to webview
+        this.repositoryUnsubscribe = this.chatMessagesRepository.subscribe(messages => {
+            if (this._view) {
+                this._view.webview.postMessage({
+                    type: PATCH,
+                    providerId: ChatSidebarKey,
+                    key: 'loadChats',
+                    patch: messages ?? [],
+                });
+            }
+        });
     }
 
     generateWebviewHtml(
@@ -114,10 +144,6 @@ export class ChatSidebarProvider extends BaseWebviewViewProvider<ChatSidebarActi
                 (this.chatController[message.key] as any)(...message.params)
             );
 
-            if (message.key === 'clearChatHistory') {
-                this.logger.info('Posting clearChatRequested', { webview });
-                webview.postMessage({ type: 'event', key: 'clearChatRequested' });
-            }
             if (message.key === 'saveImageToMoodboard') {
                 const imageData = message.params[0];
                 if (
@@ -343,5 +369,17 @@ export class ChatSidebarProvider extends BaseWebviewViewProvider<ChatSidebarActi
             },
         });
         vscode.window.showInformationMessage('Canvas content added as context');
+    }
+
+    /**
+     * Called when the webview is disposed
+     * Clean up subscriptions
+     */
+    protected onWebviewDispose(): void {
+        // Unsubscribe from repository
+        if (this.repositoryUnsubscribe) {
+            this.repositoryUnsubscribe();
+            this.repositoryUnsubscribe = undefined;
+        }
     }
 }

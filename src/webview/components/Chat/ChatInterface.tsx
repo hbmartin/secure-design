@@ -12,7 +12,7 @@ import ModelSelector from './ModelSelector';
 import chatStyles from './ChatInterface.css';
 
 import welcomeStyles from '../Welcome/Welcome.css';
-import { ProviderService } from '../../../providers';
+import { type ProviderId, ProviderService } from '../../../providers';
 import { useLogger } from '../../hooks/useLogger';
 import { useVscodeState } from '../../hooks/useVscodeState';
 import {
@@ -44,13 +44,39 @@ const postReducer: StateReducer<ChatSidebarState, ChatSidebarActions> = {
         };
     },
     loadChats: function (prevState: ChatSidebarState, patch: ChatMessage[]): ChatSidebarState {
-        console.log(`loadChats: ${JSON.stringify(patch)}`);
-        return prevState;
+        console.log('[ChatInterface] postReducer: loadChats', patch);
+        return {
+            ...prevState,
+            messages: patch.length > 0 ? patch : undefined,
+        };
+    },
+    clearChats: function (prevState: ChatSidebarState, _patch: void): ChatSidebarState {
+        return {
+            ...prevState,
+            messages: undefined,
+        };
+    },
+    getCurrentProvider: function (
+        prevState: ChatSidebarState,
+        patch: [ProviderId, string]
+    ): ChatSidebarState {
+        return {
+            ...prevState,
+            provider: [patch[0], patch[1]],
+        };
+    },
+    setProvider: function (
+        prevState: ChatSidebarState,
+        patch: [ProviderId, string]
+    ): ChatSidebarState {
+        return {
+            ...prevState,
+            provider: [patch[0], patch[1]],
+        };
     },
 };
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
-    const { messages: chatHistory, isLoading, sendMessage, handleClearChatRequested } = useChat();
     const { api } = useWebviewApi();
     const logger = useLogger('ChatInterface');
     const [state, actor] = useVscodeState<ChatSidebarState, ChatSidebarActions>(
@@ -59,8 +85,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         {
             css: {},
             messages: undefined,
+            provider: undefined,
         } satisfies ChatSidebarState
     );
+    const { messages: chatHistory, isLoading, sendMessage } = useChat(state.messages);
 
     const {
         isFirstTime,
@@ -69,7 +97,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         resetFirstTimeUser,
     } = useFirstTimeUser();
     const [inputMessage, setInputMessage] = useState('');
-    const [selectedModel, setSelectedModel] = useState<string>('claude-3-5-sonnet-20241022');
     const [expandedTools, setExpandedTools] = useState<Record<string, boolean>>({});
     const [currentContext, setCurrentContext] = useState<{ fileName: string; type: string } | null>(
         null
@@ -100,26 +127,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         );
     }, [chatHistory]);
 
-    useEffect(() => {
-        logger.info('Requesting current provider on mount');
-        void (async () => {
-            const provider = await api.getCurrentProvider();
-            logger.debug('Current provider:', provider);
-            setSelectedModel(provider.model);
-        })();
-    }, [api, logger]);
-
-    const handleModelChange = async (providerId: string, model: string) => {
-        logger.debug('Model change requested:', { providerId, model });
-        try {
-            await api.changeProvider(providerId, model);
-            setSelectedModel(model);
-            logger.debug(`Model changed successfully to: ${model}`);
-        } catch (error) {
-            console.error('Failed to change provider:', error);
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-            api.showErrorMessage(`Failed to change AI provider: ${errorMessage}`);
-        }
+    const handleModelChange = (providerId: ProviderId, modelId: string) => {
+        actor.setProvider(providerId, modelId);
     };
 
     const handleNewConversation = useCallback(async () => {
@@ -136,16 +145,23 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
 
         markAsReturningUser();
 
-        // Clear both UI and workspace state via the consolidated API
+        // Clear both UI and workspace state via the IPC action
         try {
-            logger.debug('🗑️ Calling API clearChatHistory...');
-            await api.clearChatHistory();
-            logger.debug('🗑️ API clearChatHistory completed');
+            logger.debug('🗑️ Calling actor.clearChats...');
+            await actor.clearChats();
+            logger.debug('🗑️ actor.clearChats completed');
         } catch (error) {
             console.error('Failed to clear conversation:', error);
             api.showErrorMessage('Failed to clear chat history');
         }
-    }, [markAsReturningUser, api, logger]);
+    }, [markAsReturningUser, api, logger, actor]);
+
+    // Load initial chat history when component mounts
+    useEffect(() => {
+        actor.loadChats();
+        actor.getCurrentProvider();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
         // Inject ChatInterface CSS styles
@@ -235,12 +251,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 // Handle prompt from canvas floating buttons
                 logger.debug('📝 Received prompt from canvas:', message.data.prompt);
                 setInputMessage(message.data.prompt);
-            } else if (
-                message.command === 'clearChatRequested' ||
-                message.key === 'clearChatRequested'
-            ) {
-                logger.debug('📝 Received prompt from canvas:', { message });
-                handleClearChatRequested();
             }
         };
 
@@ -263,7 +273,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 document.head.removeChild(existingWelcomeStyle);
             }
         };
-    }, [api, handleNewConversation, resetFirstTimeUser, logger, handleClearChatRequested]);
+    }, [api, handleNewConversation, resetFirstTimeUser, logger]);
 
     // Handle first-time user welcome display
     useEffect(() => {
@@ -1059,7 +1069,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                     cssFilePath !== undefined &&
                     !(cssFilePath in state.css)
                 ) {
-                    actor.getCssFileContent(cssFilePath);
+                    void actor.getCssFileContent(cssFilePath);
                 }
 
                 let cssContent: string | undefined =
@@ -1628,12 +1638,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                             <div className='selectors-group'>
                                 <div className='selector-wrapper'>
                                     <ModelSelector
-                                        selectedModel={selectedModel}
+                                        selectedModel={
+                                            state.provider !== undefined
+                                                ? state.provider[1]
+                                                : undefined
+                                        }
                                         onModelChange={(providerId, model) => {
                                             void handleModelChange(providerId, model);
                                         }}
                                         disabled={isLoading || showWelcome}
-                                        models={ProviderService.getInstance().getAvailableModels()}
+                                        mcwp={ProviderService.getInstance().getAvailableModels()}
                                     />
                                 </div>
                             </div>

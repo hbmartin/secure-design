@@ -2,7 +2,8 @@ import type * as vscode from 'vscode';
 import { CustomAgentService } from '../services/customAgentService';
 import { WorkspaceStateService } from '../services/workspaceStateService';
 import { ProviderService } from '../providers/ProviderService';
-import { ChatController } from '../controllers/ChatController';
+import { ChatController } from '../chat/ChatController';
+import ChatMessagesRepository from '../chat/ChatMessagesRepository';
 import { WebviewApiProvider } from '../providers/WebviewApiProvider';
 import { ChatSidebarProvider } from '../providers/chatSidebarProvider';
 import { Logger } from '../services/logger';
@@ -31,6 +32,10 @@ export class ServiceContainer implements vscode.Disposable {
         this.services.set('providerService', providerService);
         this.services.set('customAgent', customAgent);
 
+        // Initialize repository
+        const chatMessagesRepository = new ChatMessagesRepository(workspaceStateService);
+        this.services.set('chatMessagesRepository', chatMessagesRepository);
+
         const apiProvider = new WebviewApiProvider();
         this.services.set('apiProvider', apiProvider);
 
@@ -39,7 +44,8 @@ export class ServiceContainer implements vscode.Disposable {
             customAgent,
             workspaceStateService,
             providerService,
-            apiProvider // apiProvider implements EventTrigger interface
+            apiProvider, // apiProvider implements EventTrigger interface
+            chatMessagesRepository
         );
         this.services.set('chatController', chatController);
 
@@ -47,7 +53,8 @@ export class ServiceContainer implements vscode.Disposable {
         const sidebarProvider = new ChatSidebarProvider(
             this.context.extensionUri,
             apiProvider,
-            chatController
+            chatController,
+            chatMessagesRepository
         );
         this.services.set('sidebarProvider', sidebarProvider);
 
