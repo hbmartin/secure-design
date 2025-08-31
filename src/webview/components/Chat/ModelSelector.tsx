@@ -6,14 +6,14 @@ interface ModelSelectorProps {
     selectedModel: string | undefined;
     onModelChange: (providerId: ProviderId, model: string) => void;
     disabled?: boolean;
-    mcwp: ModelConfigWithProvider[];
+    modelsWithProvider: ModelConfigWithProvider[];
 }
 
 const ModelSelector: React.FC<ModelSelectorProps> = ({
     selectedModel,
     onModelChange,
     disabled,
-    mcwp,
+    modelsWithProvider,
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -21,14 +21,14 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
     const triggerRef = useRef<HTMLButtonElement>(null);
     const modalRef = useRef<HTMLDivElement>(null);
 
-    const filteredModels = mcwp.filter(
+    const filteredModels = modelsWithProvider.filter(
         mp =>
             mp.model.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
             mp.provider.id.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const selectedModelName: string =
-        mcwp.find(mp => mp.model.id === selectedModel)?.model?.displayName ??
+        modelsWithProvider.find(mp => mp.model.id === selectedModel)?.model?.displayName ??
         selectedModel ??
         'Loading...';
 

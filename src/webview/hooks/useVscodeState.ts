@@ -14,6 +14,7 @@ type PostAction<A extends object> = Pick<Action<A>, 'key' | 'params'>;
 
 function isMyPatchMessage<A extends object>(msg: any, id: WebviewKey): msg is Patch<A> {
     return (
+        msg !== null &&
         msg !== undefined &&
         typeof msg === 'object' &&
         'providerId' in msg &&

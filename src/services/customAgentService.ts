@@ -101,18 +101,12 @@ export class CustomAgentService implements AgentService {
     }
 
     private getModel(): LanguageModelV2 {
-        Logger.debug('[CustomAgentService] Getting model configuration');
         const config = vscode.workspace.getConfiguration('securedesign');
         const modelToUse = getModel();
 
         if (modelToUse === undefined) {
-            Logger.debug('[CustomAgentService] No model configured, throwing error');
             throw new Error('No model configured');
         }
-        Logger.debug('[CustomAgentService] Model configured', {
-            modelId: modelToUse.id,
-            providerId: modelToUse.providerId,
-        });
 
         // Create provider configuration
         const providerConfig: VsCodeConfiguration = {
@@ -122,8 +116,8 @@ export class CustomAgentService implements AgentService {
 
         // Use provider service to create model instance
         return this.providerService.createModel(
-            modelToUse.id,
-            modelToUse.providerId,
+            modelToUse.model.id,
+            modelToUse.provider.id,
             providerConfig
         );
     }

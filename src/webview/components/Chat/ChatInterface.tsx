@@ -1647,7 +1647,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                             void handleModelChange(providerId, model);
                                         }}
                                         disabled={isLoading || showWelcome}
-                                        mcwp={ProviderService.getInstance().getAvailableModels()}
+                                        modelsWithProvider={ProviderService.getInstance().getAvailableModels()}
                                     />
                                 </div>
                             </div>

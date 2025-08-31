@@ -19,7 +19,7 @@ class ChatMessagesRepository extends BaseRepository<ChatMessage[] | undefined> {
             );
             super.setData(chatHistory);
         } catch (error) {
-            console.error('Failed to save chat history:', error);
+            this.logger.error('Failed to save chat history:', { error });
             throw error;
         }
     }

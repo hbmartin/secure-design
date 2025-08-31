@@ -23,7 +23,7 @@ export class WorkspaceStateService {
         return context.workspaceState.get(workspaceKey);
     }
 
-    public update(key: string, value: any): Thenable<void> {
+    public update<T>(key: string, value: T): Thenable<void> {
         const context = this.ensureContext();
         const workspaceKey = this.getNamespacedKey(key);
         return context.workspaceState.update(workspaceKey, value);

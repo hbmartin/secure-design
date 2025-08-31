@@ -8,6 +8,8 @@ import {
     type WebviewKey,
     PATCH,
     type ActionDelegate,
+    type FnKeys,
+    type Patches,
 } from '../types/ipcReducer';
 
 export abstract class BaseWebviewViewProvider<A extends object>
@@ -91,6 +93,24 @@ export abstract class BaseWebviewViewProvider<A extends object>
         });
     }
 
+    public postPatch<K extends FnKeys<A> = FnKeys<A>>(key: K, patch: Patches<A>[K]) {
+        this._view?.webview.postMessage({
+            type: PATCH,
+            providerId: this.providerId,
+            key,
+            patch,
+        });
+    }
+
+    /**
+     * Called when the webview is disposed
+     * Override this method to clean up resources
+     */
+    protected onWebviewDispose(): void {
+        // Default implementation does nothing
+        // Subclasses can override to clean up resources
+    }
+
     protected abstract generateWebviewHtml(
         webview: vscode.Webview,
         extensionUri: vscode.Uri,
@@ -101,13 +121,4 @@ export abstract class BaseWebviewViewProvider<A extends object>
         message: ViewApiRequest,
         webview: vscode.Webview
     ): Promise<void>;
-
-    /**
-     * Called when the webview is disposed
-     * Override this method to clean up resources
-     */
-    protected onWebviewDispose(): void {
-        // Default implementation does nothing
-        // Subclasses can override to clean up resources
-    }
 }

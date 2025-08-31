@@ -7,7 +7,7 @@ import type { ChatController } from '../chat/ChatController';
 import type ChatMessagesRepository from '../chat/ChatMessagesRepository';
 import { BaseWebviewViewProvider } from './BaseWebviewViewProvider';
 import { type ChatSidebarActions, ChatSidebarKey } from '../types/chatSidebarTypes';
-import { type ActionDelegate, PATCH } from '../types/ipcReducer';
+import { type ActionDelegate } from '../types/ipcReducer';
 import type { ChatMessage } from '../types';
 import getCssFileContent from '../chat/getCssFileContent';
 import type { ProviderId } from './types';
@@ -37,8 +37,11 @@ function createActionDelegate(
             const currentModel = getModel();
             return [currentModel.provider.id, currentModel.model.id];
         },
-        setProvider: function (providerId: ProviderId, modelId: string): [ProviderId, string] {
-            setModel(providerId, modelId);
+        setProvider: async function (
+            providerId: ProviderId,
+            modelId: string
+        ): Promise<[ProviderId, string]> {
+            await setModel(providerId, modelId);
             return [providerId, modelId];
         },
     };
@@ -61,14 +64,7 @@ export class ChatSidebarProvider extends BaseWebviewViewProvider<ChatSidebarActi
 
         // Subscribe to repository changes and send patches to webview
         this.repositoryUnsubscribe = this.chatMessagesRepository.subscribe(messages => {
-            if (this._view) {
-                this._view.webview.postMessage({
-                    type: PATCH,
-                    providerId: ChatSidebarKey,
-                    key: 'loadChats',
-                    patch: messages ?? [],
-                });
-            }
+            this.postPatch('loadChats', messages ?? []);
         });
     }
 

@@ -26,21 +26,19 @@ export function getModel(): ModelConfigWithProvider {
     const provider = getProvider();
     const config = vscode.workspace.getConfiguration(service.configPrefix);
     const stored = config.get<string>(MODEL_KEY);
-    console.log(`getModel: ${provider} : ${stored}`);
-    const mcwp =
+    const modelsWithProvider =
         stored !== undefined
             ? service.getModelForProvider(provider, stored)
             : service.getDefaultModelForProvider(getProvider());
-    if (mcwp === undefined) {
+    if (modelsWithProvider === undefined) {
         throw new Error(`No stored model and no default model set for ${provider}`);
     }
-    return mcwp;
+    return modelsWithProvider;
 }
 
-export function setModel(providerId: ProviderId, modelId: string) {
-    console.log(`setModel: ${providerId} : ${modelId}`);
+export async function setModel(providerId: ProviderId, modelId: string) {
     const service = ProviderService.getInstance();
     const config = vscode.workspace.getConfiguration(service.configPrefix);
-    config.update(PROVIDER_KEY, providerId, vscode.ConfigurationTarget.Global);
-    config.update(MODEL_KEY, modelId, vscode.ConfigurationTarget.Global);
+    await config.update(PROVIDER_KEY, providerId, vscode.ConfigurationTarget.Global);
+    await config.update(MODEL_KEY, modelId, vscode.ConfigurationTarget.Global);
 }

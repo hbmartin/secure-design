@@ -27,6 +27,9 @@ export class ProviderRegistry implements IProviderRegistry {
     register(provider: AIProvider): ProviderId {
         const metadata = (provider.constructor as typeof AIProvider).metadata;
         const providerId = metadata.id;
+        if (this.providers.has(providerId)) {
+            throw new Error(`Provider '${providerId}' already registered`);
+        }
         this.providers.set(providerId, provider);
         return providerId;
     }

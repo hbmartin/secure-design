@@ -35,6 +35,9 @@ class BaseRepository<Data> {
      * @param newData The new data to set
      */
     protected setData(newData: Data): void {
+        if (this.data === newData) {
+            return; // No change, skip notification
+        }
         this.data = newData;
         this.notifyListeners();
     }
@@ -44,7 +47,11 @@ class BaseRepository<Data> {
      */
     private notifyListeners(): void {
         this.listeners.forEach(listener => {
-            listener(this.data);
+            try {
+                listener(this.data);
+            } catch (error) {
+                console.error(`Failed to notify listener: ${listener.name}`, { error });
+            }
         });
     }
 }

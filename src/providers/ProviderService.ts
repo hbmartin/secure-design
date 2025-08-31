@@ -180,8 +180,9 @@ export abstract class BaseProviderService {
         return {
             providerCount: this.registry.getProviderCount(),
             modelCount: allModels.length,
-            visionCapableModels: allModels.filter(mcwp => mcwp.model.supportsVision === true)
-                .length,
+            visionCapableModels: allModels.filter(
+                modelsWithProvider => modelsWithProvider.model.supportsVision === true
+            ).length,
         };
     }
 
