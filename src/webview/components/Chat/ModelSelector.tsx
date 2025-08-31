@@ -3,17 +3,17 @@ import { BrainIcon } from '../Icons';
 import type { ModelConfigWithProvider, ProviderId } from '../../../providers/types';
 
 interface ModelSelectorProps {
-    selectedModel: string;
+    selectedModel: string | undefined;
     onModelChange: (providerId: ProviderId, model: string) => void;
     disabled?: boolean;
-    models: ModelConfigWithProvider[];
+    modelsWithProvider: ModelConfigWithProvider[];
 }
 
 const ModelSelector: React.FC<ModelSelectorProps> = ({
     selectedModel,
     onModelChange,
     disabled,
-    models,
+    modelsWithProvider,
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -21,14 +21,16 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
     const triggerRef = useRef<HTMLButtonElement>(null);
     const modalRef = useRef<HTMLDivElement>(null);
 
-    const filteredModels = models.filter(
-        model =>
-            model.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            model.providerId.toLowerCase().includes(searchTerm.toLowerCase())
+    const filteredModels = modelsWithProvider.filter(
+        mp =>
+            mp.model.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            mp.provider.id.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const selectedModelName =
-        models.find(m => m.id === selectedModel)?.displayName ?? selectedModel;
+    const selectedModelName: string =
+        modelsWithProvider.find(mp => mp.model.id === selectedModel)?.model?.displayName ??
+        selectedModel ??
+        'Loading...';
 
     const calculateDropdownPosition = () => {
         if (!triggerRef.current) {
@@ -378,22 +380,22 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
                             </div>
 
                             <div className='model-selector-list'>
-                                {filteredModels.map(model => (
+                                {filteredModels.map(mp => (
                                     <button
-                                        key={model.id}
-                                        className={`model-option ${model.id === selectedModel ? 'selected' : ''}`}
+                                        key={mp.model.id}
+                                        className={`model-option ${mp.model.id === selectedModel ? 'selected' : ''}`}
                                         onClick={() =>
-                                            handleModelSelect(model.providerId, model.id)
+                                            handleModelSelect(mp.provider.id, mp.model.id)
                                         }
                                     >
                                         <div className='model-icon'>
                                             <BrainIcon />
                                         </div>
                                         <div className='model-info'>
-                                            <div className='model-name'>{model.displayName}</div>
-                                            <div className='model-provider'>{model.providerId}</div>
+                                            <div className='model-name'>{mp.model.displayName}</div>
+                                            <div className='model-provider'>{mp.provider.id}</div>
                                         </div>
-                                        {model.id === selectedModel && (
+                                        {mp.model.id === selectedModel && (
                                             <div className='model-check'>✓</div>
                                         )}
                                     </button>

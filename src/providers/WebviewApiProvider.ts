@@ -1,6 +1,6 @@
 import type * as vscode from 'vscode';
 import { getLogger } from '../services/logger';
-import type { EventTrigger } from '../controllers/ChatController';
+import type { EventTrigger } from '../chat/ChatController';
 import type { RequestContext, ViewApiEvent, ViewEvents } from '../api/viewApi';
 
 /**

@@ -8,6 +8,8 @@ import {
     type WebviewKey,
     PATCH,
     type ActionDelegate,
+    type FnKeys,
+    type Patches,
 } from '../types/ipcReducer';
 
 export abstract class BaseWebviewViewProvider<A extends object>
@@ -87,7 +89,26 @@ export abstract class BaseWebviewViewProvider<A extends object>
         // Dispose of the message listener when webview is disposed
         webviewView.onDidDispose(() => {
             messageListener.dispose();
+            this.onWebviewDispose();
         });
+    }
+
+    public postPatch<K extends FnKeys<A> = FnKeys<A>>(key: K, patch: Patches<A>[K]) {
+        this._view?.webview.postMessage({
+            type: PATCH,
+            providerId: this.providerId,
+            key,
+            patch,
+        });
+    }
+
+    /**
+     * Called when the webview is disposed
+     * Override this method to clean up resources
+     */
+    protected onWebviewDispose(): void {
+        // Default implementation does nothing
+        // Subclasses can override to clean up resources
     }
 
     protected abstract generateWebviewHtml(

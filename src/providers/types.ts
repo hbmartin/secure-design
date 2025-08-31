@@ -47,8 +47,9 @@ export interface ModelConfig {
     metadata?: Record<string, any>;
 }
 
-export interface ModelConfigWithProvider extends ModelConfig {
-    providerId: ProviderId;
+export interface ModelConfigWithProvider {
+    model: ModelConfig;
+    provider: ProviderMetadata;
 }
 
 /**

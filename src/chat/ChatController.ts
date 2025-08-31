@@ -2,16 +2,15 @@ import * as vscode from 'vscode';
 import type { AgentService } from '../types/agent';
 import type { WorkspaceStateService } from '../services/workspaceStateService';
 import type { ProviderService } from '../providers/ProviderService';
+import type ChatMessagesRepository from './ChatMessagesRepository';
 // Removed WebviewApiProvider import to avoid circular dependency
 import type { ChatMessage } from '../types/chatMessage';
 import type { ModelMessage } from 'ai';
-import { getModel } from '../providers/VsCodeConfiguration';
 import { getLogger, Logger } from '../services/logger';
 import type { VsCodeConfiguration, ProviderId } from '../providers/types';
 import type { ViewEvents, ChatChunkMetadata, ViewAPI } from '../api/viewApi';
 import type { LanguageModelV2ToolResultOutput } from '@ai-sdk/provider';
 import { LogLevel } from '../services/ILogger';
-import * as path from 'path';
 
 /**
  * Interface for event triggering capability to avoid circular dependencies
@@ -32,79 +31,9 @@ export class ChatController implements ViewAPI {
         private readonly agentService: AgentService,
         private readonly workspaceState: WorkspaceStateService,
         private readonly providerService: ProviderService,
-        private readonly eventTrigger: EventTrigger
+        private readonly eventTrigger: EventTrigger,
+        private readonly chatMessagesRepository: ChatMessagesRepository
     ) {}
-
-    async getCssFileContent(filePath: string): Promise<string> {
-        // Handle relative paths - resolve them to workspace root
-        let resolvedPath = filePath;
-
-        if (!path.isAbsolute(filePath)) {
-            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-            if (!workspaceFolder) {
-                throw new Error('No workspace folder found');
-            }
-
-            // If path doesn't start with .superdesign, add it
-            if (
-                !filePath.startsWith('.superdesign/') &&
-                filePath.startsWith('design_iterations/')
-            ) {
-                resolvedPath = `.superdesign/${filePath}`;
-            }
-
-            resolvedPath = path.join(workspaceFolder.uri.fsPath, resolvedPath);
-        }
-
-        this.logger.info(`Resolved path: ${resolvedPath}`);
-
-        // Check if file exists first
-        let fileUri = vscode.Uri.file(resolvedPath);
-        try {
-            await vscode.workspace.fs.stat(fileUri);
-        } catch {
-            const { workspaceFolders } = vscode.workspace;
-            if (
-                workspaceFolders !== undefined &&
-                !filePath.startsWith('.superdesign/') &&
-                !filePath.startsWith('/')
-            ) {
-                // TODO: detect correct workspace index
-                const altPath = path.join(workspaceFolders[0].uri.fsPath, '.superdesign', filePath);
-                try {
-                    const altUri = vscode.Uri.file(altPath);
-                    await vscode.workspace.fs.stat(altUri);
-                    resolvedPath = altPath;
-                    fileUri = altUri;
-                } catch {
-                    throw new Error(`CSS file not found at: ${resolvedPath} or ${altPath}`);
-                }
-            } else {
-                throw new Error(`CSS file not found: ${resolvedPath}`);
-            }
-        }
-
-        // Read the CSS file
-        const fileData = await vscode.workspace.fs.readFile(fileUri);
-
-        // Convert to string
-        return Buffer.from(fileData).toString('utf8');
-    }
-
-    clearChatHistory = async (): Promise<void> => {
-        this.logger.debug('API: clearChatHistory called');
-        await this.workspaceState.clearChatHistory();
-    };
-    saveChatHistory = async (history: ChatMessage[]): Promise<void> => {
-        this.logger.debug(`API: saveChatHistory called with ${history.length} messages`);
-        await this.workspaceState.saveChatHistory(history);
-    };
-
-    // eslint-disable-next-line @typescript-eslint/require-await
-    loadChatHistory = async (): Promise<ChatMessage[]> => {
-        this.logger.debug('Loading chat history');
-        return this.workspaceState.getChatHistory();
-    };
 
     selectFile = async (): Promise<string | null> => {
         this.logger.info('API: selectFile called');
@@ -307,6 +236,8 @@ export class ChatController implements ViewAPI {
     };
 
     async sendChatMessage(message: string, chatHistory: ChatMessage[]): Promise<void> {
+        // Save the updated chat history to repository
+        await this.chatMessagesRepository.saveChatHistory(chatHistory);
         try {
             this.logger.debug('sendChatMessage', {
                 messageLength: message.length,
@@ -513,17 +444,6 @@ export class ChatController implements ViewAPI {
         } else {
             Logger.info('No active chat request to stop');
         }
-    }
-
-    /**
-     * Get current provider configuration
-     */
-    getCurrentProvider(): Promise<{ providerId: ProviderId; model: string }> {
-        const modelToUse = getModel();
-        return Promise.resolve({
-            providerId: modelToUse?.providerId ?? 'anthropic',
-            model: modelToUse?.id ?? 'claude-3-5-sonnet-20241022',
-        });
     }
 
     /**

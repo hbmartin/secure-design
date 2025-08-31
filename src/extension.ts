@@ -10,7 +10,7 @@ import { ProviderService } from './providers/ProviderService';
 import { WebviewMessageGuard } from './services/webviewMessageGuard';
 import { registerProviderCommands } from './providerConfiguration';
 import { SuperdesignCanvasPanel } from './SuperdesignCanvasPanel';
-import type { ChatController } from './controllers/ChatController';
+import type ChatMessagesRepository from './chat/ChatMessagesRepository';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -1236,26 +1236,10 @@ html.dark {
 }
 
 export function activate(context: vscode.ExtensionContext): void {
-    // Initialize the centralized logger
-    Logger.info('SecureDesign extension is now active!');
-    Logger.debug('[Extension] Starting activation sequence');
-    // Note: Users can manually open output via View → Output → Select "SecureDesign" if needed
-
-    // Initialize workspace state service
     const workspaceStateService = WorkspaceStateService.getInstance();
     workspaceStateService.initialize(context);
-    Logger.info('WorkspaceStateService initialized');
-    Logger.debug('[Extension] WorkspaceStateService initialized successfully');
 
-    // Initialize provider service
-    Logger.debug('[Extension] Initializing ProviderService');
-    ProviderService.getInstance();
-    Logger.info('ProviderService initialized');
-    Logger.debug('[Extension] ProviderService initialized successfully');
-
-    // Initialize WebviewMessageGuard cleanup timer and ensure proper disposal
     WebviewMessageGuard.initialize();
-    Logger.info('WebviewMessageGuard initialized');
 
     // Push disposal to subscriptions to ensure cleanup even if deactivate isn't called
     context.subscriptions.push({
@@ -1265,19 +1249,16 @@ export function activate(context: vscode.ExtensionContext): void {
         },
     });
 
-    // Initialize services using dependency injection container
-    Logger.debug('[Extension] Creating ServiceContainer');
     const serviceContainer = new ServiceContainer(context);
     serviceContainer.initialize();
-    Logger.debug('[Extension] ServiceContainer initialized');
+
+    ProviderService.getInstance();
 
     // Get services from container
     const apiProvider = serviceContainer.get<WebviewApiProvider>('apiProvider');
     const sidebarProvider = serviceContainer.get<ChatSidebarProvider>('sidebarProvider');
-    Logger.debug('[Extension] Services retrieved from container');
 
     // Register the webview view provider for sidebar
-    Logger.debug('[Extension] Registering sidebar webview provider');
     const sidebarDisposable = vscode.window.registerWebviewViewProvider(
         ChatSidebarProvider.providerId,
         sidebarProvider,
@@ -1287,7 +1268,6 @@ export function activate(context: vscode.ExtensionContext): void {
             },
         }
     );
-    Logger.debug('[Extension] Sidebar webview provider registered');
 
     // Register command to show sidebar
     const showSidebarDisposable = vscode.commands.registerCommand(
@@ -1324,8 +1304,11 @@ export function activate(context: vscode.ExtensionContext): void {
     const clearChatDisposable = vscode.commands.registerCommand(
         'securedesign.clearChatHistory',
         async () => {
+            Logger.info('clearChatDisposable called');
             try {
-                await serviceContainer.get<ChatController>('chatController').clearChatHistory();
+                await serviceContainer
+                    .get<ChatMessagesRepository>('chatMessagesRepository')
+                    .clearChatHistory();
                 Logger.info('[Extension] Chat history cleared via command');
             } catch (error) {
                 Logger.error('[Extension] Failed to clear chat history:', {
@@ -1430,6 +1413,7 @@ export function activate(context: vscode.ExtensionContext): void {
             currentWorkspaceId = newWorkspaceId;
 
             // Notify webview about workspace change to reload chat history
+            // TODO
             sidebarProvider.sendMessage({
                 command: 'workspaceChanged',
                 workspaceId: newWorkspaceId,

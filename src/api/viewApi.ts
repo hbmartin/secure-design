@@ -1,4 +1,3 @@
-import type { ProviderId } from '../providers';
 import type { LogLevel } from '../services/ILogger';
 import type { ChatMessage } from '../types/chatMessage';
 import type { LanguageModelV2ToolResultOutput } from '@ai-sdk/provider';
@@ -8,20 +7,9 @@ import type { LanguageModelV2ToolResultOutput } from '@ai-sdk/provider';
  * This ensures compile-time safety for all cross-boundary communication
  */
 export interface ViewAPI {
-    getCssFileContent: (filePath: string) => Promise<string>;
     // Chat operations
     sendChatMessage: (message: string, history: ChatMessage[]) => Promise<void>;
     stopChat: () => void;
-    saveChatHistory: (history: ChatMessage[]) => Promise<void>;
-    loadChatHistory: () => Promise<ChatMessage[]>;
-    clearChatHistory: () => Promise<void>;
-
-    // Provider operations
-    getCurrentProvider: () => Promise<{ providerId: ProviderId; model: string }>;
-    changeProvider: (
-        providerId: string,
-        model: string
-    ) => Promise<{ success: boolean; provider: string; model: string }>;
 
     // Context operations
     selectFile: () => Promise<string | null>;
@@ -95,7 +83,6 @@ export interface ViewEvents {
     providerChanged: (providerId: string, model: string) => void;
     historyLoaded: (history: ChatMessage[], workspaceId?: string) => void;
     migrationComplete: (history: ChatMessage[], workspaceId?: string) => void;
-    clearChatRequested: () => void;
 
     // Context events
     contextFromCanvas: (data: { fileName: string; type: string }) => void;

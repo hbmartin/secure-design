@@ -87,12 +87,8 @@ export abstract class BaseProviderService {
         return this.registry.getAllModels();
     }
 
-    /**
-     * Get provider by ID
-     */
     getProviderMetadata(providerId: ProviderId): ProviderMetadata {
-        const provider = this.registry.getProvider(providerId);
-        return (provider.constructor as typeof AIProvider).metadata;
+        return this.registry.getProviderMetadata(providerId);
     }
 
     /**
@@ -109,7 +105,7 @@ export abstract class BaseProviderService {
         if (found === undefined) {
             throw new Error(`Could not find ${model} for ${providerId}.`);
         }
-        return { ...found, providerId: providerId };
+        return { model: found, provider: this.registry.getProviderMetadata(providerId) };
     }
 
     /**
@@ -117,7 +113,9 @@ export abstract class BaseProviderService {
      */
     getDefaultModelForProvider(providerId: ProviderId): ModelConfigWithProvider | undefined {
         const found = this.registry.getDefaultModelForProvider(providerId);
-        return found !== undefined ? { ...found, providerId: providerId } : undefined;
+        return found !== undefined
+            ? { model: found, provider: this.registry.getProviderMetadata(providerId) }
+            : undefined;
     }
 
     /**
@@ -182,7 +180,9 @@ export abstract class BaseProviderService {
         return {
             providerCount: this.registry.getProviderCount(),
             modelCount: allModels.length,
-            visionCapableModels: allModels.filter(model => model.supportsVision === true).length,
+            visionCapableModels: allModels.filter(
+                modelsWithProvider => modelsWithProvider.model.supportsVision === true
+            ).length,
         };
     }
 

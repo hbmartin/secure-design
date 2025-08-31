@@ -18,7 +18,7 @@ export function isFnKey<T extends object>(
         typeof obj[prop as keyof T] === 'function'
     );
 }
-export interface Action<T, K extends FnKeys<T> = FnKeys<T>> {
+export interface Action<T extends object, K extends FnKeys<T> = FnKeys<T>> {
     readonly type: typeof ACT;
     readonly providerId: WebviewKey;
     readonly key: K;
@@ -32,7 +32,7 @@ export interface Patch<A, K extends FnKeys<A> = FnKeys<A>> {
     readonly patch: Patches<A>[K];
 }
 
-type Patches<A> = {
+export type Patches<A> = {
     [K in FnKeys<A>]: A[K] extends (...args: any) => infer R
         ? R extends Promise<infer U>
             ? U
@@ -40,15 +40,23 @@ type Patches<A> = {
         : never;
 };
 
-export function isMyActionMessage<T>(msg: any, providerId: WebviewKey): msg is Action<T> {
+export function isMyActionMessage<T extends object>(
+    msg: any,
+    providerId: WebviewKey
+): msg is Action<T> {
     return (
+        msg !== null &&
         msg !== undefined &&
         typeof msg === 'object' &&
         'providerId' in msg &&
         'type' in msg &&
+        'key' in msg &&
+        'params' in msg &&
         msg.type === ACT &&
         typeof msg.providerId === 'string' &&
-        msg.providerId === providerId
+        msg.providerId === providerId &&
+        (typeof msg.key === 'string' || typeof msg.key === 'symbol') &&
+        Array.isArray(msg.params)
     );
 }
 
@@ -57,5 +65,7 @@ export type StateReducer<S, A> = {
 };
 
 export type ActionDelegate<A> = {
-    [K in FnKeys<A>]: A[K] extends (...args: infer P) => infer R ? (...args: P) => R : never;
+    [K in FnKeys<A>]: A[K] extends (...args: infer P) => infer R
+        ? (...args: P) => R | Promise<R>
+        : never;
 };

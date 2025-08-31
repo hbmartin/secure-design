@@ -8,33 +8,19 @@ import type { WebviewContext } from '../types/context';
 import styles from './App.css';
 
 const App: React.FC = () => {
-    console.log('🚀 App component starting...');
-
-    const [vscode] = useState(() => {
-        console.log('📞 Acquiring vscode API...');
-        return acquireVsCodeApi();
-    });
-
     const [context, setContext] = useState<WebviewContext | null>(null);
     const [currentView, setCurrentView] = useState<'chat' | 'canvas'>('chat');
     const [nonce, setNonce] = useState<string | null>(null);
 
     useEffect(() => {
-        console.log('🔄 App useEffect running...');
-
         // Detect which view to render based on data-view attribute
         const rootElement = document.getElementById('root');
-        console.log('📍 Root element:', rootElement);
 
         const viewType = rootElement?.getAttribute('data-view');
         const nonceValue = rootElement?.getAttribute('data-nonce');
 
-        console.log('🎯 View type detected:', viewType);
-        console.log('🔐 Nonce value:', nonceValue);
-
         if (nonceValue) {
             setNonce(nonceValue);
-            console.log('✅ Nonce set:', nonceValue);
         }
 
         if (viewType === 'canvas') {
@@ -67,15 +53,18 @@ const App: React.FC = () => {
         };
     }, []);
 
-    const renderView = () => {
-        console.log('🖼️ Rendering view, currentView:', currentView);
+    console.log(`[APP] currentView: ${currentView}`);
 
+    const renderView = () => {
         switch (currentView) {
             case 'canvas':
-                console.log('🎨 Rendering CanvasView with vscode:', !!vscode, 'nonce:', nonce);
                 try {
                     // Canvas view doesn't need context - it gets data from extension directly
-                    return <CanvasView vscode={vscode} nonce={nonce} />;
+                    return (
+                        <WebviewProvider>
+                            <CanvasView nonce={nonce} />
+                        </WebviewProvider>
+                    );
                 } catch (error) {
                     console.error('❌ Error rendering CanvasView:', error);
                     return <div>Error rendering canvas: {String(error)}</div>;
@@ -100,8 +89,6 @@ const App: React.FC = () => {
                 }
         }
     };
-
-    console.log('🔄 App rendering, currentView:', currentView);
 
     return (
         <div

@@ -19,10 +19,6 @@ export interface WebviewToExtensionMessages {
         chatHistory: ChatMessage[];
     };
 
-    loadChatHistory: {
-        command: 'loadChatHistory';
-    };
-
     migrateLocalStorage: {
         command: 'migrateLocalStorage';
         oldChatHistory: ChatMessage[];
@@ -59,17 +55,6 @@ export interface WebviewToExtensionMessages {
     setChatPrompt: {
         command: 'setChatPrompt';
         data: any;
-    };
-
-    // Provider Management
-    getCurrentProvider: {
-        command: 'getCurrentProvider';
-    };
-
-    changeProvider: {
-        command: 'changeProvider';
-        providerId: string;
-        model: string;
     };
 
     // Context Management

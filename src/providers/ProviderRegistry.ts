@@ -9,6 +9,7 @@ import type {
     ProviderId,
     ModelConfig,
     ModelConfigWithProvider,
+    ProviderMetadata,
 } from './types';
 
 /**
@@ -26,6 +27,9 @@ export class ProviderRegistry implements IProviderRegistry {
     register(provider: AIProvider): ProviderId {
         const metadata = (provider.constructor as typeof AIProvider).metadata;
         const providerId = metadata.id;
+        if (this.providers.has(providerId)) {
+            throw new Error(`Provider '${providerId}' already registered`);
+        }
         this.providers.set(providerId, provider);
         return providerId;
     }
@@ -59,10 +63,15 @@ export class ProviderRegistry implements IProviderRegistry {
     getAllModels(): Array<ModelConfigWithProvider> {
         return Array.from(this.providers.entries()).flatMap(([providerId, provider]) =>
             provider.models.map(model => ({
-                ...model,
-                providerId: providerId,
+                model,
+                provider: this.getProviderMetadata(providerId),
             }))
         );
+    }
+
+    getProviderMetadata(providerId: ProviderId): ProviderMetadata {
+        const provider = this.getProvider(providerId);
+        return (provider.constructor as typeof AIProvider).metadata;
     }
 
     /**

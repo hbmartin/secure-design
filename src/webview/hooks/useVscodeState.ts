@@ -10,15 +10,17 @@ import {
     isFnKey,
 } from '../../types/ipcReducer';
 
-type PostAction<A> = Pick<Action<A>, 'key' | 'params'>;
+type PostAction<A extends object> = Pick<Action<A>, 'key' | 'params'>;
 
-function isMyPatchMessage<A>(msg: any, id: WebviewKey): msg is Patch<A> {
+function isMyPatchMessage<A extends object>(msg: any, id: WebviewKey): msg is Patch<A> {
     return (
+        msg !== null &&
         msg !== undefined &&
         typeof msg === 'object' &&
         'providerId' in msg &&
         'type' in msg &&
         'key' in msg &&
+        'patch' in msg &&
         msg.type === PATCH &&
         typeof msg.providerId === 'string' &&
         msg.providerId === id
