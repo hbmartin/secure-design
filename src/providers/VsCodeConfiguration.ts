@@ -36,7 +36,7 @@ export function getModel(): ModelConfigWithProvider {
     return modelsWithProvider;
 }
 
-export async function setModel(providerId: ProviderId, modelId: string) {
+export async function setModel(providerId: ProviderId, modelId: string): Promise<void> {
     const service = ProviderService.getInstance();
     const config = vscode.workspace.getConfiguration(service.configPrefix);
     const mcwp = service.getModelForProvider(providerId, modelId);

@@ -10,7 +10,7 @@ import {
     type ActionDelegate,
     type FnKeys,
     type Patches,
-    Patch,
+    type Patch,
 } from '../types/ipcReducer';
 import { isLogMessage } from '../webview/utils/WebviewLogger';
 import { LogLevel } from '../services/ILogger';
@@ -64,16 +64,20 @@ export abstract class BaseWebviewViewProvider<A extends object>
             if (isLogMessage(message)) {
                 switch (message.level) {
                     case LogLevel.DEBUG: {
-                        Logger.debug(message.message, message.data)
+                        Logger.debug(message.message, message.data);
+                        break;
                     }
                     case LogLevel.INFO: {
-                        Logger.info(message.message, message.data)
+                        Logger.info(message.message, message.data);
+                        break;
                     }
                     case LogLevel.WARN: {
-                        Logger.warn(message.message, message.data)
+                        Logger.warn(message.message, message.data);
+                        break;
                     }
                     case LogLevel.ERROR: {
-                        Logger.error(message.message, message.data)
+                        Logger.error(message.message, message.data);
+                        break;
                     }
                 }
             }

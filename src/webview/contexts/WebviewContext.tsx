@@ -16,7 +16,7 @@ class DeferredPromise<T> {
     promise: Promise<T>;
     resolve!: (value: T) => void;
     reject!: (reason?: any) => void;
-    timeoutHandle?: NodeJS.Timeout;
+    timeoutHandle?: ReturnType<typeof setTimeout>;
     private settled = false;
 
     constructor() {

@@ -22,8 +22,6 @@ interface MessageMetadata {
     is_update?: boolean;
     tool_name?: string;
     tool_id?: string;
-    tool_input?: any;
-    tool_result?: any;
     result_received?: boolean;
     actions?: Array<MessageAction>;
     is_error?: boolean;

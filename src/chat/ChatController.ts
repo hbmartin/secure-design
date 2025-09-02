@@ -216,18 +216,16 @@ export class ChatController implements ViewAPI {
     };
 
     async sendChatMessage(prompt: string | Array<TextPart | ImagePart | FilePart>): Promise<void> {
-        await this.chatMessagesRepository.appendMessage(
-            {
-        role: 'user',
-        content: prompt,
-        metadata: {
-            timestamp: Date.now(),
-        },
-    }
-        );
-        const history = this.chatMessagesRepository.getChatHistory()
+        await this.chatMessagesRepository.appendMessage({
+            role: 'user',
+            content: prompt,
+            metadata: {
+                timestamp: Date.now(),
+            },
+        });
+        const history = this.chatMessagesRepository.getChatHistory();
         if (history === undefined) {
-            throw new Error('something went wrong with storing the prompt')
+            throw new Error('Failed to retrieve chat history after appending user message');
         }
         try {
             this.currentRequestController = new AbortController();
@@ -239,7 +237,13 @@ export class ChatController implements ViewAPI {
                 (prev: ChatMessage[], streamMessage: ChatMessage) => {
                     const newHistory = handleStreamMessage(prev, streamMessage);
                     void (async () => {
-                        await this.chatMessagesRepository.saveChatHistory(newHistory);
+                        try {
+                            await this.chatMessagesRepository.saveChatHistory(newHistory);
+                        } catch (error) {
+                            this.logger.error('Failed to save intermediate chat history', {
+                                error,
+                            });
+                        }
                     })();
                     return newHistory;
                 }
@@ -262,7 +266,7 @@ export class ChatController implements ViewAPI {
                 return;
             }
 
-            this.logger.error(`Chat message failed:`, {error});
+            this.logger.error(`Chat message failed:`, { error });
 
             const errorMessage = error instanceof Error ? error.message : String(error);
 

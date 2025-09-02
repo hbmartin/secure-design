@@ -37,7 +37,7 @@ export class WebviewLogger implements ILogger {
             level: LogLevel.INFO,
             message: `[${this.tag}] ${message}`,
             data,
-        } satisfies LogMessage)
+        } satisfies LogMessage);
     }
 
     warn(message: string, data?: Record<any, any>): void {
@@ -46,7 +46,7 @@ export class WebviewLogger implements ILogger {
             level: LogLevel.WARN,
             message: `[${this.tag}] ${message}`,
             data,
-        } satisfies LogMessage)
+        } satisfies LogMessage);
     }
 
     error(message: string, data?: Record<any, any>): void {
@@ -55,7 +55,7 @@ export class WebviewLogger implements ILogger {
             level: LogLevel.ERROR,
             message: `[${this.tag}] ${message}`,
             data,
-        } satisfies LogMessage)
+        } satisfies LogMessage);
     }
 
     dispose(): void {

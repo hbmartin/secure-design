@@ -1,36 +1,36 @@
-import type { ToolResultPart, ToolCallPart } from "ai";
-import type { ChatMessage } from "../types";
-import type { ChatChunkMetadata } from "../api/viewApi";
+import type { ToolResultPart, ToolCallPart } from 'ai';
+import type { ChatMessage } from '../types';
+import type { ChatChunkMetadata } from '../api/viewApi';
 import type { LanguageModelV2ToolResultOutput } from '@ai-sdk/provider';
 
 export function isToolCallPart(value: unknown): value is ToolCallPart {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
-  if (!Object.prototype.hasOwnProperty.call(value, 'type')) return false;
-  if (!Object.prototype.hasOwnProperty.call(value, 'toolCallId')) return false;
-  if (!Object.prototype.hasOwnProperty.call(value, 'toolName')) return false;
-  if (!Object.prototype.hasOwnProperty.call(value, 'input')) return false;
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+    if (!Object.prototype.hasOwnProperty.call(value, 'type')) return false;
+    if (!Object.prototype.hasOwnProperty.call(value, 'toolCallId')) return false;
+    if (!Object.prototype.hasOwnProperty.call(value, 'toolName')) return false;
+    if (!Object.prototype.hasOwnProperty.call(value, 'input')) return false;
 
-  const v = value as Record<string, unknown>;
-  if (v.type !== 'tool-call') return false;
-  if (typeof v.toolCallId !== 'string') return false;
-  if (typeof v.toolName !== 'string') return false;
+    const v = value as Record<string, unknown>;
+    if (v.type !== 'tool-call') return false;
+    if (typeof v.toolCallId !== 'string') return false;
+    if (typeof v.toolName !== 'string') return false;
 
-  return true;
+    return true;
 }
 
 export function isToolResultPart(value: unknown): value is ToolResultPart {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
-  if (!Object.prototype.hasOwnProperty.call(value, 'type')) return false;
-  if (!Object.prototype.hasOwnProperty.call(value, 'toolCallId')) return false;
-  if (!Object.prototype.hasOwnProperty.call(value, 'toolName')) return false;
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+    if (!Object.prototype.hasOwnProperty.call(value, 'type')) return false;
+    if (!Object.prototype.hasOwnProperty.call(value, 'toolCallId')) return false;
+    if (!Object.prototype.hasOwnProperty.call(value, 'toolName')) return false;
 
-  const v = value as Record<string, unknown>;
-  if (v.type !== 'tool-result') return false;
-  if (typeof v.toolCallId !== 'string') return false;
-  if (typeof v.toolName !== 'string') return false;
-  if ('isError' in v && typeof v.isError !== 'boolean') return false;
+    const v = value as Record<string, unknown>;
+    if (v.type !== 'tool-result') return false;
+    if (typeof v.toolCallId !== 'string') return false;
+    if (typeof v.toolName !== 'string') return false;
+    if ('isError' in v && typeof v.isError !== 'boolean') return false;
 
-  return true;
+    return true;
 }
 
 export function handleStreamMessage(prev: ChatMessage[], message: ChatMessage): ChatMessage[] {
@@ -39,17 +39,12 @@ export function handleStreamMessage(prev: ChatMessage[], message: ChatMessage): 
         if (typeof message.content === 'string') {
             // Simple text content
             if (message.metadata?.is_error === true) {
-                return handleChatError(prev, message)
+                return handleChatError(prev, message);
             }
             if (message.content.trim()) {
-                    return handleResponseChunk(
-                        prev,
-                    message.content,
-                    'assistant',
-                    {}
-                );
+                return handleResponseChunk(prev, message.content, 'assistant', {});
             }
-            console.error("No content in message", message);
+            console.error('No content in message', message);
             return prev;
         } else if (Array.isArray(message.content)) {
             let newMessages = [...prev];
@@ -58,28 +53,18 @@ export function handleStreamMessage(prev: ChatMessage[], message: ChatMessage): 
             for (const part of message.content) {
                 if (part.type === 'text' && part.text) {
                     // Send text content
-                    newMessages = handleResponseChunk(
-                        newMessages,
-                        part.text,
-                        'assistant',
-                        {}
-                    );
+                    newMessages = handleResponseChunk(newMessages, part.text, 'assistant', {});
                 } else if (part.type === 'tool-call') {
                     const args = part.input ?? (part as any).args ?? (part as any).params;
                     if (message.metadata?.is_update === true) {
-                        newMessages = handleToolUpdate(newMessages, part.toolCallId, args)
+                        newMessages = handleToolUpdate(newMessages, part.toolCallId, args);
                     } else {
                         const metadata: ChatChunkMetadata = {
                             tool_id: part.toolCallId,
                             tool_name: part.toolName,
                             args,
                         };
-                        newMessages = handleResponseChunk(
-                            newMessages,
-                            '',
-                            'tool-call',
-                            metadata
-                        );
+                        newMessages = handleResponseChunk(newMessages, '', 'tool-call', metadata);
                     }
                 } else {
                     console.error(`Unknown tool part type: ${part.type}`, message);
@@ -115,56 +100,51 @@ export function handleStreamMessage(prev: ChatMessage[], message: ChatMessage): 
                         output: aiSdkOutput,
                     };
                     // Pass empty string as chunk since the actual data is in metadata
-                    newMessages = handleResponseChunk(
-                        newMessages,
-                        '',
-                        'tool-result',
-                        metadata
-                    );
-                    newMessages = handleToolResult(
-                        newMessages,
-                        part.toolCallId
-                    );
+                    newMessages = handleResponseChunk(newMessages, '', 'tool-result', metadata);
+                    newMessages = handleToolResult(newMessages, part.toolCallId);
                 }
             }
             return newMessages;
         }
-        console.error(`Unknown tool content type: ${typeof message.content}`, JSON.stringify(message, null, 2))
+        console.error(
+            `Unknown tool content type: ${typeof message.content}`,
+            JSON.stringify(message, null, 2)
+        );
         throw new Error(`Unknown tool content type: ${typeof message.content}`);
     }
-    console.error(`Unknown message role: ${message.role}`, JSON.stringify(message, null, 2))
-    throw new Error(`Unknown message role: ${message.role}`)
+    console.error(`Unknown message role: ${message.role}`, JSON.stringify(message, null, 2));
+    throw new Error(`Unknown message role: ${message.role}`);
 }
 
 function normalizeToolResultOutput(rawOutput: any): LanguageModelV2ToolResultOutput {
-        // If it's already in the correct format, return as-is
-        if (rawOutput && typeof rawOutput === 'object' && rawOutput.type) {
-            // Validate it's a valid LanguageModelV2ToolResultOutput type
-            const validTypes = ['text', 'json', 'error-text', 'error-json', 'content'];
-            if (validTypes.includes(rawOutput.type)) {
-                return rawOutput as LanguageModelV2ToolResultOutput;
-            }
+    // If it's already in the correct format, return as-is
+    if (rawOutput && typeof rawOutput === 'object' && rawOutput.type) {
+        // Validate it's a valid LanguageModelV2ToolResultOutput type
+        const validTypes = ['text', 'json', 'error-text', 'error-json', 'content'];
+        if (validTypes.includes(rawOutput.type)) {
+            return rawOutput as LanguageModelV2ToolResultOutput;
         }
-
-        // Handle legacy or non-conformant outputs
-        if (typeof rawOutput === 'string') {
-            // String output -> text type
-            return { type: 'text', value: rawOutput };
-        }
-
-        if (rawOutput === null || rawOutput === undefined) {
-            // Null/undefined -> empty text
-            return { type: 'text', value: '' };
-        }
-
-        if (typeof rawOutput === 'object') {
-            // Complex object -> json type
-            return { type: 'json', value: rawOutput };
-        }
-
-        // Fallback for primitives -> convert to string
-        return { type: 'text', value: String(rawOutput) };
     }
+
+    // Handle legacy or non-conformant outputs
+    if (typeof rawOutput === 'string') {
+        // String output -> text type
+        return { type: 'text', value: rawOutput };
+    }
+
+    if (rawOutput === null || rawOutput === undefined) {
+        // Null/undefined -> empty text
+        return { type: 'text', value: '' };
+    }
+
+    if (typeof rawOutput === 'object') {
+        // Complex object -> json type
+        return { type: 'json', value: rawOutput };
+    }
+
+    // Fallback for primitives -> convert to string
+    return { type: 'text', value: String(rawOutput) };
+}
 
 const handleResponseChunk = (
     prev: ChatMessage[],
@@ -218,10 +198,7 @@ const handleResponseChunk = (
             // Convert content to array format and append tool call
             let newContent: Array<any>;
             if (typeof lastMessage.content === 'string') {
-                newContent = [
-                    { type: 'text', text: lastMessage.content },
-                    toolCallPart,
-                ];
+                newContent = [{ type: 'text', text: lastMessage.content }, toolCallPart];
             } else if (Array.isArray(lastMessage.content)) {
                 newContent = [...lastMessage.content, toolCallPart];
             } else {
@@ -327,11 +304,7 @@ const handleToolResult = (prev: ChatMessage[], toolId: string): ChatMessage[] =>
     // Find and complete tool loading
     for (let i = newMessages.length - 1; i >= 0; i--) {
         const msg = newMessages[i];
-        if (
-            msg.role === 'assistant' &&
-            Array.isArray(msg.content) &&
-            msg.metadata?.is_loading
-        ) {
+        if (msg.role === 'assistant' && Array.isArray(msg.content) && msg.metadata?.is_loading) {
             const hasMatchingToolCall = msg.content.some(
                 part => part.type === 'tool-call' && part.toolCallId === toolId
             );
@@ -359,7 +332,7 @@ const handleChatError = (prev: ChatMessage[], message: ChatMessage): ChatMessage
         {
             ...message,
             role: 'assistant',
-           content: `❌ **Error**: ${typeof message.content === 'string' ? message.content : JSON.stringify(message.content)}`,
+            content: `❌ **Error**: ${typeof message.content === 'string' ? message.content : JSON.stringify(message.content)}`,
         },
     ];
 };

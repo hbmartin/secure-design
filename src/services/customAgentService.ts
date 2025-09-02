@@ -23,7 +23,7 @@ const extractErrorMessage = (error: unknown): string => {
         return 'Unknown error occurred';
     }
     if (typeof error === 'string') {
-        return error
+        return error;
     }
     if (error instanceof Error) {
         return error.message;
@@ -124,14 +124,10 @@ export class CustomAgentService implements AgentService {
     private getModel(): LanguageModelV2 {
         const modelToUse = getModel();
 
-        return this.providerService.createModel(
-            modelToUse.model.id,
-            modelToUse.provider.id,
-            {
-                config: vscode.workspace.getConfiguration('securedesign'),
-                logger: getLogger('cAS Provider'),
-            }
-        );
+        return this.providerService.createModel(modelToUse.model.id, modelToUse.provider.id, {
+            config: vscode.workspace.getConfiguration('securedesign'),
+            logger: getLogger('cAS Provider'),
+        });
     }
 
     private getSystemPrompt(): string {
@@ -628,14 +624,14 @@ I've created the html design, please reveiw and let me know if you need any chan
                     throw new Error('Operation cancelled');
                 }
 
-                this.logger.info(`Received chunk type: ${chunk.type}`, {chunk});
-                console.log(`Received chunk type: ${chunk.type}`, {chunk});
+                this.logger.info(`Received chunk type: ${chunk.type}`, { chunk });
+                console.log(`Received chunk type: ${chunk.type}`, { chunk });
 
                 switch (chunk.type) {
                     case 'text-delta':
                         // Handle streaming text (assistant message chunks) - CoreMessage format
                         messageBuffer += chunk.text;
-                        console.log(`messageBuffer: ${messageBuffer}`)
+                        console.log(`messageBuffer: ${messageBuffer}`);
 
                         const textMessage: ModelMessage = {
                             role: 'assistant',
@@ -647,9 +643,10 @@ I've created the html design, please reveiw and let me know if you need any chan
 
                     case 'finish':
                         // Final result message - CoreMessage format
-                        this.logger.info(`===Stream finished with reason: ${chunk.finishReason}`);
-                        this.logger.info(`${JSON.stringify(chunk)}`);
-                        this.logger.info(`========================================`);
+                        this.logger.info(
+                            `===Stream finished with reason: ${chunk.finishReason}`,
+                            chunk
+                        );
 
                         // TODO: prevent this from appearing in UI
                         const resultMessage: ModelMessage = {
@@ -674,14 +671,14 @@ I've created the html design, please reveiw and let me know if you need any chan
                             metadata: {
                                 is_error: true,
                                 timestamp: Date.now(),
-                    session_id: sessionId,
-                            }
+                                session_id: sessionId,
+                            },
                         };
 
                         updatedMessages = onMessage(updatedMessages, errorMessage);
                         break;
 
-                    case 'tool-input-start':
+                    case 'tool-input-start': {
                         currentToolCall = {
                             toolCallId: chunk.id,
                             toolName: chunk.toolName,
@@ -708,7 +705,7 @@ I've created the html design, please reveiw and let me know if you need any chan
 
                         updatedMessages = onMessage(updatedMessages, toolCallStartMessage);
                         break;
-
+                    }
                     case 'tool-input-delta':
                         // Streaming tool call parameters - update existing message
                         if (currentToolCall && chunk.delta) {
@@ -730,7 +727,7 @@ I've created the html design, please reveiw and let me know if you need any chan
                                         },
                                     ],
                                     metadata: {
-                                        is_update: true
+                                        is_update: true,
                                     },
                                 };
 
@@ -828,43 +825,55 @@ I've created the html design, please reveiw and let me know if you need any chan
                         toolCallBuffer = '';
                         break;
 
-                    case "file": {
+                    case 'file': {
                         console.warn('File:', chunk);
+                        break;
                     }
-                    case "abort": {
+                    case 'abort': {
                         console.warn('Abort:', chunk);
+                        break;
                     }
-                    case "source": {
+                    case 'source': {
                         console.warn('Source:', chunk);
+                        break;
                     }
-                    case "tool-result": {
+                    case 'tool-result': {
                         console.error('Tool result:', chunk);
+                        break;
                     }
-                    case "tool-error": {
+                    case 'tool-error': {
                         console.error('Tool error:', chunk);
+                        break;
                     }
-                    case "text-start": {
+                    case 'text-start': {
                         console.error('Starting text:', chunk);
+                        break;
                     }
-                    case "text-end": {
+                    case 'text-end': {
                         console.error('Ending text:', chunk);
+                        break;
                     }
-                    case "tool-input-end": {
+                    case 'tool-input-end': {
                         console.error('Tool input end:', chunk);
+                        break;
                     }
-                    case "start-step": {
+                    case 'start-step': {
                         console.warn('Starting step:', chunk);
+                        break;
                     }
-                    case "finish-step": {
+                    case 'finish-step': {
                         console.warn('Finishing step:', chunk);
+                        break;
                     }
-                    case "start": {
-                        console.warn('Starting chat response');
+                    case 'start': {
+                        console.warn('Starting chat response', chunk);
+                        break;
                     }
-                    case "reasoning-start":
-                    case "reasoning-end":
-                    case "reasoning-delta":
-                    case "raw": { }
+                    case 'reasoning-start':
+                    case 'reasoning-end':
+                    case 'reasoning-delta':
+                    case 'raw': {
+                    }
                 }
             }
 
@@ -875,20 +884,20 @@ I've created the html design, please reveiw and let me know if you need any chan
             return updatedMessages;
         } catch (error) {
             const errorMsg = extractErrorMessage(error);
-            this.logger.error(`Custom Agent query failed`, {error});
-            console.error(`Custom Agent query failed`, {error});
+            this.logger.error(`Custom Agent query failed`, { error });
+            console.error(`Custom Agent query failed`, { error });
 
-                                        const errorMessage: ChatMessage = {
-                            role: 'assistant',
-                            content: errorMsg,
-                            metadata: {
-                                is_error: true,
-                                timestamp: Date.now(),
+            const errorMessage: ChatMessage = {
+                role: 'assistant',
+                content: errorMsg,
+                metadata: {
+                    is_error: true,
+                    timestamp: Date.now(),
                     session_id: sessionId,
-                            }
-                        };
+                },
+            };
 
-                        updatedMessages = onMessage(updatedMessages, errorMessage);
+            updatedMessages = onMessage(updatedMessages, errorMessage);
 
             throw error;
         }

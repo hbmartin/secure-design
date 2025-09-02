@@ -1,13 +1,7 @@
 import type { ChatMessage } from '../types/chatMessage';
 import type { LanguageModelV2ToolResultOutput } from '@ai-sdk/provider';
 
-/**
- * Type-safe API contract shared between host (extension) and webview
- * This ensures compile-time safety for all cross-boundary communication
- */
 export interface ViewAPI {
-    // Chat operations
-    sendChatMessage: (message: string, history: ChatMessage[]) => Promise<void>;
     stopChat: () => void;
 
     // Context operations

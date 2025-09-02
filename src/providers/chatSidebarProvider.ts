@@ -16,7 +16,7 @@ import type { TextPart, ImagePart, FilePart } from '@ai-sdk/provider-utils';
 
 function createActionDelegate(
     chatMessagesRepository: ChatMessagesRepository,
-    chatController: ChatController,
+    chatController: ChatController
 ): ActionDelegate<ChatSidebarActions> {
     return {
         loadChats: function (): ChatMessage[] | undefined {
@@ -46,9 +46,9 @@ function createActionDelegate(
             await setModel(providerId, modelId);
             return [providerId, modelId];
         },
-        sendChatMessage: function(prompt: string | (TextPart | ImagePart | FilePart)[]) {
+        sendChatMessage: function (prompt: string | (TextPart | ImagePart | FilePart)[]) {
             void chatController.sendChatMessage(prompt);
-        }
+        },
     };
 }
 
