@@ -1,14 +1,12 @@
-import type { CoreMessage } from 'ai';
 import type { ILogger } from '../services/ILogger';
+import type { ChatMessage } from './chatMessage';
 
 export interface AgentService {
     query(
-        prompt?: string,
-        messages?: CoreMessage[],
-        options?: any,
-        abortController?: AbortController,
-        onMessage?: (message: any) => void
-    ): Promise<any[]>;
+        messages: ChatMessage[],
+        abortController: AbortController,
+        onMessage: (prev: ChatMessage[], message: ChatMessage) => ChatMessage[]
+    ): Promise<ChatMessage[]>;
 
     hasApiKey(): boolean;
     isApiKeyAuthError(errorMessage: string): boolean;

@@ -1,18 +1,18 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useChat } from '../../hooks/useChat';
 import { useWebviewApi } from '../../contexts/WebviewContext';
-import type { ChatMessage } from '../../../types/chatMessage';
+import type { ChatMessage, MessageAction } from '../../../types/chatMessage';
 import { useFirstTimeUser } from '../../hooks/useFirstTimeUser';
 import type { WebviewLayout } from '../../../types/context';
 import MarkdownRenderer from '../MarkdownRenderer';
-import { TaskIcon, ClockIcon, CheckIcon, LightBulbIcon } from '../Icons';
+import { TaskIcon, CheckIcon, LightBulbIcon } from '../Icons';
 import Welcome from '../Welcome';
 import ThemePreviewCard from './ThemePreviewCard';
 import ModelSelector from './ModelSelector';
 import chatStyles from './ChatInterface.css';
 
 import welcomeStyles from '../Welcome/Welcome.css';
-import { type ProviderId, ProviderService } from '../../../providers';
+import { ProviderService, type ProviderId } from '../../../providers';
 import { useLogger } from '../../hooks/useLogger';
 import { useVscodeState } from '../../hooks/useVscodeState';
 import {
@@ -21,6 +21,8 @@ import {
     type ChatSidebarState,
 } from '../../../types/chatSidebarTypes';
 import type { StateReducer } from '../../../types/ipcReducer';
+import type { TextPart, ImagePart, FilePart, ToolCallPart, ToolResultPart } from '@ai-sdk/provider-utils';
+import { isToolCallPart, isToolResultPart } from '../../../chat/ChatMiddleware';
 
 interface ChatInterfaceProps {
     layout: WebviewLayout;
@@ -29,7 +31,7 @@ interface ChatInterfaceProps {
 const postReducer: StateReducer<ChatSidebarState, ChatSidebarActions> = {
     getCssFileContent: function (
         prevState: ChatSidebarState,
-        patch: { filePath: string; content?: string; error?: string }
+        patch: { filePath: string; content?: string; error?: string; }
     ): ChatSidebarState {
         return {
             ...prevState,
@@ -43,11 +45,10 @@ const postReducer: StateReducer<ChatSidebarState, ChatSidebarActions> = {
             },
         };
     },
-    loadChats: function (prevState: ChatSidebarState, patch: ChatMessage[]): ChatSidebarState {
-        console.log('[ChatInterface] postReducer: loadChats', patch);
+    loadChats: function (prevState: ChatSidebarState, patch: ChatMessage[] | undefined): ChatSidebarState {
         return {
             ...prevState,
-            messages: patch.length > 0 ? patch : undefined,
+            messages: patch,
         };
     },
     clearChats: function (prevState: ChatSidebarState, _patch: void): ChatSidebarState {
@@ -74,6 +75,9 @@ const postReducer: StateReducer<ChatSidebarState, ChatSidebarActions> = {
             provider: [patch[0], patch[1]],
         };
     },
+    sendChatMessage: function (prevState: ChatSidebarState, _: void): ChatSidebarState {
+        return prevState;
+    }
 };
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
@@ -86,9 +90,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             css: {},
             messages: undefined,
             provider: undefined,
+            availableModels: ProviderService.getInstance().getAvailableModels(),
         } satisfies ChatSidebarState
     );
-    const { messages: chatHistory, isLoading, sendMessage } = useChat(state.messages);
+    const { isLoading } = useChat();
 
     const {
         isFirstTime,
@@ -108,27 +113,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
     const [pendingImages, setPendingImages] = useState<
         { fileName: string; originalName: string; fullPath: string }[]
     >([]);
-    const [toolTimers, setToolTimers] = useState<Record<string, number>>({});
     const timerIntervals = useRef<Record<string, NodeJS.Timeout>>({});
 
-    // Helper function to check if we have meaningful conversation messages
-    const hasConversationMessages = useCallback(() => {
-        return chatHistory.some(
-            msg =>
-                msg.role === 'user' ||
-                (msg.role === 'assistant' &&
-                    typeof msg.content === 'string' &&
-                    msg.content.trim().length > 0) ||
-                (msg.role === 'assistant' &&
-                    Array.isArray(msg.content) &&
-                    msg.content.some(
-                        part => part.type === 'text' && (part as any).text?.trim().length > 0
-                    ))
-        );
-    }, [chatHistory]);
+    const [chatHistory, hasConversationMessages] = useMemo(() => [state.messages, (state.messages?.length ?? 0) > 0], [state])
 
-    const handleModelChange = (providerId: ProviderId, modelId: string) => {
-        actor.setProvider(providerId, modelId);
+    const handleModelChange = async (providerId: ProviderId, modelId: string) => {
+        await actor.setProvider(providerId, modelId);
     };
 
     const handleNewConversation = useCallback(async () => {
@@ -137,7 +127,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         setCurrentContext(null);
         setUploadingImages([]);
         setPendingImages([]);
-        setToolTimers({}); // Clear all tool timers
 
         // Clear all timer intervals
         Object.values(timerIntervals.current).forEach(timer => clearInterval(timer));
@@ -277,42 +266,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
 
     // Handle first-time user welcome display
     useEffect(() => {
-        if (!isCheckingFirstTime && isFirstTime && !hasConversationMessages()) {
+        if (!isCheckingFirstTime && isFirstTime && !hasConversationMessages) {
             setShowWelcome(true);
         }
     }, [isCheckingFirstTime, isFirstTime, chatHistory, hasConversationMessages]);
 
-    // Auto-collapse tools when new messages arrive
-    useEffect(() => {
-        const handleAutoCollapse = () => {
-            setExpandedTools(prev => {
-                const newState = { ...prev };
-                const toolIndices = chatHistory
-                    .map((msg, index) => ({ msg, index }))
-                    .filter(({ msg }) => msg.role === 'tool')
-                    .map(({ index }) => index);
-
-                // Keep only the last tool/tool-result expanded
-                if (toolIndices.length > 1) {
-                    const lastToolIndex = toolIndices[toolIndices.length - 1];
-                    toolIndices.forEach(index => {
-                        if (index !== lastToolIndex) {
-                            newState[index] = false;
-                        }
-                    });
-                }
-
-                return newState;
-            });
-        };
-
-        window.addEventListener('autoCollapseTools', handleAutoCollapse);
-        return () => window.removeEventListener('autoCollapseTools', handleAutoCollapse);
-    }, [chatHistory]);
-
     const handleSendMessage = async () => {
         if (inputMessage.trim()) {
-            let messageContent: any;
+            let messageContent: string | Array<TextPart | ImagePart | FilePart>;
             logger.debug('handleSendMessage called:', {
                 hasContext: !!currentContext,
                 contextType: currentContext?.type,
@@ -326,7 +287,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             ) {
                 try {
                     // Create structured content with text and images
-                    const contentParts: any[] = [
+                    const contentParts: Array<TextPart | ImagePart | FilePart> = [
                         {
                             type: 'text',
                             text: inputMessage,
@@ -352,14 +313,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                             contentParts.push({
                                 type: 'image',
                                 image: base64Content,
-                                mimeType: mimeType,
                             });
 
                             logger.debug('📎 Added image to message:', { imagePath, mimeType });
                         } catch (error) {
                             console.error('Failed to load image:', imagePath, error);
                             // Add error note to text content instead
-                            contentParts[0].text += `\n\n[Note: Could not load image ${imagePath}: ${error}]`;
+                            (contentParts[0] as TextPart).text += `\n\n[Note: Could not load image ${imagePath}: ${error}]`;
                         }
                     }
 
@@ -376,7 +336,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             } else if (currentContext) {
                 // Non-image context - use simple text format
                 messageContent = `Context: ${currentContext.fileName}\n\nMessage: ${inputMessage}`;
-                logger.debug('📤 Final message with non-image context:', messageContent);
+                logger.debug('📤 Final message with non-image context:', {messageContent});
             } else {
                 // No context - just the message text
                 messageContent = inputMessage;
@@ -384,7 +344,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             }
 
             logger.debug(`Sending message with content type: ${typeof messageContent}`);
-            void sendMessage(messageContent);
+            actor.sendChatMessage(messageContent);
             setInputMessage('');
             logger.debug('Message sent, input cleared');
         }
@@ -585,108 +545,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         }
     }, [uploadingImages.length, pendingImages.length, pendingImages, logger]);
 
-    // Helper function to check if tool is loading
-    const isToolLoading = useCallback(
-        (toolCallPart: any, msgIndex: number) => {
-            const toolCallId = toolCallPart.toolCallId;
-            const hasResult = chatHistory
-                .slice(msgIndex + 1)
-                .some(
-                    laterMsg =>
-                        laterMsg.role === 'tool' &&
-                        Array.isArray(laterMsg.content) &&
-                        laterMsg.content.some(
-                            resultPart =>
-                                resultPart.type === 'tool-result' &&
-                                (resultPart as any).toolCallId === toolCallId
-                        )
-                );
-            return !hasResult || (toolCallPart.metadata?.is_loading ?? false);
-        },
-        [chatHistory]
-    );
-
-    // Manage countdown timers for tool calls
-    useEffect(() => {
-        const activeTimers = new Set<string>();
-        logger.debug(`Processing tool timers, history length: ${chatHistory.length}`);
-
-        // Process each message to find tool calls
-        chatHistory.forEach((msg, msgIndex) => {
-            if (msg.role === 'assistant' && Array.isArray(msg.content)) {
-                // Find tool call parts and use same indexing as UI
-                const toolCallParts = msg.content.filter(
-                    part => part.type === 'tool-call'
-                ) as any[];
-
-                toolCallParts.forEach((toolCallPart, toolCallIndex) => {
-                    const uniqueKey = `${msgIndex}_${toolCallIndex}`; // Use tool call index, not content index
-                    const isLoading = isToolLoading(toolCallPart, msgIndex);
-
-                    activeTimers.add(uniqueKey);
-
-                    if (isLoading) {
-                        // Initialize timer if doesn't exist
-                        setToolTimers(prev => {
-                            if (!(uniqueKey in prev)) {
-                                const estimatedDuration =
-                                    toolCallPart.metadata?.estimated_duration ?? 90;
-                                const elapsedTime = toolCallPart.metadata?.elapsed_time ?? 0;
-                                const initialRemaining = Math.max(
-                                    0,
-                                    estimatedDuration - elapsedTime
-                                );
-
-                                return {
-                                    ...prev,
-                                    [uniqueKey]: initialRemaining,
-                                };
-                            }
-                            return prev;
-                        });
-
-                        // Start interval if not already running
-                        if (!timerIntervals.current[uniqueKey]) {
-                            timerIntervals.current[uniqueKey] = setInterval(() => {
-                                setToolTimers(current => {
-                                    const newTime = Math.max(0, (current[uniqueKey] ?? 0) - 1);
-                                    return {
-                                        ...current,
-                                        [uniqueKey]: newTime,
-                                    };
-                                });
-                            }, 1000);
-                        }
-                    } else {
-                        // Tool completed, clean up
-                        if (timerIntervals.current[uniqueKey]) {
-                            clearInterval(timerIntervals.current[uniqueKey]);
-                            delete timerIntervals.current[uniqueKey];
-                        }
-                        setToolTimers(prev => {
-                            // eslint-disable-next-line unused-imports/no-unused-vars
-                            const { [uniqueKey]: removed, ...rest } = prev;
-                            return rest;
-                        });
-                    }
-                });
-            }
-        });
-
-        // Clean up orphaned timers
-        Object.keys(timerIntervals.current).forEach(key => {
-            if (!activeTimers.has(key)) {
-                clearInterval(timerIntervals.current[key]);
-                delete timerIntervals.current[key];
-            }
-        });
-
-        // Cleanup on unmount
-        return () => {
-            Object.values(timerIntervals.current).forEach(timer => clearInterval(timer));
-        };
-    }, [chatHistory, isToolLoading, logger]);
-
     // Global drag & drop fallback for VS Code webview
     useEffect(() => {
         const handleGlobalDragOver = (e: DragEvent) => {
@@ -812,33 +670,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             Array.isArray(msg.content) &&
             msg.content.some((part: any) => part.type === 'tool-call');
 
-        // Helper function to find tool result for a tool call
-        const findToolResult = (toolCallId: string) => {
-            // Look for a tool message with matching toolCallId
-            for (let i = index + 1; i < chatHistory.length; i++) {
-                const laterMsg = chatHistory[i];
-                if (laterMsg.role === 'tool' && Array.isArray(laterMsg.content)) {
-                    const toolResultPart = laterMsg.content.find(
-                        part =>
-                            part.type === 'tool-result' && (part as any).toolCallId === toolCallId
-                    );
-                    if (toolResultPart) {
-                        return toolResultPart as any;
-                    }
-                }
-            }
-            return null;
-        };
-
         // Check if message has tool results
         const hasToolResults =
             Array.isArray(msg.content) &&
             msg.content.some((part: any) => part.type === 'tool-result');
 
+        const isLastMessage = index === (chatHistory?.length ?? 0) - 1;
         const isLastUserMessage =
-            msg.role === 'user' && index === chatHistory.length - 1 && isLoading;
+            msg.role === 'user' && isLastMessage && isLoading;
         const isLastStreamingMessage =
-            (msg.role === 'assistant' || hasToolResults) && index === chatHistory.length - 1;
+            (msg.role === 'assistant' || hasToolResults) && isLastMessage;
         const isStreaming = isLastStreamingMessage && isLoading;
         const messageText = getMessageText(msg);
 
@@ -878,18 +719,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                             {isStreaming && <span className='streaming-cursor'>▋</span>}
                         </div>
                         <div className='chat-message__tools'>
-                            {renderToolCalls(msg, index, findToolResult)}
+                            {renderToolCalls(msg, index)}
                         </div>
                     </div>
                 );
             } else {
                 // Only tool calls, no text content - use original tool-only rendering
-                return renderToolCalls(msg, index, findToolResult);
+                return renderToolCalls(msg, index);
             }
         }
 
         // Handle error messages with actions specially
-        if (msg.role === 'assistant' && msg.metadata?.is_error && msg.metadata?.actions) {
+        if (msg.role === 'assistant' && msg.metadata?.is_error === true) {
             return renderErrorMessage(msg, index);
         }
 
@@ -1005,14 +846,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
     const renderToolCalls = (
         msg: ChatMessage,
         index: number,
-        findToolResult: (toolCallId: string) => any
     ) => {
         if (!Array.isArray(msg.content)) {
             return <div key={index}>Invalid tool message content</div>;
         }
 
         // Find ALL tool call parts
-        const toolCallParts = msg.content.filter((part: any) => part.type === 'tool-call') as any[];
+        const toolCallParts: ToolCallPart[] = msg.content.filter((part: any) => isToolCallPart(part));
 
         if (toolCallParts.length === 0) {
             return <div key={index}>No tool calls found</div>;
@@ -1022,7 +862,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         return (
             <div key={index} className='tool-calls-container'>
                 {toolCallParts.map((toolCallPart, subIndex) =>
-                    renderSingleToolCall(toolCallPart, index, subIndex, findToolResult)
+                    renderSingleToolCall(toolCallPart, index, subIndex)
                 )}
             </div>
         );
@@ -1030,59 +870,66 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
 
     // Updated function to render a single tool call with unique subIndex for state management
     const renderSingleToolCall = (
-        toolCallPart: any,
+        toolCallPart: ToolCallPart,
         messageIndex: number,
         subIndex: number,
-        findToolResult: (toolCallId: string) => any
     ) => {
         try {
             const toolName = toolCallPart.toolName ?? 'Unknown Tool';
-            const toolInput = toolCallPart.args ?? {};
+            const toolInput = toolCallPart.input as object;
             const uniqueKey = `${messageIndex}_${subIndex}`;
+            const toolCallId = toolCallPart.toolCallId;
+
+            const toolResultPart = (chatHistory?.find(m => 
+                m.role === 'tool' && Array.isArray(m.content) && m.content
+                .filter((p) => isToolResultPart(p))
+                .some((p) => p.toolCallId === toolCallId)
+            )?.content as ToolResultPart[])?.find((p) => p.toolCallId === toolCallId);
+
+            const error: string | undefined =
+                toolResultPart?.output.type === 'error-json' ? JSON.stringify(toolResultPart?.output.value) : 
+                (toolResultPart?.output.type === 'error-text' ? toolResultPart?.output.value : undefined);
+
 
             // Special handling for generateTheme tool calls
             if (toolName === 'generateTheme') {
                 // For generateTheme, check if we have a tool result to determine completion
-                const toolCallId = toolCallPart.toolCallId;
-                const toolResultPart = findToolResult(toolCallId);
                 const hasResult = !!toolResultPart;
-                const resultIsError =
-                    toolResultPart?.isError !== undefined
-                        ? Boolean(toolResultPart?.isError)
-                        : false;
-
-                // Tool is loading if we don't have a result yet, or if metadata indicates loading
-                const isLoading: boolean = hasResult
-                    ? false
-                    : Boolean(toolCallPart.metadata?.is_loading ?? false);
 
                 // Extract theme data from tool input
-                const themeName = toolInput.theme_name ?? 'Untitled Theme';
-                const cssSheet = toolInput.cssSheet ?? undefined;
-                const cssFilePath: string | undefined =
-                    toolInput.cssFilePath ?? toolResultPart?.result?.cssFilePath;
+                const themeName = ('theme_name' in toolInput ? String(toolInput.theme_name) : undefined) ?? 'Untitled Theme';
+                const cssSheet = ('cssSheet' in toolInput ? toolInput.cssSheet : undefined) ?? undefined;
+                const cssFilePath =
+                    'cssFilePath' in toolInput ? toolInput.cssFilePath : 
+                    (toolResultPart?.output?.type === 'json' && 'cssFilePath' in (toolResultPart?.output?.value as object) ? (toolResultPart?.output?.value as any)?.cssFilePath : undefined);
 
                 // Try to get CSS file path from metadata or result
+                let isLoadingCss: boolean = true;
                 if (
                     hasResult &&
-                    !resultIsError &&
+                    error === undefined &&
                     cssFilePath !== undefined &&
                     !(cssFilePath in state.css)
                 ) {
                     void actor.getCssFileContent(cssFilePath);
+                } else {
+                    isLoadingCss = false;
                 }
 
-                let cssContent: string | undefined =
-                    cssSheet !== undefined ? String(cssSheet) : undefined;
+                if (cssSheet !== undefined && typeof cssSheet !== 'string') {
+                    throw new Error(`Could not handle the type of cssSheet: ${typeof cssSheet} from ${JSON.stringify(toolCallPart)}`)
+                }
+                if (cssFilePath !== undefined && typeof cssFilePath !== 'string') {
+                    throw new Error(`Could not handle the type of cssFilePath: ${typeof cssFilePath} from ${JSON.stringify(toolCallPart)}`)
+                }
+                let cssContent: string | undefined = cssSheet;
                 let cssLoadError: string | undefined = undefined;
-                let isLoadingCss: boolean = true;
                 if (cssFilePath !== undefined && cssFilePath in state.css) {
                     if (state.css[cssFilePath].content !== undefined) {
                         cssContent = state.css[cssFilePath].content;
                     } else {
                         cssLoadError = state.css[cssFilePath].error;
                     }
-
                     isLoadingCss = false;
                 }
                 return (
@@ -1093,10 +940,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                         <ThemePreviewCard
                             themeName={themeName}
                             currentCssContent={cssContent}
-                            isLoadingCss={isLoading || !!isLoadingCss}
+                            isLoadingCss={!hasResult || isLoadingCss}
                             cssLoadError={cssLoadError}
                         />
-                        {resultIsError && (
+                        {error !== undefined && (
                             <div
                                 className='theme-error-notice'
                                 style={{
@@ -1108,8 +955,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                     fontSize: '0.875rem',
                                 }}
                             >
-                                ⚠️ Theme generation encountered an error. The preview above shows
-                                the input data.
+                                ⚠️ Theme generation encountered an error: <br />
+                                {error}
                             </div>
                         )}
                     </div>
@@ -1119,47 +966,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             // Continue with existing generic tool rendering for other tools
             const isExpanded = expandedTools[uniqueKey] ?? false;
 
-            const description = toolInput.description ?? '';
-            const command = toolInput.command ?? '';
-            const prompt = toolInput.prompt ?? '';
+            const description: string = 'description' in toolInput ? toolInput.description as string : '';
+            const command: string = 'command' in toolInput ? toolInput.command as string : '';
+            const prompt: string = 'prompt' in toolInput ? toolInput.prompt as string : '';
 
             // Tool result data - find from separate tool message
-            const toolCallId = toolCallPart.toolCallId;
-            const toolResultPart = findToolResult(toolCallId);
             const hasResult = !!toolResultPart;
-            const resultIsError = toolResultPart?.isError ?? false;
 
-            // Tool is loading if we don't have a result yet, or if metadata indicates loading
-            const isLoading = !hasResult || (toolCallPart.metadata?.is_loading ?? false);
-
-            const toolResult = toolResultPart
-                ? typeof toolResultPart.result === 'string'
-                    ? toolResultPart.result
-                    : JSON.stringify(toolResultPart.result, null, 2)
+            const toolResult: string = toolResultPart !== undefined
+                ? (typeof toolResultPart.output.type === 'string'
+                    ? toolResultPart.output.value as string
+                    : JSON.stringify((toolResultPart.output as any).value, null, 2))
                 : '';
 
             // Tool is complete when it has finished (regardless of errors)
             const toolComplete = hasResult && !isLoading;
-
-            // Get the countdown timer for this specific tool
-            const timerRemaining = toolTimers[uniqueKey] ?? 0;
-
-            // Enhanced loading data
-            const estimatedDuration = toolCallPart.metadata?.estimated_duration ?? 90;
-            const elapsedTime = toolCallPart.metadata?.elapsed_time ?? 0;
-            // Use timer state for remaining time, fallback to calculated if timer not started yet
-            const remainingTime = isLoading
-                ? timerRemaining > 0
-                    ? timerRemaining
-                    : Math.max(0, estimatedDuration - elapsedTime)
-                : 0;
-
-            // Format time display
-            const formatTime = (seconds: number): string => {
-                const mins = Math.floor(seconds / 60);
-                const secs = Math.floor(seconds % 60);
-                return `${mins}:${secs.toString().padStart(2, '0')}`;
-            };
 
             // Get friendly tool name for display
             const getFriendlyToolName = (name: string): string => {
@@ -1178,104 +999,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                     friendlyNames[name] ||
                     name.replace(/mcp_|_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
                 );
-            };
-
-            // Get helpful loading tips based on tool and progress
-            const getLoadingTip = (toolName: string, progress: number): string => {
-                const progressStage =
-                    progress < 25
-                        ? 'early'
-                        : progress < 50
-                          ? 'mid'
-                          : progress < 75
-                            ? 'late'
-                            : 'final';
-
-                const tipsByTool: { [key: string]: { [stage: string]: string[] } } = {
-                    'mcp_taskmaster-ai_parse_prd': {
-                        early: [
-                            'Analyzing requirements and identifying key features...',
-                            'Breaking down complex requirements into manageable tasks...',
-                        ],
-                        mid: [
-                            'Structuring tasks based on dependencies and priorities...',
-                            'Defining implementation details for each component...',
-                        ],
-                        late: [
-                            'Finalizing task relationships and estimates...',
-                            'Optimizing task breakdown for efficient development...',
-                        ],
-                        final: [
-                            'Completing task generation and validation...',
-                            'Almost ready with your project roadmap!',
-                        ],
-                    },
-                    'mcp_taskmaster-ai_research': {
-                        early: [
-                            'Gathering the latest information from multiple sources...',
-                            'Searching for best practices and recent developments...',
-                        ],
-                        mid: [
-                            'Analyzing findings and filtering relevant information...',
-                            'Cross-referencing multiple sources for accuracy...',
-                        ],
-                        late: [
-                            'Synthesizing research into actionable insights...',
-                            'Preparing comprehensive research summary...',
-                        ],
-                        final: [
-                            'Finalizing research report with recommendations...',
-                            'Almost done with your research!',
-                        ],
-                    },
-                    'mcp_taskmaster-ai_expand_task': {
-                        early: [
-                            'Breaking down the task into detailed subtasks...',
-                            'Analyzing task complexity and dependencies...',
-                        ],
-                        mid: [
-                            'Defining implementation steps and requirements...',
-                            'Creating detailed subtask specifications...',
-                        ],
-                        late: [
-                            'Optimizing subtask flow and dependencies...',
-                            'Adding implementation details and strategies...',
-                        ],
-                        final: [
-                            'Finalizing subtask breakdown...',
-                            'Your detailed implementation plan is almost ready!',
-                        ],
-                    },
-                };
-
-                const generalTips = {
-                    early: [
-                        'AI is working hard to process your request...',
-                        'Analyzing your requirements in detail...',
-                        'Loading the best approach for your needs...',
-                    ],
-                    mid: [
-                        'Making good progress on your request...',
-                        'Processing complex logic and relationships...',
-                        'Halfway there! Building your solution...',
-                    ],
-                    late: [
-                        'Finalizing details and optimizations...',
-                        'Almost finished with the heavy lifting...',
-                        'Putting the finishing touches on your request...',
-                    ],
-                    final: [
-                        'Just a few more seconds...',
-                        'Completing final validations...',
-                        'Almost ready with your results!',
-                    ],
-                };
-
-                const toolTips = tipsByTool[toolName] || generalTips;
-                const stageTips = toolTips[progressStage] || generalTips[progressStage];
-                const randomIndex = Math.floor(progress / 10) % stageTips.length;
-
-                return stageTips[randomIndex];
             };
 
             const toggleExpanded = () => {
@@ -1320,11 +1043,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                 {description && (
                                     <span className='tool-description'>{description}</span>
                                 )}
-                                {isLoading && (
-                                    <span className='tool-time-remaining'>
-                                        <ClockIcon /> {formatTime(remainingTime)} remaining
-                                    </span>
-                                )}
                             </div>
                         </div>
                         <div className='tool-actions'>
@@ -1349,14 +1067,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                             <LightBulbIcon />
                                         </span>
                                         <span className='tip-text'>
-                                            {getLoadingTip(
-                                                toolName,
-                                                Math.floor(
-                                                    ((estimatedDuration - remainingTime) /
-                                                        estimatedDuration) *
-                                                        100
-                                                )
-                                            )}
+                                            {toolName}
                                         </span>
                                     </div>
                                 </div>
@@ -1386,10 +1097,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                             {hasResult && (
                                 <div className='tool-detail'>
                                     <span className='tool-detail__label'>
-                                        {resultIsError ? 'Error Result:' : 'Result:'}
+                                        {error !== undefined ? 'Error Result:' : 'Result:'}
                                     </span>
                                     <div
-                                        className={`tool-detail__value tool-detail__value--result ${resultIsError ? 'tool-detail__value--error' : ''}`}
+                                        className={`tool-detail__value tool-detail__value--result ${error !== undefined ? 'tool-detail__value--error' : ''}`}
                                     >
                                         <pre className='tool-result-content'>{toolResult}</pre>
                                     </div>
@@ -1465,9 +1176,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                     <div className='error-message-content'>
                         {typeof msg.content === 'string' ? msg.content : 'Error occurred'}
                     </div>
-                    {msg.metadata?.actions && msg.metadata.actions.length > 0 && (
+                    {msg.metadata?.actions !== undefined && msg.metadata.actions.length > 0 && (
                         <div className='error-actions'>
-                            {msg.metadata.actions.map((action: any, actionIndex: number) => (
+                            {msg.metadata.actions.map((action: MessageAction, actionIndex: number) => (
                                 <button
                                     key={actionIndex}
                                     onClick={() => handleActionClick(action)}
@@ -1539,8 +1250,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 <div className='chat-history'>
                     {showWelcome ? (
                         <Welcome onGetStarted={handleWelcomeGetStarted} />
-                    ) : hasConversationMessages() ? (
-                        <>{chatHistory.map(renderChatMessage)}</>
+                    ) : hasConversationMessages ? (
+                        <>{chatHistory?.map(renderChatMessage)}</>
                     ) : (
                         renderPlaceholder()
                     )}
@@ -1647,7 +1358,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                             void handleModelChange(providerId, model);
                                         }}
                                         disabled={isLoading || showWelcome}
-                                        modelsWithProvider={ProviderService.getInstance().getAvailableModels()}
+                                        modelsWithProvider={state.availableModels}
                                     />
                                 </div>
                             </div>
@@ -1700,7 +1411,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                         void handleNewConversation();
                                     }}
                                     disabled={
-                                        isLoading || showWelcome || !hasConversationMessages()
+                                        isLoading || showWelcome || !hasConversationMessages
                                     }
                                     title='Clear chat history'
                                 >

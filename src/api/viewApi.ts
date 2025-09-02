@@ -1,4 +1,3 @@
-import type { LogLevel } from '../services/ILogger';
 import type { ChatMessage } from '../types/chatMessage';
 import type { LanguageModelV2ToolResultOutput } from '@ai-sdk/provider';
 
@@ -37,9 +36,6 @@ export interface ViewAPI {
         mimeType: string;
         size: number;
     }) => Promise<string | Error>;
-
-    // Logging operation
-    log: (level: LogLevel, message: string, data?: Record<any, any>) => void;
 }
 
 /**
@@ -82,7 +78,6 @@ export interface ViewEvents {
     workspaceChanged: (workspaceId?: string) => void;
     providerChanged: (providerId: string, model: string) => void;
     historyLoaded: (history: ChatMessage[], workspaceId?: string) => void;
-    migrationComplete: (history: ChatMessage[], workspaceId?: string) => void;
 
     // Context events
     contextFromCanvas: (data: { fileName: string; type: string }) => void;

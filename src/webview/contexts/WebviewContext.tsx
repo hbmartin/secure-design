@@ -115,11 +115,6 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
         key: K,
         ...params: Parameters<ViewAPI[K]>
     ): ReturnType<ViewAPI[K]> => {
-        if (!vscodeApi) {
-            console.error('VSCode API not available for call to', key);
-            return Promise.reject(new Error('VSCode API not available')) as ReturnType<ViewAPI[K]>;
-        }
-
         const id = generateId();
         const deferred = new DeferredPromise<Awaited<ReturnType<ViewAPI[K]>>>();
 
@@ -166,13 +161,6 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
 
         // Send the request
         try {
-            if (key !== 'log') {
-                console.log(`[WebviewContext] Sending API request: ${key}`, {
-                    params,
-                    id,
-                    context: contextRef.current,
-                });
-            }
             vscodeApi.postMessage(request);
         } catch (error) {
             console.error(`Failed to send API request ${key}:`, error);
@@ -269,7 +257,7 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
             } else {
                 // Handle legacy messages that don't follow the new format
                 // This ensures compatibility during migration
-                console.debug('Received legacy message format:', message);
+                console.error('Received legacy message format:', message);
             }
         };
 

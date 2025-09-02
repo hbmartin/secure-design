@@ -90,12 +90,6 @@ export interface ExtensionToWebviewMessages {
         workspaceId?: string;
     };
 
-    migrationComplete: {
-        command: 'migrationComplete';
-        chatHistory: ChatMessage[];
-        workspaceId?: string;
-    };
-
     workspaceChanged: {
         command: 'workspaceChanged';
         workspaceId?: string;

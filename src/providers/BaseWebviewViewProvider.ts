@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import type { WebviewApiProvider } from './WebviewApiProvider';
 import type { WebviewContext } from '../types/context';
-import { getLogger } from '../services/logger';
+import { getLogger, Logger } from '../services/logger';
 import type { ViewApiRequest } from '../api/viewApi';
 import {
     isMyActionMessage,
@@ -10,7 +10,10 @@ import {
     type ActionDelegate,
     type FnKeys,
     type Patches,
+    Patch,
 } from '../types/ipcReducer';
+import { isLogMessage } from '../webview/utils/WebviewLogger';
+import { LogLevel } from '../services/ILogger';
 
 export abstract class BaseWebviewViewProvider<A extends object>
     implements vscode.WebviewViewProvider
@@ -58,6 +61,22 @@ export abstract class BaseWebviewViewProvider<A extends object>
         this.apiProvider.registerView(this.providerId, webviewView, this.providerId);
 
         const messageListener = webviewView.webview.onDidReceiveMessage(async message => {
+            if (isLogMessage(message)) {
+                switch (message.level) {
+                    case LogLevel.DEBUG: {
+                        Logger.debug(message.message, message.data)
+                    }
+                    case LogLevel.INFO: {
+                        Logger.info(message.message, message.data)
+                    }
+                    case LogLevel.WARN: {
+                        Logger.warn(message.message, message.data)
+                    }
+                    case LogLevel.ERROR: {
+                        Logger.error(message.message, message.data)
+                    }
+                }
+            }
             if (isMyActionMessage<A>(message, this.providerId)) {
                 this.logger.debug('Received action message from webview', message);
 
@@ -77,12 +96,6 @@ export abstract class BaseWebviewViewProvider<A extends object>
                 return;
             }
 
-            if (message.key !== 'log') {
-                this.logger.debug('Delegating API request to WebviewApiProvider', {
-                    requestId: message.id,
-                    requestKey: message.key,
-                });
-            }
             await this.handleMessage(message, webviewView.webview);
         });
 
@@ -99,7 +112,7 @@ export abstract class BaseWebviewViewProvider<A extends object>
             providerId: this.providerId,
             key,
             patch,
-        });
+        } satisfies Patch<A>);
     }
 
     /**

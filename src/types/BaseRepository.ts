@@ -26,7 +26,7 @@ class BaseRepository<Data> {
     /**
      * Get the current data
      */
-    getData(): Data {
+    protected getData(): Data {
         return this.data;
     }
 
@@ -50,7 +50,10 @@ class BaseRepository<Data> {
             try {
                 listener(this.data);
             } catch (error) {
-                console.error(`Failed to notify listener: ${listener.name}`, { error });
+                console.error(
+                    `Failed to notify listener: ${listener.name ?? listener.toString()}`,
+                    { error }
+                );
             }
         });
     }

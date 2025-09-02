@@ -382,7 +382,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
                             <div className='model-selector-list'>
                                 {filteredModels.map(mp => (
                                     <button
-                                        key={mp.model.id}
+                                        key={`${mp.provider.id}:${mp.model.id}`}
                                         className={`model-option ${mp.model.id === selectedModel ? 'selected' : ''}`}
                                         onClick={() =>
                                             handleModelSelect(mp.provider.id, mp.model.id)

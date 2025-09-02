@@ -39,6 +39,12 @@ export function getModel(): ModelConfigWithProvider {
 export async function setModel(providerId: ProviderId, modelId: string) {
     const service = ProviderService.getInstance();
     const config = vscode.workspace.getConfiguration(service.configPrefix);
-    await config.update(PROVIDER_KEY, providerId, vscode.ConfigurationTarget.Global);
-    await config.update(MODEL_KEY, modelId, vscode.ConfigurationTarget.Global);
+    const mcwp = service.getModelForProvider(providerId, modelId);
+    if (!mcwp) {
+        throw new Error(`Model "${modelId}" is not registered for provider "${providerId}"`);
+    }
+    await Promise.all([
+        config.update(PROVIDER_KEY, providerId, vscode.ConfigurationTarget.Global),
+        config.update(MODEL_KEY, modelId, vscode.ConfigurationTarget.Global),
+    ]);
 }

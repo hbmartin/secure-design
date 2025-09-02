@@ -1,34 +1,61 @@
 import { LogLevel, type ILogger } from '../../services/ILogger';
-import type { ViewAPI } from '../../api/viewApi';
 
-/**
- * WebviewLogger implements the ILogger interface for webview contexts.
- * It uses the ViewAPI to send log messages to the extension host where
- * they are processed by the main Logger service.
- *
- * This ensures all logs from both the extension and webviews are
- * centralized in the same output channel.
- */
+interface LogMessage {
+    type: 'log';
+    level: LogLevel;
+    message: string;
+    data?: Record<any, any>;
+}
+
+export function isLogMessage(value: any): value is LogMessage {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+    if (!Object.prototype.hasOwnProperty.call(value, 'type')) return false;
+    if (value.type !== 'log') return false;
+    if (!Object.prototype.hasOwnProperty.call(value, 'level')) return false;
+    if (!Object.prototype.hasOwnProperty.call(value, 'message')) return false;
+    return true;
+}
+
 export class WebviewLogger implements ILogger {
     constructor(
-        private readonly api: ViewAPI,
+        private readonly vscode: VsCodeApi,
         readonly tag: string
     ) {}
 
     debug(message: string, data?: Record<any, any>): void {
-        this.api.log(LogLevel.DEBUG, `[${this.tag}] ${message}`, data);
+        this.vscode.postMessage({
+            type: 'log',
+            level: LogLevel.DEBUG,
+            message: `[${this.tag}] ${message}`,
+            data,
+        } satisfies LogMessage);
     }
 
     info(message: string, data?: Record<any, any>): void {
-        this.api.log(LogLevel.INFO, `[${this.tag}] ${message}`, data);
+        this.vscode.postMessage({
+            type: 'log',
+            level: LogLevel.INFO,
+            message: `[${this.tag}] ${message}`,
+            data,
+        } satisfies LogMessage)
     }
 
     warn(message: string, data?: Record<any, any>): void {
-        this.api.log(LogLevel.WARN, `[${this.tag}] ${message}`, data);
+        this.vscode.postMessage({
+            type: 'log',
+            level: LogLevel.WARN,
+            message: `[${this.tag}] ${message}`,
+            data,
+        } satisfies LogMessage)
     }
 
     error(message: string, data?: Record<any, any>): void {
-        this.api.log(LogLevel.ERROR, `[${this.tag}] ${message}`, data);
+        this.vscode.postMessage({
+            type: 'log',
+            level: LogLevel.ERROR,
+            message: `[${this.tag}] ${message}`,
+            data,
+        } satisfies LogMessage)
     }
 
     dispose(): void {

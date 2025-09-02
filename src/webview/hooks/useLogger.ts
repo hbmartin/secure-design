@@ -11,7 +11,7 @@ import type { ILogger } from '../../services/ILogger';
 export function useLogger(tag: string): ILogger {
     const context = useContext(WebviewContext);
     return useMemo(
-        () => (context?.api ? new WebviewLogger(context.api, tag) : createConsoleLogger(tag)),
+        () => (context?.vscode !== undefined ? new WebviewLogger(context.vscode, tag) : createConsoleLogger(tag)),
         [context?.api, tag]
     );
 }
