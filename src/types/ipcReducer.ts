@@ -18,16 +18,19 @@ export function isFnKey<T extends object>(
         typeof obj[prop as keyof T] === 'function'
     );
 }
-export interface Action<T extends object, K extends FnKeys<T> = FnKeys<T>> {
-    readonly type: typeof ACT;
+
+interface IpcMessage {
+    readonly type: string;
     readonly providerId: WebviewKey;
+}
+export interface Action<T extends object, K extends FnKeys<T> = FnKeys<T>> extends IpcMessage {
+    readonly type: typeof ACT;
     readonly key: K;
     readonly params: T[K] extends (...a: infer A) => any ? Readonly<A> : never;
 }
 
-export interface Patch<A, K extends FnKeys<A> = FnKeys<A>> {
+export interface Patch<A, K extends FnKeys<A> = FnKeys<A>> extends IpcMessage {
     readonly type: typeof PATCH;
-    readonly providerId: WebviewKey;
     readonly key: K;
     readonly patch: Patches<A>[K];
 }

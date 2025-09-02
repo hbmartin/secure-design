@@ -3,14 +3,12 @@ import type { AgentService } from '../types/agent';
 import type { WorkspaceStateService } from '../services/workspaceStateService';
 import type { ProviderService } from '../providers/ProviderService';
 import type ChatMessagesRepository from './ChatMessagesRepository';
-// Removed WebviewApiProvider import to avoid circular dependency
 import type { ChatMessage } from '../types/chatMessage';
-import type { ModelMessage } from 'ai';
 import { getLogger, Logger } from '../services/logger';
 import type { VsCodeConfiguration, ProviderId } from '../providers/types';
-import type { ViewEvents, ChatChunkMetadata, ViewAPI } from '../api/viewApi';
-import type { LanguageModelV2ToolResultOutput } from '@ai-sdk/provider';
-import { LogLevel } from '../services/ILogger';
+import type { ViewEvents, ViewAPI } from '../api/viewApi';
+import { handleStreamMessage } from './ChatMiddleware';
+import type { TextPart, ImagePart, FilePart } from '@ai-sdk/provider-utils';
 
 /**
  * Interface for event triggering capability to avoid circular dependencies
@@ -195,24 +193,6 @@ export class ChatController implements ViewAPI {
         }
     };
 
-    log = (level: LogLevel, message: string, data?: Record<any, any>): void => {
-        // Use the logger static methods based on level
-        switch (level) {
-            case LogLevel.DEBUG:
-                Logger.debug(message, data);
-                break;
-            case LogLevel.INFO:
-                Logger.info(message, data);
-                break;
-            case LogLevel.WARN:
-                Logger.warn(message, data);
-                break;
-            case LogLevel.ERROR:
-                Logger.error(message, data);
-                break;
-        }
-    };
-
     checkCanvasStatus = (): Promise<boolean> => {
         this.logger.info('API: checkCanvasStatus called');
         // Check if SuperdesignCanvasPanel is currently open
@@ -235,69 +215,64 @@ export class ChatController implements ViewAPI {
         await vscode.commands.executeCommand('securedesign.initializeProject');
     };
 
-    async sendChatMessage(message: string, chatHistory: ChatMessage[]): Promise<void> {
-        // Save the updated chat history to repository
-        await this.chatMessagesRepository.saveChatHistory(chatHistory);
+    async sendChatMessage(prompt: string | Array<TextPart | ImagePart | FilePart>): Promise<void> {
+        await this.chatMessagesRepository.appendMessage({
+            role: 'user',
+            content: prompt,
+            metadata: {
+                timestamp: Date.now(),
+            },
+        });
+        const history = this.chatMessagesRepository.getChatHistory();
+        if (history === undefined) {
+            throw new Error('Failed to retrieve chat history after appending user message');
+        }
         try {
-            this.logger.debug('sendChatMessage', {
-                messageLength: message.length,
-                historyLength: chatHistory.length,
-            });
-
             this.currentRequestController = new AbortController();
             this.eventTrigger.triggerEvent('chatStreamStart');
-            const modelMessages: ModelMessage[] = chatHistory;
 
-            let response: ModelMessage[];
-
-            if (modelMessages.length > 0) {
-                Logger.info('Using conversation history for context');
-                response = await this.agentService.query(
-                    message,
-                    modelMessages,
-                    undefined,
-                    this.currentRequestController,
-                    (streamMessage: ModelMessage) => {
-                        this.handleStreamMessage(streamMessage);
-                    }
-                );
-            } else {
-                Logger.info('No conversation history, using single prompt');
-                response = await this.agentService.query(
-                    message,
-                    undefined,
-                    undefined,
-                    this.currentRequestController,
-                    (streamMessage: ModelMessage) => {
-                        this.handleStreamMessage(streamMessage);
-                    }
-                );
-            }
+            const updatedChatHistory = await this.agentService.query(
+                history,
+                this.currentRequestController,
+                (prev: ChatMessage[], streamMessage: ChatMessage) => {
+                    const newHistory = handleStreamMessage(prev, streamMessage);
+                    void (async () => {
+                        try {
+                            await this.chatMessagesRepository.saveChatHistory(newHistory);
+                        } catch (error) {
+                            this.logger.error('Failed to save intermediate chat history', {
+                                error,
+                            });
+                        }
+                    })();
+                    return newHistory;
+                }
+            );
+            await this.chatMessagesRepository.saveChatHistory(updatedChatHistory);
 
             // Check if request was aborted
             if (this.currentRequestController.signal.aborted) {
-                Logger.warn('Request was aborted');
+                this.logger.warn('Request was aborted');
                 return;
             }
-
-            Logger.info(`Agent response completed with ${response.length} total messages`);
 
             // Trigger stream end event
             this.eventTrigger.triggerEvent('chatStreamEnd');
         } catch (error) {
             // Check if the error is due to abort
-            if (this.currentRequestController?.signal.aborted) {
-                Logger.info('Request was stopped by user');
+            if (this.currentRequestController?.signal.aborted === true) {
+                this.logger.info('Request was stopped by user');
                 this.eventTrigger.triggerEvent('chatStopped');
                 return;
             }
 
-            Logger.error(`Chat message failed: ${error}`);
+            this.logger.error(`Chat message failed:`, { error });
 
             const errorMessage = error instanceof Error ? error.message : String(error);
 
             // Check if this is an API key authentication error
             if (this.agentService.isApiKeyAuthError?.(errorMessage)) {
+                // TODO: open the correct config for the given AI provider
                 Logger.error('API key authentication error detected');
                 this.eventTrigger.triggerEvent('chatError', errorMessage, [
                     {
@@ -315,122 +290,6 @@ export class ChatController implements ViewAPI {
             // Clear the controller when done
             this.currentRequestController = undefined;
         }
-    }
-
-    /**
-     * Handle individual stream messages and trigger appropriate events
-     */
-    private handleStreamMessage(message: ModelMessage): void {
-        Logger.debug(`Handling ModelMessage: ${JSON.stringify(message, null, 2)}`);
-
-        // Handle assistant messages
-        if (message.role === 'assistant') {
-            if (typeof message.content === 'string') {
-                // Simple text content
-                if (message.content.trim()) {
-                    this.eventTrigger.triggerEvent(
-                        'chatResponseChunk',
-                        message.content,
-                        'assistant',
-                        {}
-                    );
-                }
-            } else if (Array.isArray(message.content)) {
-                // Handle assistant content array (text parts, tool calls, etc.)
-                for (const part of message.content) {
-                    if (part.type === 'text' && (part as any).text) {
-                        // Send text content
-                        this.eventTrigger.triggerEvent(
-                            'chatResponseChunk',
-                            (part as any).text,
-                            'assistant',
-                            {}
-                        );
-                    } else if (part.type === 'tool-call') {
-                        // Send tool call with standardized metadata schema
-                        const metadata: ChatChunkMetadata = {
-                            tool_id: (part as any).toolCallId,
-                            tool_name: (part as any).toolName,
-                            args: (part as any).args ?? (part as any).input, // Standardize on 'args' field
-                        };
-                        this.eventTrigger.triggerEvent(
-                            'chatResponseChunk',
-                            '',
-                            'tool-call',
-                            metadata
-                        );
-                    }
-                }
-            }
-        } else if (message.role === 'tool') {
-            // Handle tool results
-            if (Array.isArray(message.content)) {
-                for (const part of message.content) {
-                    if (part.type === 'tool-result') {
-                        const toolResultPart = part as any;
-                        if (!('output' in toolResultPart)) {
-                            Logger.warn(
-                                `Tool result part missing output field: ${JSON.stringify(part)}`
-                            );
-                            continue;
-                        }
-                        const rawOutput = toolResultPart.output;
-
-                        // Ensure the output conforms to LanguageModelV2ToolResultOutput interface
-                        // The AI SDK should already provide this in the correct format
-                        const aiSdkOutput: LanguageModelV2ToolResultOutput =
-                            this.normalizeToolResultOutput(rawOutput);
-
-                        const metadata: ChatChunkMetadata = {
-                            tool_id: (part as any).toolCallId,
-                            tool_name: (part as any).toolName,
-                            output: aiSdkOutput,
-                        };
-                        // Pass empty string as chunk since the actual data is in metadata
-                        this.eventTrigger.triggerEvent(
-                            'chatResponseChunk',
-                            '',
-                            'tool-result',
-                            metadata
-                        );
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Normalize tool result output to ensure AI SDK compliance
-     * Handles various output formats and converts them to LanguageModelV2ToolResultOutput
-     */
-    private normalizeToolResultOutput(rawOutput: any): LanguageModelV2ToolResultOutput {
-        // If it's already in the correct format, return as-is
-        if (rawOutput && typeof rawOutput === 'object' && rawOutput.type) {
-            // Validate it's a valid LanguageModelV2ToolResultOutput type
-            const validTypes = ['text', 'json', 'error-text', 'error-json', 'content'];
-            if (validTypes.includes(rawOutput.type)) {
-                return rawOutput as LanguageModelV2ToolResultOutput;
-            }
-        }
-
-        // Handle legacy or non-conformant outputs
-        if (typeof rawOutput === 'string') {
-            // String output -> text type
-            return { type: 'text', value: rawOutput };
-        }
-
-        if (rawOutput === null || rawOutput === undefined) {
-            // Null/undefined -> empty text
-            return { type: 'text', value: '' };
-        }
-
-        if (typeof rawOutput === 'object') {
-            // Complex object -> json type
-            return { type: 'json', value: rawOutput };
-        }
-
-        // Fallback for primitives -> convert to string
-        return { type: 'text', value: String(rawOutput) };
     }
 
     /**
@@ -508,7 +367,6 @@ export class ChatController implements ViewAPI {
                 `[ChatController] Successfully changed provider to: ${providerId}, ${model}`
             );
 
-            // Return success response
             return {
                 success: true,
                 provider: providerId,

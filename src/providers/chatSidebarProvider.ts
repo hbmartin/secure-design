@@ -12,13 +12,15 @@ import type { ChatMessage } from '../types';
 import getCssFileContent from '../chat/getCssFileContent';
 import type { ProviderId } from './types';
 import { getModel, setModel } from './VsCodeConfiguration';
+import type { TextPart, ImagePart, FilePart } from '@ai-sdk/provider-utils';
 
 function createActionDelegate(
-    chatMessagesRepository: ChatMessagesRepository
+    chatMessagesRepository: ChatMessagesRepository,
+    chatController: ChatController
 ): ActionDelegate<ChatSidebarActions> {
     return {
-        loadChats: function (): ChatMessage[] {
-            return chatMessagesRepository.getChatHistory() ?? [];
+        loadChats: function (): ChatMessage[] | undefined {
+            return chatMessagesRepository.getChatHistory();
         },
         clearChats: async function (): Promise<void> {
             await chatMessagesRepository.clearChatHistory();
@@ -44,6 +46,9 @@ function createActionDelegate(
             await setModel(providerId, modelId);
             return [providerId, modelId];
         },
+        sendChatMessage: function (prompt: string | (TextPart | ImagePart | FilePart)[]) {
+            void chatController.sendChatMessage(prompt);
+        },
     };
 }
 
@@ -60,7 +65,7 @@ export class ChatSidebarProvider extends BaseWebviewViewProvider<ChatSidebarActi
         private readonly chatMessagesRepository: ChatMessagesRepository
     ) {
         super(ChatSidebarKey, _extensionUri, apiProvider);
-        this.webviewActionDelegate = createActionDelegate(chatMessagesRepository);
+        this.webviewActionDelegate = createActionDelegate(chatMessagesRepository, chatController);
 
         // Subscribe to repository changes and send patches to webview
         this.repositoryUnsubscribe = this.chatMessagesRepository.subscribe(messages => {
@@ -367,10 +372,6 @@ export class ChatSidebarProvider extends BaseWebviewViewProvider<ChatSidebarActi
         vscode.window.showInformationMessage('Canvas content added as context');
     }
 
-    /**
-     * Called when the webview is disposed
-     * Clean up subscriptions
-     */
     protected onWebviewDispose(): void {
         // Unsubscribe from repository
         if (this.repositoryUnsubscribe) {

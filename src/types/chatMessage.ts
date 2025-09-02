@@ -1,5 +1,11 @@
 import type { ModelMessage } from 'ai';
 
+export interface MessageAction {
+    readonly text: string;
+    readonly command: string;
+    readonly args?: string;
+}
+
 // Additional metadata for UI state
 interface MessageMetadata {
     timestamp?: number;
@@ -10,22 +16,15 @@ interface MessageMetadata {
     progress_percentage?: number;
     session_id?: string;
     result_type?: string;
-    is_error?: boolean;
     duration_ms?: number;
     total_cost_usd?: number;
     // Tool-related metadata
+    is_update?: boolean;
     tool_name?: string;
     tool_id?: string;
-    tool_input?: any;
-    tool_result?: any;
-    result_is_error?: boolean;
     result_received?: boolean;
-    actions?: Array<{
-        readonly text: string;
-        readonly command: string;
-        readonly args?: string;
-    }>;
-    error_context?: string;
+    actions?: Array<MessageAction>;
+    is_error?: boolean;
 }
 
 // Message with metadata for UI - extends AI SDK's ModelMessage
