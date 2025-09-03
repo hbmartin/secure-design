@@ -1,10 +1,10 @@
-import { streamText, type ModelMessage } from 'ai';
+import { type FilePart, streamText, type TextPart } from 'ai';
 import type { LanguageModelV2 } from '@ai-sdk/provider';
 import * as vscode from 'vscode';
 import type { AgentService, ExecutionContext } from '../types/agent';
 import type { VsCodeConfiguration } from '../providers/types';
 import { ProviderService } from '../providers/ProviderService';
-import { getLogger, Logger } from './logger';
+import { getLogger } from './logger';
 import { createReadTool } from '../tools/read-tool';
 import { createWriteTool } from '../tools/write-tool';
 import { createBashTool } from '../tools/bash-tool';
@@ -17,6 +17,8 @@ import { createMultieditTool } from '../tools/multiedit-tool';
 import { getModel, getProvider } from '../providers/VsCodeConfiguration';
 import * as os from 'os';
 import type { ChatMessage } from '../types/chatMessage';
+import type { ReasoningPart, ToolCallPart, ToolResultPart } from '@ai-sdk/provider-utils';
+import { guessToolResultOutput } from './chunkToolOutputToMessageToolOutput';
 
 const extractErrorMessage = (error: unknown): string => {
     if (error === null || error === undefined) {
@@ -510,7 +512,7 @@ I've created the html design, please reveiw and let me know if you need any chan
     async query(
         conversationHistory: ChatMessage[],
         abortController: AbortController,
-        onMessage: (prev: ChatMessage[], message: ChatMessage) => ChatMessage[]
+        onMessage: (prev: ChatMessage[]) => void
     ): Promise<ChatMessage[]> {
         if (!this.isInitialized) {
             await this.setupWorkingDirectory();
@@ -518,11 +520,6 @@ I've created the html design, please reveiw and let me know if you need any chan
 
         let updatedMessages: ChatMessage[] = conversationHistory;
         const sessionId = `session_${Date.now()}`;
-        let messageBuffer = '';
-
-        // Tool call streaming state
-        let currentToolCall: any = null;
-        let toolCallBuffer = '';
 
         try {
             this.logger.info('Starting AI SDK streamText...');
@@ -531,12 +528,11 @@ I've created the html design, please reveiw and let me know if you need any chan
             const executionContext: ExecutionContext = {
                 workingDirectory: this.workingDirectory,
                 sessionId: sessionId,
-                logger: Logger,
+                logger: getLogger('query context'),
                 abortController: abortController,
             };
 
             // Create tools with context
-            this.logger.debug('Creating tools with execution context');
             const tools = {
                 read: createReadTool(executionContext),
                 write: createWriteTool(executionContext),
@@ -549,71 +545,12 @@ I've created the html design, please reveiw and let me know if you need any chan
                 generateTheme: createThemeTool(executionContext),
             };
 
-            // Prepare AI SDK input based on available data
-            const streamTextConfig: any = {
+            const result = streamText({
                 model: this.getModel(),
                 system: this.getSystemPrompt(),
+                messages: conversationHistory,
                 tools: tools,
-                toolCallStreaming: true,
-                maxSteps: 10, // Enable multi-step reasoning with tools
-                // maxTokens: 8192, // TODO: make this dynamic from provider
-            };
-
-            // Validate and repair conversation history to ensure proper tool call/result pairing
-            const validatedMessages = this.validateToolCallPairs(conversationHistory);
-            streamTextConfig.messages = validatedMessages;
-            this.logger.info(
-                `Using conversation history with ${validatedMessages.length} messages (${conversationHistory.length} original)`
-            );
-
-            this.logger.info('Messages being sent to AI SDK:', {
-                messageCount: validatedMessages.length,
-                messages: validatedMessages.map((msg, index) => ({
-                    index,
-                    role: msg.role,
-                    contentType: typeof msg.content,
-                    content: msg.content,
-                })),
             });
-
-            // Check for duplicate tool IDs
-            const toolCallIds = new Set<string>();
-            const duplicateIds: string[] = [];
-
-            validatedMessages.forEach((msg, msgIndex) => {
-                if (msg.role === 'assistant' && Array.isArray(msg.content)) {
-                    msg.content.forEach((part: any, partIndex: number) => {
-                        if (part.type === 'tool-call' && part.toolCallId) {
-                            if (toolCallIds.has(part.toolCallId)) {
-                                duplicateIds.push(part.toolCallId);
-                                this.logger.error(
-                                    `DUPLICATE TOOL ID FOUND: ${part.toolCallId} in message ${msgIndex}, part ${partIndex}`
-                                );
-                            } else {
-                                toolCallIds.add(part.toolCallId);
-                            }
-                            this.logger.info(
-                                `  [${msgIndex}] Tool Call: ID=${part.toolCallId}, Name=${part.toolName}`
-                            );
-                        }
-                    });
-                }
-            });
-
-            if (duplicateIds.length > 0) {
-                this.logger.error('Duplicate tool IDs detected before sending to AI SDK', {
-                    duplicateIds,
-                    allToolIds: Array.from(toolCallIds),
-                });
-            }
-
-            validatedMessages.forEach((msg, index) => {
-                const content =
-                    typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
-                this.logger.info(`  [${index}] ${msg.role}: "${content.substring(0, 200)}..."`);
-            });
-
-            const result = streamText(streamTextConfig);
 
             this.logger.info('AI SDK streamText created, starting to process chunks...');
 
@@ -624,142 +561,114 @@ I've created the html design, please reveiw and let me know if you need any chan
                     throw new Error('Operation cancelled');
                 }
 
-                this.logger.info(`Received chunk type: ${chunk.type}`, { chunk });
-                console.log(`Received chunk type: ${chunk.type}`, { chunk });
-
+                if (!chunk.type.includes('delta')) {
+                    console.log(`Received chunk type: ${chunk.type}`, { chunk });
+                }
                 switch (chunk.type) {
-                    case 'text-delta':
-                        // Handle streaming text (assistant message chunks) - CoreMessage format
-                        messageBuffer += chunk.text;
-                        console.log(`messageBuffer: ${messageBuffer}`);
+                    case 'text-delta': {
+                        const lastMessage = updatedMessages[updatedMessages.length - 1];
 
-                        const textMessage: ModelMessage = {
-                            role: 'assistant',
-                            content: chunk.text,
-                        };
+                        if (
+                            lastMessage !== undefined &&
+                            lastMessage.role === 'assistant' &&
+                            typeof lastMessage.content === 'string' &&
+                            lastMessage.metadata?.is_error !== true
+                        ) {
+                            updatedMessages = [
+                                ...updatedMessages.slice(0, -1),
+                                {
+                                    ...lastMessage,
+                                    content: lastMessage.content + chunk.text,
+                                },
+                            ];
+                        } else {
+                            updatedMessages = [
+                                ...updatedMessages,
+                                {
+                                    role: 'assistant',
+                                    content: chunk.text,
+                                },
+                            ];
+                        }
 
-                        updatedMessages = onMessage(updatedMessages, textMessage);
                         break;
-
-                    case 'finish':
-                        // Final result message - CoreMessage format
+                    }
+                    case 'finish': {
                         this.logger.info(
                             `===Stream finished with reason: ${chunk.finishReason}`,
                             chunk
                         );
-
-                        // TODO: prevent this from appearing in UI
-                        const resultMessage: ModelMessage = {
-                            role: 'assistant',
-                            content:
-                                chunk.finishReason === 'stop'
-                                    ? 'Response completed successfully'
-                                    : 'Response completed',
-                        };
-
-                        updatedMessages = onMessage(updatedMessages, resultMessage);
                         break;
-
-                    case 'error':
-                        // Error handling - CoreMessage format
+                    }
+                    case 'error': {
                         const errorMsg = extractErrorMessage(chunk.error);
-                        this.logger.info(`Stream error: ${errorMsg}`);
+                        this.logger.error(`Stream error: ${errorMsg}`);
 
-                        const errorMessage: ChatMessage = {
-                            role: 'assistant',
-                            content: errorMsg,
-                            metadata: {
-                                is_error: true,
-                                timestamp: Date.now(),
-                                session_id: sessionId,
+                        updatedMessages = [
+                            ...updatedMessages,
+                            {
+                                role: 'assistant',
+                                content: errorMsg,
+                                metadata: {
+                                    is_error: true,
+                                    timestamp: Date.now(),
+                                    session_id: sessionId,
+                                },
                             },
-                        };
+                        ];
 
-                        updatedMessages = onMessage(updatedMessages, errorMessage);
                         break;
-
+                    }
                     case 'tool-input-start': {
-                        currentToolCall = {
-                            toolCallId: chunk.id,
-                            toolName: chunk.toolName,
-                            input: {},
-                        };
-                        toolCallBuffer = '';
-
                         this.logger.info(
                             `Tool call streaming started: ${chunk.toolName} (ID: ${chunk.id})`
                         );
 
                         // Send initial tool call message in CoreAssistantMessage format
-                        const toolCallStartMessage: ModelMessage = {
-                            role: 'assistant',
-                            content: [
-                                {
-                                    type: 'tool-call',
-                                    toolCallId: chunk.id,
-                                    toolName: chunk.toolName,
-                                    input: {}, // Empty initially, will be updated with deltas
-                                },
-                            ],
-                        };
+                        updatedMessages = [
+                            ...updatedMessages,
+                            {
+                                role: 'assistant',
+                                content: [
+                                    {
+                                        type: 'tool-call',
+                                        toolCallId: chunk.id,
+                                        toolName: chunk.toolName,
+                                        input: {}, // Empty initially, will be updated with deltas
+                                    },
+                                ],
+                            },
+                        ];
 
-                        updatedMessages = onMessage(updatedMessages, toolCallStartMessage);
                         break;
                     }
-                    case 'tool-input-delta':
-                        // Streaming tool call parameters - update existing message
-                        if (currentToolCall && chunk.delta) {
-                            toolCallBuffer += chunk.delta;
-
-                            // Try to parse current buffer as JSON and send update
-                            try {
-                                const parsedArgs = JSON.parse(toolCallBuffer);
-
-                                // Send UPDATE signal (not new message) with special marker
-                                const updateMessage: ChatMessage = {
-                                    role: 'assistant',
-                                    content: [
-                                        {
-                                            type: 'tool-call',
-                                            toolCallId: currentToolCall.toolCallId,
-                                            toolName: currentToolCall.toolName,
-                                            input: parsedArgs,
-                                        },
-                                    ],
-                                    metadata: {
-                                        is_update: true,
-                                    },
-                                };
-
-                                // todo - make buffering a metadata field or something
-                                updatedMessages = onMessage(updatedMessages, updateMessage);
-                            } catch {
-                                // JSON not complete yet, continue buffering
-                                if (toolCallBuffer.length % 100 === 0) {
-                                    this.logger.info(
-                                        `Tool call progress: ${toolCallBuffer.length} characters received (parsing...)`
-                                    );
-                                }
-                            }
-                        }
+                    case 'tool-input-delta': {
                         break;
-
-                    case 'tool-call':
+                    }
+                    case 'tool-call': {
                         // Handle final complete tool call - CoreAssistantMessage format
-                        this.logger.info(`=====Tool call complete: ${JSON.stringify(chunk)}`);
+                        this.logger.info(`=====Tool call complete`, { chunk });
+                        console.log('Tool call complete', { chunk });
                         // Always try to find and update existing tool call first
                         let toolCallUpdated = false;
                         for (let i = updatedMessages.length - 1; i >= 0; i--) {
-                            const msg = updatedMessages[i];
+                            let msg = updatedMessages[i];
                             if (msg.role === 'assistant' && Array.isArray(msg.content)) {
                                 const toolCallIndex = msg.content.findIndex(
-                                    (part: any) =>
+                                    (
+                                        part:
+                                            | TextPart
+                                            | FilePart
+                                            | ReasoningPart
+                                            | ToolCallPart
+                                            | ToolResultPart
+                                    ) =>
                                         part.type === 'tool-call' &&
                                         part.toolCallId === chunk.toolCallId
                                 );
                                 if (toolCallIndex !== -1) {
-                                    // Update the tool call with final parameters
-                                    msg.content[toolCallIndex] = {
+                                    const content = [...msg.content];
+                                    content[toolCallIndex] = {
                                         type: 'tool-call',
                                         toolCallId: chunk.toolCallId,
                                         toolName: chunk.toolName,
@@ -769,8 +678,11 @@ I've created the html design, please reveiw and let me know if you need any chan
                                         `Updated tool call with final parameters for ID: ${chunk.toolCallId}`
                                     );
                                     toolCallUpdated = true;
-                                    // TODO: fix this
-                                    // updatedMessages = onMessage(updatedMessages, undefined);
+                                    msg = {
+                                        ...msg,
+                                        content,
+                                    };
+                                    updatedMessages[i] = msg;
                                     break;
                                 }
                             }
@@ -778,53 +690,24 @@ I've created the html design, please reveiw and let me know if you need any chan
 
                         // Only create new message if we didn't find an existing one to update
                         if (!toolCallUpdated) {
-                            // Check if we should append to existing assistant message
-                            for (let i = updatedMessages.length - 1; i >= 0; i--) {
-                                const msg = updatedMessages[i];
-                                if (msg.role === 'assistant' && Array.isArray(msg.content)) {
-                                    const toolCallIndex = msg.content.findIndex(
-                                        (part: any) =>
-                                            part.type === 'tool-call' &&
-                                            part.toolCallId === chunk.toolCallId
-                                    );
-                                    if (toolCallIndex !== -1) {
-                                        // Update the tool call with final parameters
-                                        msg.content[toolCallIndex] = {
+                            updatedMessages = [
+                                ...updatedMessages,
+                                {
+                                    role: 'assistant',
+                                    content: [
+                                        {
                                             type: 'tool-call',
                                             toolCallId: chunk.toolCallId,
                                             toolName: chunk.toolName,
                                             input: chunk.input,
-                                        };
-                                        console.log(
-                                            `Updated tool call with final parameters for ID: ${chunk.toolCallId}`
-                                        );
-                                        break;
-                                    }
-                                }
-                            }
-                            // TODO: onMessage
-                        } else {
-                            // No streaming start was sent, send complete tool call message
-                            const toolCallMessage: ModelMessage = {
-                                role: 'assistant',
-                                content: [
-                                    {
-                                        type: 'tool-call',
-                                        toolCallId: chunk.toolCallId,
-                                        toolName: chunk.toolName,
-                                        input: chunk.input,
-                                    },
-                                ],
-                            };
-
-                            updatedMessages = onMessage(updatedMessages, toolCallMessage);
+                                        },
+                                    ],
+                                },
+                            ];
                         }
 
-                        // Reset tool call streaming state
-                        currentToolCall = null;
-                        toolCallBuffer = '';
                         break;
-
+                    }
                     case 'file': {
                         console.warn('File:', chunk);
                         break;
@@ -838,47 +721,61 @@ I've created the html design, please reveiw and let me know if you need any chan
                         break;
                     }
                     case 'tool-result': {
-                        console.error('Tool result:', chunk);
+                        console.log('Tool result:', chunk);
+                        updatedMessages = [
+                            ...updatedMessages,
+                            {
+                                role: 'tool',
+                                content: [
+                                    {
+                                        type: 'tool-result',
+                                        toolCallId: chunk.toolCallId,
+                                        toolName: chunk.toolName,
+                                        output: guessToolResultOutput(chunk.output),
+                                    },
+                                ],
+                            },
+                        ];
                         break;
                     }
                     case 'tool-error': {
                         console.error('Tool error:', chunk);
+                        updatedMessages = [
+                            ...updatedMessages,
+                            {
+                                role: 'tool',
+                                content: [
+                                    {
+                                        type: 'tool-result',
+                                        toolCallId: chunk.toolCallId,
+                                        toolName: chunk.toolName,
+                                        output: guessToolResultOutput(chunk.error),
+                                    },
+                                ],
+                                metadata: {
+                                    is_error: true,
+                                },
+                            },
+                        ];
                         break;
                     }
-                    case 'text-start': {
-                        console.error('Starting text:', chunk);
-                        break;
-                    }
-                    case 'text-end': {
-                        console.error('Ending text:', chunk);
-                        break;
-                    }
-                    case 'tool-input-end': {
-                        console.error('Tool input end:', chunk);
-                        break;
-                    }
-                    case 'start-step': {
-                        console.warn('Starting step:', chunk);
-                        break;
-                    }
-                    case 'finish-step': {
-                        console.warn('Finishing step:', chunk);
-                        break;
-                    }
-                    case 'start': {
-                        console.warn('Starting chat response', chunk);
-                        break;
-                    }
+                    case 'text-start':
+                    case 'text-end':
+                    case 'start-step':
+                    case 'finish-step':
+                    case 'start':
+                    case 'tool-input-end':
                     case 'reasoning-start':
                     case 'reasoning-end':
                     case 'reasoning-delta':
                     case 'raw': {
                     }
                 }
+                onMessage(updatedMessages);
             }
 
             this.logger.info(
-                `Query completed. New messages: ${conversationHistory.length - updatedMessages.length}`
+                `Query completed. New messages: ${updatedMessages.length - conversationHistory.length}`
             );
 
             return updatedMessages;
@@ -887,17 +784,20 @@ I've created the html design, please reveiw and let me know if you need any chan
             this.logger.error(`Custom Agent query failed`, { error });
             console.error(`Custom Agent query failed`, { error });
 
-            const errorMessage: ChatMessage = {
-                role: 'assistant',
-                content: errorMsg,
-                metadata: {
-                    is_error: true,
-                    timestamp: Date.now(),
-                    session_id: sessionId,
+            updatedMessages = [
+                ...updatedMessages,
+                {
+                    role: 'assistant',
+                    content: errorMsg,
+                    metadata: {
+                        is_error: true,
+                        timestamp: Date.now(),
+                        session_id: sessionId,
+                    },
                 },
-            };
+            ];
 
-            updatedMessages = onMessage(updatedMessages, errorMessage);
+            onMessage(updatedMessages);
 
             throw error;
         }
@@ -924,7 +824,7 @@ I've created the html design, please reveiw and let me know if you need any chan
         // Create provider configuration
         const providerConfig: VsCodeConfiguration = {
             config: vscode.workspace.getConfiguration('securedesign'),
-            logger: Logger,
+            logger: getLogger('hasAPIKey'),
         };
 
         // Use provider service to check credentials
@@ -950,95 +850,5 @@ I've created the html design, please reveiw and let me know if you need any chan
             lowerError.includes('api_key_invalid') ||
             lowerError.includes('unauthenticated')
         );
-    }
-
-    /**
-     * Validates and repairs conversation history to ensure proper tool call/result pairing
-     * Each tool_use block must have a corresponding tool_result block immediately after
-     */
-    private validateToolCallPairs(messages: ModelMessage[]): ModelMessage[] {
-        this.logger.debug('validateToolCallPairs: Starting validation', {
-            inputMessageCount: messages.length,
-        });
-
-        const validatedMessages: ModelMessage[] = [];
-
-        for (let i = 0; i < messages.length; i++) {
-            const message = messages[i];
-
-            // For assistant messages with tool calls, ensure they have corresponding results
-            if (message.role === 'assistant' && Array.isArray(message.content)) {
-                const toolCalls = message.content.filter(part => part.type === 'tool-call');
-
-                if (toolCalls.length > 0) {
-                    this.logger.debug(`Found ${toolCalls.length} tool calls in message ${i}`, {
-                        toolCallIds: toolCalls.map((tc: any) => tc.toolCallId),
-                    });
-                    // Check if the next message contains tool results for these calls
-                    const nextMessage = messages[i + 1];
-                    let hasValidResults = false;
-
-                    if (
-                        nextMessage &&
-                        nextMessage.role === 'tool' &&
-                        Array.isArray(nextMessage.content)
-                    ) {
-                        const toolResults = nextMessage.content.filter(
-                            part => part.type === 'tool-result'
-                        );
-
-                        // Check if all tool calls have corresponding results
-                        hasValidResults = toolCalls.every(toolCall =>
-                            toolResults.some(
-                                result =>
-                                    (result as any).toolCallId === (toolCall as any).toolCallId
-                            )
-                        );
-                    }
-
-                    if (hasValidResults) {
-                        // Both messages are valid, add them
-                        validatedMessages.push(message);
-                        validatedMessages.push(nextMessage);
-                        i++; // Skip the next message since we've already processed it
-                    } else {
-                        // Tool call without result - remove the tool calls to avoid error
-                        const missingToolIds = toolCalls
-                            .map(tc => (tc as any).toolCallId)
-                            .join(', ');
-                        this.logger.info(
-                            `Removing incomplete tool calls from message ${i} - no matching results found for IDs: ${missingToolIds}`
-                        );
-
-                        const filteredContent = message.content.filter(
-                            part => part.type !== 'tool-call'
-                        );
-                        if (filteredContent.length > 0) {
-                            validatedMessages.push({
-                                ...message,
-                                content: filteredContent,
-                            });
-                        }
-                        // Skip this message if it only contained tool calls
-                    }
-                } else {
-                    // No tool calls, message is safe to include
-                    validatedMessages.push(message);
-                }
-            } else if (message.role === 'tool') {
-                // Tool message without preceding assistant tool call - skip it
-                this.logger.info(`Skipping orphaned tool result message ${i}`);
-                continue;
-            } else {
-                // User or system message, always include
-                validatedMessages.push(message);
-            }
-        }
-
-        this.logger.info(
-            `Tool call validation: ${messages.length} -> ${validatedMessages.length} messages`
-        );
-
-        return validatedMessages;
     }
 }

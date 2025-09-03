@@ -28,9 +28,6 @@ export function generateCanvasHtml(context: HtmlTemplateContext): string {
 		<body>
 			<div id="root" data-view="canvas" data-nonce="${nonce}"></div>
 			<script nonce="${nonce}">
-				// Debug: Check if context data is being generated
-				console.log('Canvas Panel - About to set webview context. Logo URIs:', ${JSON.stringify(logoUris)});
-				
 				// Initialize context for React app
 				window.__WEBVIEW_CONTEXT__ = {
 					layout: 'panel',
@@ -40,7 +37,6 @@ export function generateCanvasHtml(context: HtmlTemplateContext): string {
 				
 				// Debug logging in webview
 				console.log('Canvas Panel - Webview context set:', window.__WEBVIEW_CONTEXT__);
-				console.log('Canvas Panel - Logo URIs received in webview:', window.__WEBVIEW_CONTEXT__?.logoUris);
 			</script>
 			<script nonce="${nonce}" src="${scriptUri}"></script>
 		</body>

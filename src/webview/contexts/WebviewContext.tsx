@@ -254,6 +254,8 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
                         `[WebviewContext] No listeners registered for event: ${String(message.key)}`
                     );
                 }
+            } else if (message && typeof message === 'object' && 'providerId' in message) {
+                // No-op, handled by new IPC system
             } else {
                 // Handle legacy messages that don't follow the new format
                 // This ensures compatibility during migration

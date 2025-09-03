@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useChat } from '../../hooks/useChat';
 import { useWebviewApi } from '../../contexts/WebviewContext';
 import type { ChatMessage, MessageAction } from '../../../types/chatMessage';
 import { useFirstTimeUser } from '../../hooks/useFirstTimeUser';
@@ -28,7 +27,7 @@ import type {
     ToolCallPart,
     ToolResultPart,
 } from '@ai-sdk/provider-utils';
-import { isToolCallPart, isToolResultPart } from '../../../chat/ChatMiddleware';
+import { isToolCallPart, isToolResultPart } from '../../utils/chatUtils';
 
 interface ChatInterfaceProps {
     layout: WebviewLayout;
@@ -51,10 +50,7 @@ const postReducer: StateReducer<ChatSidebarState, ChatSidebarActions> = {
             },
         };
     },
-    loadChats: function (
-        prevState: ChatSidebarState,
-        patch: ChatMessage[] | undefined
-    ): ChatSidebarState {
+    loadChats: function (prevState: ChatSidebarState, patch: ChatMessage[]): ChatSidebarState {
         return {
             ...prevState,
             messages: patch,
@@ -63,7 +59,7 @@ const postReducer: StateReducer<ChatSidebarState, ChatSidebarActions> = {
     clearChats: function (prevState: ChatSidebarState, _patch: void): ChatSidebarState {
         return {
             ...prevState,
-            messages: undefined,
+            messages: [],
         };
     },
     getCurrentProvider: function (
@@ -102,7 +98,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             availableModels: ProviderService.getInstance().getAvailableModels(),
         } satisfies ChatSidebarState
     );
-    const { isLoading } = useChat();
 
     const {
         isFirstTime,
@@ -208,14 +203,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         // Listen for context messages and other events
         const handleMessage = (event: MessageEvent) => {
             const message = event.data;
-            // Only log specific commands to avoid log flooding and potential infinite loops
-            // Skip logging for 'event' type messages and internal API responses
-            if (message.command && message.type !== 'event' && message.type !== 'response') {
-                logger.debug('Received message:', {
-                    command: message.command,
-                    hasData: !!message.data,
-                });
-            }
             if (message.command === 'contextFromCanvas') {
                 // Handle context from canvas
                 logger.debug('📄 Received context from canvas:', message.data);
@@ -447,7 +434,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         e.preventDefault();
         e.stopPropagation();
 
-        if (isLoading) {
+        if (chatHistory === undefined) {
             return;
         }
 
@@ -589,7 +576,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 imageFiles.map(f => f.name)
             );
 
-            if (imageFiles.length > 0 && !isLoading) {
+            if (imageFiles.length > 0 && chatHistory !== undefined) {
                 logger.debug(
                     '📎 Processing images from global drop:',
                     imageFiles.map(f => f.name)
@@ -607,7 +594,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
 
         const handleGlobalPaste = async (e: ClipboardEvent) => {
             // Only handle paste if we're focused on the chat and not loading
-            if (isLoading || showWelcome) {
+            if (chatHistory === undefined || showWelcome) {
                 return;
             }
 
@@ -661,7 +648,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             document.removeEventListener('drop', dropWrapper);
             document.removeEventListener('paste', pasteWrapper);
         };
-    }, [isLoading, handleImageUpload, showWelcome, api, logger]);
+    }, [chatHistory, handleImageUpload, showWelcome, api, logger]);
 
     const renderChatMessage = (msg: ChatMessage, index: number) => {
         // Helper function to extract text content from CoreMessage
@@ -689,10 +676,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             msg.content.some((part: any) => part.type === 'tool-result');
 
         const isLastMessage = index === (chatHistory?.length ?? 0) - 1;
-        const isLastUserMessage = msg.role === 'user' && isLastMessage && isLoading;
-        const isLastStreamingMessage =
-            (msg.role === 'assistant' || hasToolResults) && isLastMessage;
-        const isStreaming = isLastStreamingMessage && isLoading;
+        const isLastUserMessage = msg.role === 'user' && isLastMessage;
+        const isStreaming = (msg.role === 'assistant' || hasToolResults) && isLastMessage;
         const messageText = getMessageText(msg);
 
         // Handle tool call messages specially - but for mixed content, we need to show both text AND tools
@@ -712,11 +697,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                 <span className='chat-message__label'>Claude</span>
                                 {msg.metadata && (
                                     <span className='chat-message__metadata'>
-                                        {msg.metadata.duration_ms && (
-                                            <span className='metadata-item'>
-                                                {msg.metadata.duration_ms}ms
-                                            </span>
-                                        )}
+                                        {msg.metadata.start_time !== undefined &&
+                                            msg.metadata.end_time !== undefined && (
+                                                <span className='metadata-item'>
+                                                    {msg.metadata.end_time -
+                                                        msg.metadata.start_time}
+                                                    ms
+                                                </span>
+                                            )}
                                         {msg.metadata.total_cost_usd && (
                                             <span className='metadata-item'>
                                                 ${msg.metadata.total_cost_usd.toFixed(4)}
@@ -779,11 +767,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                         <span className='chat-message__label'>{messageLabel}</span>
                         {msg.metadata && (
                             <span className='chat-message__metadata'>
-                                {msg.metadata.duration_ms && (
-                                    <span className='metadata-item'>
-                                        {msg.metadata.duration_ms}ms
-                                    </span>
-                                )}
+                                {msg.metadata.start_time !== undefined &&
+                                    msg.metadata.end_time !== undefined && (
+                                        <span className='metadata-item'>
+                                            {msg.metadata.end_time - msg.metadata.start_time}ms
+                                        </span>
+                                    )}
                                 {msg.metadata.total_cost_usd && (
                                     <span className='metadata-item'>
                                         ${msg.metadata.total_cost_usd.toFixed(4)}
@@ -998,18 +987,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             const command: string = 'command' in toolInput ? (toolInput.command as string) : '';
             const prompt: string = 'prompt' in toolInput ? (toolInput.prompt as string) : '';
 
-            // Tool result data - find from separate tool message
-            const hasResult = !!toolResultPart;
+            const toolComplete = !!toolResultPart;
 
             const toolResult: string =
                 toolResultPart !== undefined
-                    ? typeof toolResultPart.output.type === 'string'
-                        ? (toolResultPart.output.value as string)
+                    ? toolResultPart.output.type === 'text' ||
+                      toolResultPart.output.type === 'error-text'
+                        ? toolResultPart.output.value
                         : JSON.stringify((toolResultPart.output as any).value, null, 2)
                     : '';
-
-            // Tool is complete when it has finished (regardless of errors)
-            const toolComplete = hasResult && !isLoading;
 
             // Get friendly tool name for display
             const getFriendlyToolName = (name: string): string => {
@@ -1054,12 +1040,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             return (
                 <div
                     key={uniqueKey}
-                    className={`tool-message tool-message--${layout} ${toolComplete ? 'tool-message--complete' : ''} ${isLoading ? 'tool-message--loading' : ''}`}
+                    className={`tool-message tool-message--${layout} ${toolComplete ? 'tool-message--complete' : ''} ${!toolComplete ? 'tool-message--loading' : ''}`}
                 >
                     <div className='tool-message__header' onClick={toggleExpanded}>
                         <div className='tool-message__main'>
                             <span className='tool-icon'>
-                                {isLoading ? (
+                                {!toolComplete ? (
                                     <div className='loading-icon-simple'>
                                         <div className='loading-ring' />
                                     </div>
@@ -1089,7 +1075,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                     </div>
                     {isExpanded && (
                         <div className='tool-message__details'>
-                            {isLoading && (
+                            {!toolComplete && (
                                 <div className='tool-loading-tips'>
                                     <div className='loading-tip'>
                                         <span className='tip-icon'>
@@ -1121,7 +1107,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                     </div>
                                 </div>
                             )}
-                            {hasResult && (
+                            {toolComplete && (
                                 <div className='tool-detail'>
                                     <span className='tool-detail__label'>
                                         {error !== undefined ? 'Error Result:' : 'Result:'}
@@ -1266,7 +1252,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                         className='new-conversation-btn'
                         onClick={() => void handleNewConversation()}
                         title='Start a new conversation'
-                        disabled={isLoading}
+                        disabled={chatHistory === undefined || chatHistory.length === 0}
                     >
                         <svg width='16' height='16' viewBox='0 0 16 16' fill='currentColor'>
                             <path d='M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z' />
@@ -1346,7 +1332,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                             <button
                                 className='add-context-btn'
                                 onClick={handleAddContext}
-                                disabled={isLoading}
+                                disabled={chatHistory === undefined}
                             >
                                 <span className='add-context-icon'>@</span>
                                 Add Context
@@ -1360,7 +1346,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                 value={inputMessage}
                                 onChange={handleInputChange}
                                 onKeyDown={handleKeyDown}
-                                disabled={isLoading || showWelcome}
+                                disabled={chatHistory === undefined || showWelcome}
                                 className='message-input'
                                 rows={1}
                                 style={{
@@ -1386,7 +1372,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                         onModelChange={(providerId, model) => {
                                             void handleModelChange(providerId, model);
                                         }}
-                                        disabled={isLoading || showWelcome}
+                                        disabled={chatHistory === undefined || showWelcome}
                                         modelsWithProvider={state.availableModels}
                                     />
                                 </div>
@@ -1420,7 +1406,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                         };
                                         fileInput.click();
                                     }}
-                                    disabled={isLoading || showWelcome}
+                                    disabled={chatHistory === undefined || showWelcome}
                                     title='Attach images'
                                 >
                                     <svg
@@ -1439,7 +1425,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                         console.log('clearchathistory button clicked');
                                         void handleNewConversation();
                                     }}
-                                    disabled={isLoading || showWelcome || !hasConversationMessages}
+                                    disabled={
+                                        chatHistory === undefined ||
+                                        showWelcome ||
+                                        !hasConversationMessages
+                                    }
                                     title='Clear chat history'
                                 >
                                     <svg
@@ -1455,7 +1445,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                         />
                                     </svg>
                                 </button>
-                                {isLoading ? (
+                                {/* Todo: this should detect whether streaming is ongoing */}
+                                {chatHistory === undefined ? (
                                     <button
                                         onClick={() => {
                                             // Stop functionality can be added later
