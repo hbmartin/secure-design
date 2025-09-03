@@ -528,7 +528,7 @@ I've created the html design, please reveiw and let me know if you need any chan
             const executionContext: ExecutionContext = {
                 workingDirectory: this.workingDirectory,
                 sessionId: sessionId,
-                logger: Logger,
+                logger: getLogger('query context'),
                 abortController: abortController,
             };
 
@@ -645,7 +645,7 @@ I've created the html design, please reveiw and let me know if you need any chan
                     case 'tool-input-delta': {
                         break;
                     }
-                    case 'tool-call':
+                    case 'tool-call': {
                         // Handle final complete tool call - CoreAssistantMessage format
                         this.logger.info(`=====Tool call complete`, { chunk });
                         console.log('Tool call complete', { chunk });
@@ -707,7 +707,7 @@ I've created the html design, please reveiw and let me know if you need any chan
                         }
 
                         break;
-
+                    }
                     case 'file': {
                         console.warn('File:', chunk);
                         break;
@@ -824,7 +824,7 @@ I've created the html design, please reveiw and let me know if you need any chan
         // Create provider configuration
         const providerConfig: VsCodeConfiguration = {
             config: vscode.workspace.getConfiguration('securedesign'),
-            logger: Logger,
+            logger: getLogger('hasAPIKey'),
         };
 
         // Use provider service to check credentials

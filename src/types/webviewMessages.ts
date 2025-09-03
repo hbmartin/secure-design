@@ -83,36 +83,9 @@ export interface WebviewToExtensionMessages {
  * Messages sent FROM extension host TO webview
  */
 export interface ExtensionToWebviewMessages {
-    // Chat History Responses
-    chatHistoryLoaded: {
-        command: 'chatHistoryLoaded';
-        chatHistory: ChatMessage[];
-        workspaceId?: string;
-    };
-
     workspaceChanged: {
         command: 'workspaceChanged';
         workspaceId?: string;
-    };
-
-    // Chat Stream Messages
-    chatResponseChunk: {
-        command: 'chatResponseChunk';
-        messageType: 'assistant' | 'tool-call' | 'tool-result';
-        content?: string;
-        metadata?: any;
-    };
-
-    chatToolUpdate: {
-        command: 'chatToolUpdate';
-        tool_use_id: string;
-        tool_input: any;
-    };
-
-    chatToolResult: {
-        command: 'chatToolResult';
-        tool_use_id: string;
-        result: any;
     };
 
     chatStreamEnd: {

@@ -991,8 +991,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
 
             const toolResult: string =
                 toolResultPart !== undefined
-                    ? typeof toolResultPart.output.type === 'string'
-                        ? (toolResultPart.output.value as string)
+                    ? toolResultPart.output.type === 'text' ||
+                      toolResultPart.output.type === 'error-text'
+                        ? toolResultPart.output.value
                         : JSON.stringify((toolResultPart.output as any).value, null, 2)
                     : '';
 

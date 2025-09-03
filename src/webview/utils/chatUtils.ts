@@ -20,6 +20,7 @@ export function isToolResultPart(value: unknown): value is ToolResultPart {
     if (!Object.prototype.hasOwnProperty.call(value, 'type')) return false;
     if (!Object.prototype.hasOwnProperty.call(value, 'toolCallId')) return false;
     if (!Object.prototype.hasOwnProperty.call(value, 'toolName')) return false;
+    if (!Object.prototype.hasOwnProperty.call(value, 'output')) return false;
 
     const v = value as Record<string, unknown>;
     if (v.type !== 'tool-result') return false;
