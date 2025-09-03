@@ -222,16 +222,12 @@ export class ChatController implements ViewAPI {
                 timestamp: Date.now(),
             },
         });
-        const history = this.chatMessagesRepository.getChatHistory();
-        if (history === undefined) {
-            throw new Error('Failed to retrieve chat history after appending user message');
-        }
         try {
             this.currentRequestController = new AbortController();
             this.eventTrigger.triggerEvent('chatStreamStart');
 
             const updatedChatHistory = await this.agentService.query(
-                history,
+                this.chatMessagesRepository.getChatHistory(),
                 this.currentRequestController,
                 (prev: ChatMessage[]) => {
                     void (async () => {

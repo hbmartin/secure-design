@@ -6,7 +6,7 @@ export interface MessageAction {
     readonly args?: string;
 }
 
-// Additional metadata for UI state
+// Metadata for UI state. Timestamps are epoch milliseconds
 export interface MessageMetadata {
     timestamp?: number;
     is_loading?: boolean;

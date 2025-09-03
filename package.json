@@ -232,7 +232,7 @@
     "check-types": "tsc --noEmit",
     "lint": "eslint src --quiet",
     "test": "vscode-test",
-    "format": "prettier --write .",
+    "format": "prettier --write src",
     "format:check": "prettier --check .",
     "lint:fix": "npm run lint -- --fix",
     "test:llm": "tsc --project tsconfig.test.json && node dist-test/test/llm-service.test.js",

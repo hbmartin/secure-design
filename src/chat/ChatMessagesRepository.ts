@@ -33,11 +33,7 @@ class ChatMessagesRepository extends BaseRepository<ChatMessage[] | undefined> {
     }
 
     public async appendMessage(message: ChatMessage): Promise<void> {
-        const history = this.getChatHistory();
-        if (history !== undefined) {
-            return this.saveChatHistory([...history, message]);
-        }
-        return this.saveChatHistory([message]);
+        return this.saveChatHistory([...this.getChatHistory(), message]);
     }
 }
 

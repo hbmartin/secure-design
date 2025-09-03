@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
 import type { AgentService, ExecutionContext } from '../types/agent';
 import type { VsCodeConfiguration } from '../providers/types';
 import { ProviderService } from '../providers/ProviderService';
-import { getLogger, Logger } from './logger';
+import { getLogger } from './logger';
 import { createReadTool } from '../tools/read-tool';
 import { createWriteTool } from '../tools/write-tool';
 import { createBashTool } from '../tools/bash-tool';
@@ -775,7 +775,7 @@ I've created the html design, please reveiw and let me know if you need any chan
             }
 
             this.logger.info(
-                `Query completed. New messages: ${conversationHistory.length - updatedMessages.length}`
+                `Query completed. New messages: ${updatedMessages.length - conversationHistory.length}`
             );
 
             return updatedMessages;
