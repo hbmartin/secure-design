@@ -7,22 +7,13 @@ export interface MessageAction {
 }
 
 // Additional metadata for UI state
-interface MessageMetadata {
+export interface MessageMetadata {
     timestamp?: number;
     is_loading?: boolean;
-    estimated_duration?: number;
     start_time?: number;
-    elapsed_time?: number;
-    progress_percentage?: number;
+    end_time?: number;
     session_id?: string;
-    result_type?: string;
-    duration_ms?: number;
     total_cost_usd?: number;
-    // Tool-related metadata
-    is_update?: boolean;
-    tool_name?: string;
-    tool_id?: string;
-    result_received?: boolean;
     actions?: Array<MessageAction>;
     is_error?: boolean;
 }

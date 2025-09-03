@@ -19,7 +19,7 @@ function createActionDelegate(
     chatController: ChatController
 ): ActionDelegate<ChatSidebarActions> {
     return {
-        loadChats: function (): ChatMessage[] | undefined {
+        loadChats: function (): ChatMessage[] {
             return chatMessagesRepository.getChatHistory();
         },
         clearChats: async function (): Promise<void> {
@@ -117,7 +117,8 @@ export class ChatSidebarProvider extends BaseWebviewViewProvider<ChatSidebarActi
                 // Keep this until we have a proper UI component replacement
                 await this.handleShowContextPicker(webview);
                 break;
-
+            case 'log':
+                break;
             default:
                 // All other commands should now use the new API
                 this.logger.warn(`Received unmigrated legacy command: ${message.command}`, message);

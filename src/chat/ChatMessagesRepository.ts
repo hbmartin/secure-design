@@ -24,8 +24,8 @@ class ChatMessagesRepository extends BaseRepository<ChatMessage[] | undefined> {
         }
     }
 
-    public getChatHistory(): ChatMessage[] | undefined {
-        return super.getData();
+    public getChatHistory(): ChatMessage[] {
+        return super.getData() ?? [];
     }
 
     public async clearChatHistory(): Promise<void> {

@@ -19,7 +19,7 @@ export interface ChatSidebarState {
 }
 
 export interface ChatSidebarActions {
-    loadChats(): ChatMessage[] | undefined;
+    loadChats(): ChatMessage[];
     clearChats(): Promise<void>;
     getCssFileContent(
         filePath: string

@@ -7,7 +7,6 @@ import type { ChatMessage } from '../types/chatMessage';
 import { getLogger, Logger } from '../services/logger';
 import type { VsCodeConfiguration, ProviderId } from '../providers/types';
 import type { ViewEvents, ViewAPI } from '../api/viewApi';
-import { handleStreamMessage } from './ChatMiddleware';
 import type { TextPart, ImagePart, FilePart } from '@ai-sdk/provider-utils';
 
 /**
@@ -234,18 +233,16 @@ export class ChatController implements ViewAPI {
             const updatedChatHistory = await this.agentService.query(
                 history,
                 this.currentRequestController,
-                (prev: ChatMessage[], streamMessage: ChatMessage) => {
-                    const newHistory = handleStreamMessage(prev, streamMessage);
+                (prev: ChatMessage[]) => {
                     void (async () => {
                         try {
-                            await this.chatMessagesRepository.saveChatHistory(newHistory);
+                            await this.chatMessagesRepository.saveChatHistory(prev);
                         } catch (error) {
                             this.logger.error('Failed to save intermediate chat history', {
                                 error,
                             });
                         }
                     })();
-                    return newHistory;
                 }
             );
             await this.chatMessagesRepository.saveChatHistory(updatedChatHistory);

@@ -1,5 +1,4 @@
 import type { ChatMessage } from '../types/chatMessage';
-import type { LanguageModelV2ToolResultOutput } from '@ai-sdk/provider';
 
 export interface ViewAPI {
     stopChat: () => void;
@@ -33,37 +32,12 @@ export interface ViewAPI {
 }
 
 /**
- * Metadata for tool-related chat events to ensure schema consistency
- */
-export interface ToolCallMetadata {
-    tool_id: string;
-    tool_name: string;
-    args: any;
-}
-
-export interface ToolResultMetadata {
-    tool_id: string;
-    tool_name: string;
-}
-
-export interface ChatChunkMetadata {
-    session_id?: string;
-    tool_id?: string;
-    tool_name?: string;
-    args?: any;
-    output?: LanguageModelV2ToolResultOutput;
-}
-
-/**
  * Events that can be triggered by the host and listened to by webviews
  * These represent notifications/updates flowing from host to webview
  */
 export interface ViewEvents {
     // Chat events
     chatStreamStart: () => void;
-    chatResponseChunk: (chunk: string, messageType?: string, metadata?: ChatChunkMetadata) => void;
-    chatToolUpdate: (toolId: string, args: any) => void;
-    chatToolResult: (toolId: string, result: any) => void;
     chatStreamEnd: () => void;
     chatError: (error: string, actions?: any[]) => void;
     chatStopped: () => void;
