@@ -10,7 +10,7 @@ import {
     type ModelConfig,
     type VsCodeConfiguration,
     type ValidationResult,
-    type ProviderInstanceParams,
+    type ProviderInstanceParams as ProviderInstanceParameters,
 } from '../types';
 import type { LanguageModelV2 } from '@ai-sdk/provider';
 
@@ -31,31 +31,31 @@ export class BedrockProvider extends AIProvider {
             id: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
             displayName: 'Claude 3.5 Sonnet v2',
             isDefault: true,
-            maxTokens: 200000,
+            maxTokens: 200_000,
             supportsVision: true,
         },
         {
             id: 'anthropic.claude-3-5-sonnet-20240620-v1:0',
             displayName: 'Claude 3.5 Sonnet',
-            maxTokens: 200000,
+            maxTokens: 200_000,
             supportsVision: true,
         },
         {
             id: 'anthropic.claude-3-opus-20240229-v1:0',
             displayName: 'Claude 3 Opus',
-            maxTokens: 200000,
+            maxTokens: 200_000,
             supportsVision: true,
         },
         {
             id: 'anthropic.claude-3-sonnet-20240229-v1:0',
             displayName: 'Claude 3 Sonnet',
-            maxTokens: 200000,
+            maxTokens: 200_000,
             supportsVision: true,
         },
         {
             id: 'anthropic.claude-3-haiku-20240307-v1:0',
             displayName: 'Claude 3 Haiku',
-            maxTokens: 200000,
+            maxTokens: 200_000,
             supportsVision: true,
         },
 
@@ -63,19 +63,19 @@ export class BedrockProvider extends AIProvider {
         {
             id: 'amazon.nova-pro-v1:0',
             displayName: 'Amazon Nova Pro',
-            maxTokens: 300000,
+            maxTokens: 300_000,
             supportsVision: true,
         },
         {
             id: 'amazon.nova-lite-v1:0',
             displayName: 'Amazon Nova Lite',
-            maxTokens: 300000,
+            maxTokens: 300_000,
             supportsVision: true,
         },
         {
             id: 'amazon.nova-micro-v1:0',
             displayName: 'Amazon Nova Micro',
-            maxTokens: 128000,
+            maxTokens: 128_000,
             supportsVision: false,
         },
 
@@ -83,31 +83,31 @@ export class BedrockProvider extends AIProvider {
         {
             id: 'meta.llama3-2-90b-instruct-v1:0',
             displayName: 'Llama 3.2 90B Instruct',
-            maxTokens: 131072,
+            maxTokens: 131_072,
             supportsVision: false,
         },
         {
             id: 'meta.llama3-2-11b-instruct-v1:0',
             displayName: 'Llama 3.2 11B Instruct',
-            maxTokens: 131072,
+            maxTokens: 131_072,
             supportsVision: false,
         },
         {
             id: 'meta.llama3-1-405b-instruct-v1:0',
             displayName: 'Llama 3.1 405B Instruct',
-            maxTokens: 131072,
+            maxTokens: 131_072,
             supportsVision: false,
         },
         {
             id: 'meta.llama3-1-70b-instruct-v1:0',
             displayName: 'Llama 3.1 70B Instruct',
-            maxTokens: 131072,
+            maxTokens: 131_072,
             supportsVision: false,
         },
         {
             id: 'meta.llama3-1-8b-instruct-v1:0',
             displayName: 'Llama 3.1 8B Instruct',
-            maxTokens: 131072,
+            maxTokens: 131_072,
             supportsVision: false,
         },
 
@@ -115,19 +115,19 @@ export class BedrockProvider extends AIProvider {
         {
             id: 'mistral.mistral-large-2407-v1:0',
             displayName: 'Mistral Large 2407',
-            maxTokens: 131072,
+            maxTokens: 131_072,
             supportsVision: false,
         },
         {
             id: 'mistral.mistral-small-2402-v1:0',
             displayName: 'Mistral Small 2402',
-            maxTokens: 32768,
+            maxTokens: 32_768,
             supportsVision: false,
         },
         {
             id: 'mistral.mixtral-8x7b-instruct-v0:1',
             displayName: 'Mixtral 8x7B Instruct',
-            maxTokens: 32768,
+            maxTokens: 32_768,
             supportsVision: false,
         },
 
@@ -135,13 +135,13 @@ export class BedrockProvider extends AIProvider {
         {
             id: 'ai21.jamba-1-5-large-v1:0',
             displayName: 'AI21 Jamba 1.5 Large',
-            maxTokens: 262144,
+            maxTokens: 262_144,
             supportsVision: false,
         },
         {
             id: 'ai21.jamba-1-5-mini-v1:0',
             displayName: 'AI21 Jamba 1.5 Mini',
-            maxTokens: 262144,
+            maxTokens: 262_144,
             supportsVision: false,
         },
 
@@ -149,36 +149,36 @@ export class BedrockProvider extends AIProvider {
         {
             id: 'cohere.command-r-plus-v1:0',
             displayName: 'Cohere Command R+',
-            maxTokens: 128000,
+            maxTokens: 128_000,
             supportsVision: false,
         },
         {
             id: 'cohere.command-r-v1:0',
             displayName: 'Cohere Command R',
-            maxTokens: 128000,
+            maxTokens: 128_000,
             supportsVision: false,
         },
     ];
 
-    createInstance(params: ProviderInstanceParams): LanguageModelV2 {
-        const awsAccessKeyId = params.config.config.get<string>('awsAccessKeyId');
-        const awsSecretAccessKey = params.config.config.get<string>('awsSecretAccessKey');
-        const awsRegion = params.config.config.get<string>('awsRegion') ?? 'us-east-1';
+    createInstance(parameters: ProviderInstanceParameters): LanguageModelV2 {
+        const awsAccessKeyId = parameters.config.config.get<string>('awsAccessKeyId');
+        const awsSecretAccessKey = parameters.config.config.get<string>('awsSecretAccessKey');
+        const awsRegion = parameters.config.config.get<string>('awsRegion') ?? 'us-east-1';
 
         if (!awsAccessKeyId || !awsSecretAccessKey) {
             throw new Error(this.getCredentialsErrorMessage());
         }
 
-        params.config.logger.info(`AWS region: ${awsRegion}`);
-        params.config.logger.info('AWS credentials are configured');
+        parameters.config.logger.info(`AWS region: ${awsRegion}`);
+        parameters.config.logger.info('AWS credentials are configured');
         const bedrock = createAmazonBedrock({
             region: awsRegion,
             accessKeyId: awsAccessKeyId,
             secretAccessKey: awsSecretAccessKey,
         });
 
-        params.config.logger.info(`Using Bedrock model: ${params.model}`);
-        return bedrock(params.model);
+        parameters.config.logger.info(`Using Bedrock model: ${parameters.model}`);
+        return bedrock(parameters.model);
     }
 
     validateCredentials(config: VsCodeConfiguration): ValidationResult {
@@ -234,9 +234,9 @@ export class BedrockProvider extends AIProvider {
 
         return {
             isValid: true,
-            warning: !awsRegion
-                ? 'No AWS region specified, will use us-east-1 as default'
-                : undefined,
+            warning: awsRegion
+                ? undefined
+                : 'No AWS region specified, will use us-east-1 as default',
         };
     }
 }

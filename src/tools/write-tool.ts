@@ -1,5 +1,5 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
 import type { ExecutionContext } from '../types/agent';
@@ -43,7 +43,7 @@ export function createWriteTool(context: ExecutionContext) {
                     "Whether to create parent directories if they don't exist (default: true)"
                 ),
         }),
-        execute: async ({ file_path, content, create_dirs = true }): Promise<ToolResponse> => {
+        execute: async ({ file_path, content, create_dirs: create_directories = true }): Promise<ToolResponse> => {
             const startTime = Date.now();
 
             try {
@@ -71,7 +71,7 @@ export function createWriteTool(context: ExecutionContext) {
                 }
 
                 // Create parent directories if needed and requested
-                if (create_dirs) {
+                if (create_directories) {
                     const dirName = path.dirname(absolutePath);
                     if (!fs.existsSync(dirName)) {
                         fs.mkdirSync(dirName, { recursive: true });

@@ -5,8 +5,10 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
 import unusedImports from 'eslint-plugin-unused-imports';
 import prettierConfig from 'eslint-config-prettier';
+import eslintPluginUnicorn from 'eslint-plugin-unicorn';
 
 export default [
+    eslintPluginUnicorn.configs.recommended,
     // Global ignores
     {
         ignores: [
@@ -147,6 +149,9 @@ export default [
                     message: 'Use ES6 imports instead of require()',
                 },
             ],
+            'unicorn/filename-case': 'off',
+            'unicorn/no-null': 'off',
+            'unicorn/prevent-abbreviations': 'off'
         },
     },
 

@@ -10,7 +10,7 @@ import {
     type ModelConfig,
     type VsCodeConfiguration,
     type ValidationResult,
-    type ProviderInstanceParams,
+    type ProviderInstanceParameters,
 } from '../types';
 import type { LanguageModelV2 } from '@ai-sdk/provider';
 
@@ -28,62 +28,62 @@ export class AnthropicProvider extends AIProvider {
         {
             id: 'claude-4-opus-20250514',
             displayName: 'Claude 4 Opus',
-            maxTokens: 200000,
+            maxTokens: 200_000,
             supportsVision: true,
         },
         {
             id: 'claude-4-sonnet-20250514',
             displayName: 'Claude 4 Sonnet',
-            maxTokens: 200000,
+            maxTokens: 200_000,
             supportsVision: true,
         },
         {
             id: 'claude-3-7-sonnet-20250219',
             displayName: 'Claude 3.7 Sonnet',
-            maxTokens: 200000,
+            maxTokens: 200_000,
             supportsVision: true,
         },
         {
             id: 'claude-3-5-sonnet-20241022',
             displayName: 'Claude 3.5 Sonnet',
             isDefault: true,
-            maxTokens: 200000,
+            maxTokens: 200_000,
             supportsVision: true,
         },
         {
             id: 'claude-3-opus-20240229',
             displayName: 'Claude 3 Opus',
-            maxTokens: 200000,
+            maxTokens: 200_000,
             supportsVision: true,
         },
         {
             id: 'claude-3-sonnet-20240229',
             displayName: 'Claude 3 Sonnet',
-            maxTokens: 200000,
+            maxTokens: 200_000,
             supportsVision: true,
         },
         {
             id: 'claude-3-haiku-20240307',
             displayName: 'Claude 3 Haiku',
-            maxTokens: 200000,
+            maxTokens: 200_000,
             supportsVision: true,
         },
     ];
 
-    createInstance(params: ProviderInstanceParams): LanguageModelV2 {
-        const apiKey = params.config.config.get<string>(AnthropicProvider.metadata.apiKeyConfigKey);
+    createInstance(parameters: ProviderInstanceParameters): LanguageModelV2 {
+        const apiKey = parameters.config.config.get<string>(AnthropicProvider.metadata.apiKeyConfigKey);
         if (apiKey === undefined || apiKey.trim() === '') {
             throw new Error(this.getCredentialsErrorMessage());
         }
 
-        params.config.logger.info('Anthropic API key is configured.');
+        parameters.config.logger.info('Anthropic API key is configured.');
 
         const anthropic = createAnthropic({
             apiKey,
         });
 
-        params.config.logger.info(`Using Anthropic model: ${params.model}`);
-        return anthropic(params.model);
+        parameters.config.logger.info(`Using Anthropic model: ${parameters.model}`);
+        return anthropic(parameters.model);
     }
 
     validateCredentials(config: VsCodeConfiguration): ValidationResult {

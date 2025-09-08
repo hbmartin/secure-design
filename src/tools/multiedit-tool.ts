@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { tool } from 'ai';
-import * as fs from 'fs';
+import * as fs from 'node:fs';
 import type { ExecutionContext } from '../types/agent';
 import {
     handleToolError,
@@ -61,7 +61,7 @@ interface EditResult {
  * Escape special regex characters
  */
 function escapeRegExp(string: string): string {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return string.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 }
 
 /**
@@ -107,9 +107,9 @@ export function createMultieditTool(context: ExecutionContext) {
         description:
             'Perform multiple find-and-replace operations on a single file in sequence. Each edit is applied to the result of the previous edit. Accepts both relative and absolute file paths within the workspace.',
         inputSchema: multieditParametersSchema,
-        execute: async (params): Promise<ToolResponse> => {
+        execute: async (parameters): Promise<ToolResponse> => {
             try {
-                const { file_path, edits, fail_fast = true } = params;
+                const { file_path, edits, fail_fast = true } = parameters;
 
                 // Validate workspace path (handles both absolute and relative paths)
                 const pathError = validateWorkspacePath(file_path, context);
@@ -133,7 +133,7 @@ export function createMultieditTool(context: ExecutionContext) {
                 try {
                     currentContent = fs.readFileSync(absolutePath, 'utf8');
                     // Normalize line endings to LF
-                    currentContent = currentContent.replace(/\r\n/g, '\n');
+                    currentContent = currentContent.replaceAll('\r\n', '\n');
                 } catch (error) {
                     return handleToolError(error, 'Failed to read file', 'permission');
                 }
@@ -144,10 +144,10 @@ export function createMultieditTool(context: ExecutionContext) {
                 let totalReplacements = 0;
 
                 // Apply edits sequentially
-                for (let i = 0; i < edits.length; i++) {
-                    const edit = edits[i];
+                for (let index = 0; index < edits.length; index++) {
+                    const edit = edits[index];
 
-                    logger.info(`Applying edit ${i + 1}/${edits.length}`);
+                    logger.info(`Applying edit ${index + 1}/${edits.length}`);
 
                     const editResult = applySingleEdit(currentContent, edit);
                     editResults.push(editResult);
@@ -160,14 +160,14 @@ export function createMultieditTool(context: ExecutionContext) {
                         successCount++;
                         totalReplacements += editResult.occurrences;
                         logger.info(
-                            `✓ Edit ${i + 1} successful: ${editResult.occurrences} replacement(s)`
+                            `✓ Edit ${index + 1} successful: ${editResult.occurrences} replacement(s)`
                         );
                     } else {
-                        logger.info(`✗ Edit ${i + 1} failed: ${editResult.error}`);
+                        logger.info(`✗ Edit ${index + 1} failed: ${editResult.error}`);
 
                         if (fail_fast) {
                             return handleToolError(
-                                `Edit operation failed at step ${i + 1}: ${editResult.error}`,
+                                `Edit operation failed at step ${index + 1}: ${editResult.error}`,
                                 'Edit sequence',
                                 'execution'
                             );

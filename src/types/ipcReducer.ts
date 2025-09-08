@@ -6,16 +6,16 @@ export const PATCH = 'patch';
 export const ACT = 'act';
 
 export type FnKeys<T> = {
-    [K in keyof T]: T[K] extends (...args: any[]) => any ? K : never;
+    [K in keyof T]: T[K] extends (...arguments_: any[]) => any ? K : never;
 }[keyof T];
 
 export function isFnKey<T extends object>(
-    prop: string | symbol | number,
-    obj: T
-): prop is FnKeys<T> {
+    property: string | symbol | number,
+    object: T
+): property is FnKeys<T> {
     return (
-        Object.prototype.hasOwnProperty.call(obj, prop) &&
-        typeof obj[prop as keyof T] === 'function'
+        Object.prototype.hasOwnProperty.call(object, property) &&
+        typeof object[property as keyof T] === 'function'
     );
 }
 
@@ -36,7 +36,7 @@ export interface Patch<A, K extends FnKeys<A> = FnKeys<A>> extends IpcMessage {
 }
 
 export type Patches<A> = {
-    [K in FnKeys<A>]: A[K] extends (...args: any) => infer R
+    [K in FnKeys<A>]: A[K] extends (...arguments_: any) => infer R
         ? R extends Promise<infer U>
             ? U
             : R
@@ -44,31 +44,31 @@ export type Patches<A> = {
 };
 
 export function isMyActionMessage<T extends object>(
-    msg: any,
+    message: any,
     providerId: WebviewKey
-): msg is Action<T> {
+): message is Action<T> {
     return (
-        msg !== null &&
-        msg !== undefined &&
-        typeof msg === 'object' &&
-        'providerId' in msg &&
-        'type' in msg &&
-        'key' in msg &&
-        'params' in msg &&
-        msg.type === ACT &&
-        typeof msg.providerId === 'string' &&
-        msg.providerId === providerId &&
-        (typeof msg.key === 'string' || typeof msg.key === 'symbol') &&
-        Array.isArray(msg.params)
+        message !== null &&
+        message !== undefined &&
+        typeof message === 'object' &&
+        'providerId' in message &&
+        'type' in message &&
+        'key' in message &&
+        'params' in message &&
+        message.type === ACT &&
+        typeof message.providerId === 'string' &&
+        message.providerId === providerId &&
+        (typeof message.key === 'string' || typeof message.key === 'symbol') &&
+        Array.isArray(message.params)
     );
 }
 
 export type StateReducer<S, A> = {
-    [Key in FnKeys<A>]: (prevState: S, patch: Patches<A>[Key]) => S;
+    [Key in FnKeys<A>]: (previousState: S, patch: Patches<A>[Key]) => S;
 };
 
 export type ActionDelegate<A> = {
-    [K in FnKeys<A>]: A[K] extends (...args: infer P) => infer R
-        ? (...args: P) => R | Promise<R>
+    [K in FnKeys<A>]: A[K] extends (...arguments_: infer P) => infer R
+        ? (...arguments_: P) => R | Promise<R>
         : never;
 };

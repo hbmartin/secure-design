@@ -10,7 +10,7 @@ import {
     type ModelConfig,
     type VsCodeConfiguration,
     type ValidationResult,
-    type ProviderInstanceParams,
+    type ProviderInstanceParams as ProviderInstanceParameters,
 } from '../types';
 import type { LanguageModelV2 } from '@ai-sdk/provider';
 
@@ -29,61 +29,61 @@ export class GoogleProvider extends AIProvider {
             id: 'gemini-2.5-pro',
             displayName: 'Gemini 2.5 Pro',
             isDefault: true,
-            maxTokens: 1000000,
+            maxTokens: 1_000_000,
             supportsVision: true,
         },
         {
             id: 'gemini-2.5-flash',
             displayName: 'Gemini 2.5 Flash',
-            maxTokens: 1000000,
+            maxTokens: 1_000_000,
             supportsVision: true,
         },
         {
             id: 'gemini-2.5-flash-lite',
             displayName: 'Gemini 2.5 Flash Lite',
-            maxTokens: 1000000,
+            maxTokens: 1_000_000,
             supportsVision: true,
         },
         {
             id: 'gemini-2.0-flash-exp',
             displayName: 'Gemini 2.0 Flash Experimental',
-            maxTokens: 1000000,
+            maxTokens: 1_000_000,
             supportsVision: true,
         },
         {
             id: 'gemini-1.5-pro',
             displayName: 'Gemini 1.5 Pro',
-            maxTokens: 1000000,
+            maxTokens: 1_000_000,
             supportsVision: true,
         },
         {
             id: 'gemini-1.5-flash',
             displayName: 'Gemini 1.5 Flash',
-            maxTokens: 1000000,
+            maxTokens: 1_000_000,
             supportsVision: true,
         },
         {
             id: 'gemini-1.5-flash-8b',
             displayName: 'Gemini 1.5 Flash 8B',
-            maxTokens: 1000000,
+            maxTokens: 1_000_000,
             supportsVision: true,
         },
     ];
 
-    createInstance(params: ProviderInstanceParams): LanguageModelV2 {
-        const apiKey = params.config.config.get<string>(GoogleProvider.metadata.apiKeyConfigKey);
+    createInstance(parameters: ProviderInstanceParameters): LanguageModelV2 {
+        const apiKey = parameters.config.config.get<string>(GoogleProvider.metadata.apiKeyConfigKey);
         if (apiKey === undefined || apiKey.trim() === '') {
             throw new Error(this.getCredentialsErrorMessage());
         }
 
-        params.config.logger.info('Google API key found.');
+        parameters.config.logger.info('Google API key found.');
 
         const google = createGoogleGenerativeAI({
             apiKey: apiKey,
         });
 
-        params.config.logger.info(`Using Google model: ${params.model}`);
-        return google(params.model);
+        parameters.config.logger.info(`Using Google model: ${parameters.model}`);
+        return google(parameters.model);
     }
 
     validateCredentials(config: VsCodeConfiguration): ValidationResult {

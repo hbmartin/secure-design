@@ -1,5 +1,5 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
 import type { ExecutionContext } from '../types/agent';
@@ -60,7 +60,7 @@ export function createThemeTool(context: ExecutionContext) {
             theme_name,
             reasoning_reference,
             cssFilePath,
-            create_dirs = true,
+            create_dirs: create_directories = true,
         }): Promise<ToolResponse> => {
             try {
                 // Validate and resolve the CSS file path
@@ -72,7 +72,7 @@ export function createThemeTool(context: ExecutionContext) {
                 const resolvedPath = resolveWorkspacePath(cssFilePath, context);
 
                 // Create parent directories if needed
-                if (create_dirs) {
+                if (create_directories) {
                     const dirPath = path.dirname(resolvedPath);
                     if (!fs.existsSync(dirPath)) {
                         fs.mkdirSync(dirPath, { recursive: true });

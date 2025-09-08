@@ -12,9 +12,9 @@ export function useLogger(tag: string): ILogger {
     const context = useContext(WebviewContext);
     return useMemo(
         () =>
-            context?.vscode !== undefined
-                ? new WebviewLogger(context.vscode, tag)
-                : createConsoleLogger(tag),
+            context?.vscode === undefined
+                ? createConsoleLogger(tag)
+                : new WebviewLogger(context.vscode, tag),
         [context?.vscode, tag]
     );
 }

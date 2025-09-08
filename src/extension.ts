@@ -97,25 +97,31 @@ async function getBase64Image(filePath: string, sidebarProvider: ChatSidebarProv
         let mimeType: string;
         switch (extension) {
             case 'jpg':
-            case 'jpeg':
+            case 'jpeg': {
                 mimeType = 'image/jpeg';
                 break;
-            case 'png':
+            }
+            case 'png': {
                 mimeType = 'image/png';
                 break;
-            case 'gif':
+            }
+            case 'gif': {
                 mimeType = 'image/gif';
                 break;
-            case 'webp':
+            }
+            case 'webp': {
                 mimeType = 'image/webp';
                 break;
-            case 'bmp':
+            }
+            case 'bmp': {
                 mimeType = 'image/bmp';
                 break;
+            }
             case undefined:
-            default:
+            default: {
                 mimeType = 'image/png'; // Default fallback
                 break;
+            }
         }
 
         // Convert to base64
@@ -154,7 +160,7 @@ function detectCurrentIDE(): { isCursor: boolean; isWindsurf: boolean } {
 // Function to check if Claude command exists
 async function claudeCommandExists(): Promise<boolean> {
     try {
-        const { exec } = await import('child_process');
+        const { exec } = await import('node:child_process');
 
         // Check on Windows host first
         const checkHost = new Promise<boolean>(resolve => {
@@ -1354,7 +1360,7 @@ export function activate(context: vscode.ExtensionContext): void {
     // Set up message handler for auto-canvas functionality
     sidebarProvider.setMessageHandler(message => {
         switch (message.command) {
-            case 'checkCanvasStatus':
+            case 'checkCanvasStatus': {
                 // Check if canvas panel is currently open for current workspace
                 const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
                 const isCanvasOpen = workspaceFolder
@@ -1367,40 +1373,47 @@ export function activate(context: vscode.ExtensionContext): void {
                     isOpen: isCanvasOpen,
                 });
                 break;
+            }
 
-            case 'autoOpenCanvas':
+            case 'autoOpenCanvas': {
                 // Auto-open canvas if not already open
                 SuperdesignCanvasPanel.createOrShow(context.extensionUri, sidebarProvider);
                 break;
+            }
 
-            case 'setContextFromCanvas':
+            case 'setContextFromCanvas': {
                 // Forward context from canvas to chat sidebar
                 sidebarProvider.sendMessage({
                     command: 'contextFromCanvas',
                     data: message.data,
                 });
                 break;
+            }
 
-            case 'saveImageToMoodboard':
+            case 'saveImageToMoodboard': {
                 // Save uploaded image to moodboard directory
                 void saveImageToMoodboard(message.data, sidebarProvider);
                 break;
+            }
 
-            case 'getBase64Image':
+            case 'getBase64Image': {
                 // Convert saved image to base64 for AI SDK
                 void getBase64Image(message.filePath, sidebarProvider);
                 break;
+            }
 
-            case 'showError':
+            case 'showError': {
                 // Show error message to user
                 vscode.window.showErrorMessage(message.data);
                 break;
+            }
 
-            case 'initializeSecuredesign':
+            case 'initializeSecuredesign': {
                 // Auto-trigger initialize Superdesign command
                 console.log('🚀 Received initializeSecuredesign command from webview');
                 vscode.commands.executeCommand('securedesign.initializeProject');
                 break;
+            }
         }
     });
 
@@ -1443,11 +1456,11 @@ export function activate(context: vscode.ExtensionContext): void {
             const data: Record<string, unknown> = {};
             for (const k of keys) data[k] = state.get(k);
 
-            const doc = await vscode.workspace.openTextDocument({
+            const document = await vscode.workspace.openTextDocument({
                 language: 'json',
                 content: JSON.stringify(data, null, 2),
             });
-            vscode.window.showTextDocument(doc, { preview: false });
+            vscode.window.showTextDocument(document, { preview: false });
         })
     );
 }

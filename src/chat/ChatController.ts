@@ -13,7 +13,7 @@ import type { TextPart, ImagePart, FilePart } from '@ai-sdk/provider-utils';
  * Interface for event triggering capability to avoid circular dependencies
  */
 export interface EventTrigger {
-    triggerEvent<E extends keyof ViewEvents>(key: E, ...params: Parameters<ViewEvents[E]>): void;
+    triggerEvent<E extends keyof ViewEvents>(key: E, ...parameters: Parameters<ViewEvents[E]>): void;
 }
 
 /**
@@ -93,13 +93,9 @@ export class ChatController implements ViewAPI {
         vscode.window.showErrorMessage(message);
     };
 
-    executeCommand = async (command: string, args?: any): Promise<void> => {
+    executeCommand = async (command: string, arguments_?: any): Promise<void> => {
         this.logger.info(`API: executeCommand called: ${command}`);
-        if (args) {
-            await vscode.commands.executeCommand(command, args);
-        } else {
-            await vscode.commands.executeCommand(command);
-        }
+        await (arguments_ ? vscode.commands.executeCommand(command, arguments_) : vscode.commands.executeCommand(command));
     };
 
     getBase64Image = async (filePath: string): Promise<string> => {
@@ -114,26 +110,33 @@ export class ChatController implements ViewAPI {
             // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check
             switch (extension) {
                 case 'jpg':
-                case 'jpeg':
+                case 'jpeg': {
                     mimeType = 'image/jpeg';
                     break;
-                case 'png':
+                }
+                case 'png': {
                     mimeType = 'image/png';
                     break;
-                case 'gif':
+                }
+                case 'gif': {
                     mimeType = 'image/gif';
                     break;
-                case 'bmp':
+                }
+                case 'bmp': {
                     mimeType = 'image/bmp';
                     break;
-                case 'webp':
+                }
+                case 'webp': {
                     mimeType = 'image/webp';
                     break;
-                case 'svg':
+                }
+                case 'svg': {
                     mimeType = 'image/svg+xml';
                     break;
-                default:
+                }
+                default: {
                     mimeType = 'application/octet-stream';
+                }
             }
 
             const base64Data = Buffer.from(fileData).toString('base64');
@@ -229,10 +232,10 @@ export class ChatController implements ViewAPI {
             const updatedChatHistory = await this.agentService.query(
                 this.chatMessagesRepository.getChatHistory(),
                 this.currentRequestController,
-                (prev: ChatMessage[]) => {
+                (previous: ChatMessage[]) => {
                     void (async () => {
                         try {
-                            await this.chatMessagesRepository.saveChatHistory(prev);
+                            await this.chatMessagesRepository.saveChatHistory(previous);
                         } catch (error) {
                             this.logger.error('Failed to save intermediate chat history', {
                                 error,
@@ -329,7 +332,9 @@ export class ChatController implements ViewAPI {
                 providerConfig
             );
 
-            if (!validation.isValid) {
+            if (validation.isValid) {
+                Logger.debug('[ChatController] Provider credentials are valid');
+            } else {
                 Logger.warn(
                     '[ChatController] Provider credentials not valid, showing warning dialog'
                 );
@@ -348,8 +353,6 @@ export class ChatController implements ViewAPI {
                     Logger.debug('[ChatController] User chose to configure credentials');
                     await vscode.commands.executeCommand(providerMetadata.configureCommand);
                 }
-            } else {
-                Logger.debug('[ChatController] Provider credentials are valid');
             }
 
             // Trigger provider changed event

@@ -21,11 +21,11 @@ export class WebviewApiProvider implements vscode.Disposable, EventTrigger {
      * Type-safe event triggering to all connected webviews
      * Prunes failing webviews to prevent unbounded growth and repeated failures
      */
-    triggerEvent<E extends keyof ViewEvents>(key: E, ...params: Parameters<ViewEvents[E]>): void {
+    triggerEvent<E extends keyof ViewEvents>(key: E, ...parameters: Parameters<ViewEvents[E]>): void {
         const event: ViewApiEvent<E> = {
             type: 'event',
             key,
-            value: params,
+            value: parameters,
         };
 
         this.logger.debug(`Triggering event: ${key}`);
@@ -34,7 +34,7 @@ export class WebviewApiProvider implements vscode.Disposable, EventTrigger {
         const failedViews: string[] = [];
 
         // Send to all connected views
-        this.connectedViews.forEach((connectedView, viewId) => {
+        for (const [viewId, connectedView] of this.connectedViews.entries()) {
             try {
                 // Wrap postMessage in try-catch to handle synchronous exceptions
                 const postPromise = connectedView.view.webview.postMessage(event);
@@ -44,9 +44,9 @@ export class WebviewApiProvider implements vscode.Disposable, EventTrigger {
                     () => {
                         // Message sent successfully
                     },
-                    (err: Error) => {
+                    (error: Error) => {
                         this.logger.error(
-                            `Failed to send event ${key} to view ${connectedView.context.viewType}:${viewId}: ${String(err)}`
+                            `Failed to send event ${key} to view ${connectedView.context.viewType}:${viewId}: ${String(error)}`
                         );
 
                         // Mark view for removal
@@ -62,11 +62,11 @@ export class WebviewApiProvider implements vscode.Disposable, EventTrigger {
                 // Mark view for removal
                 failedViews.push(viewId);
             }
-        });
+        }
 
         // Prune failed views after iteration to avoid modifying collection during iteration
         if (failedViews.length > 0) {
-            failedViews.forEach(viewId => {
+            for (const viewId of failedViews) {
                 const connectedView = this.connectedViews.get(viewId);
                 if (connectedView) {
                     this.logger.warn(
@@ -76,7 +76,7 @@ export class WebviewApiProvider implements vscode.Disposable, EventTrigger {
                     // Only remove from connected views - let webviews handle their own disposal lifecycle
                     this.connectedViews.delete(viewId);
                 }
-            });
+            }
 
             this.logger.info(
                 `Removed ${failedViews.length} failed webview(s) from connectedViews. Remaining: ${this.connectedViews.size}`
@@ -92,7 +92,7 @@ export class WebviewApiProvider implements vscode.Disposable, EventTrigger {
             viewId: id,
             viewType: viewType,
             timestamp: Date.now(),
-            sessionId: `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            sessionId: `session-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
         };
 
         this.connectedViews.set(id, { view, context });
@@ -116,7 +116,7 @@ export class WebviewApiProvider implements vscode.Disposable, EventTrigger {
      * Dispose of all resources
      */
     dispose(): void {
-        this.disposables.forEach(d => d.dispose());
+        for (const d of this.disposables) d.dispose();
         this.connectedViews.clear();
         this.logger.info('WebviewApiProvider disposed');
     }

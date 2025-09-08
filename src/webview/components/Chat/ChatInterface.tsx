@@ -29,19 +29,19 @@ import type {
 } from '@ai-sdk/provider-utils';
 import { isToolCallPart, isToolResultPart } from '../../utils/chatUtils';
 
-interface ChatInterfaceProps {
+interface ChatInterfaceProperties {
     layout: WebviewLayout;
 }
 
 const postReducer: StateReducer<ChatSidebarState, ChatSidebarActions> = {
     getCssFileContent: function (
-        prevState: ChatSidebarState,
+        previousState: ChatSidebarState,
         patch: { filePath: string; content?: string; error?: string }
     ): ChatSidebarState {
         return {
-            ...prevState,
+            ...previousState,
             css: {
-                ...prevState.css,
+                ...previousState.css,
                 [patch.filePath]: {
                     filePath: patch.filePath,
                     content: patch.content,
@@ -50,42 +50,42 @@ const postReducer: StateReducer<ChatSidebarState, ChatSidebarActions> = {
             },
         };
     },
-    loadChats: function (prevState: ChatSidebarState, patch: ChatMessage[]): ChatSidebarState {
+    loadChats: function (previousState: ChatSidebarState, patch: ChatMessage[]): ChatSidebarState {
         return {
-            ...prevState,
+            ...previousState,
             messages: patch,
         };
     },
-    clearChats: function (prevState: ChatSidebarState, _patch: void): ChatSidebarState {
+    clearChats: function (previousState: ChatSidebarState, _patch: void): ChatSidebarState {
         return {
-            ...prevState,
+            ...previousState,
             messages: [],
         };
     },
     getCurrentProvider: function (
-        prevState: ChatSidebarState,
+        previousState: ChatSidebarState,
         patch: [ProviderId, string]
     ): ChatSidebarState {
         return {
-            ...prevState,
+            ...previousState,
             provider: [patch[0], patch[1]],
         };
     },
     setProvider: function (
-        prevState: ChatSidebarState,
+        previousState: ChatSidebarState,
         patch: [ProviderId, string]
     ): ChatSidebarState {
         return {
-            ...prevState,
+            ...previousState,
             provider: [patch[0], patch[1]],
         };
     },
-    sendChatMessage: function (prevState: ChatSidebarState, _: void): ChatSidebarState {
-        return prevState;
+    sendChatMessage: function (previousState: ChatSidebarState, _: void): ChatSidebarState {
+        return previousState;
     },
 };
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
+const ChatInterface: React.FC<ChatInterfaceProperties> = ({ layout }) => {
     const { api } = useWebviewApi();
     const logger = useLogger('ChatInterface');
     const [state, actor] = useVscodeState<ChatSidebarState, ChatSidebarActions>(
@@ -136,7 +136,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         setPendingImages([]);
 
         // Clear all timer intervals
-        Object.values(timerIntervals.current).forEach(timer => clearInterval(timer));
+        for (const timer of Object.values(timerIntervals.current)) clearInterval(timer);
         timerIntervals.current = {};
 
         markAsReturningUser();
@@ -168,7 +168,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             styleElement = document.createElement('style');
             styleElement.id = styleId;
             styleElement.textContent = chatStyles;
-            document.head.appendChild(styleElement);
+            document.head.append(styleElement);
         }
 
         // Inject Welcome CSS styles
@@ -179,7 +179,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             welcomeStyleElement = document.createElement('style');
             welcomeStyleElement.id = welcomeStyleId;
             welcomeStyleElement.textContent = welcomeStyles;
-            document.head.appendChild(welcomeStyleElement);
+            document.head.append(welcomeStyleElement);
         }
 
         // Auto-open canvas if not already open
@@ -203,7 +203,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         // Listen for context messages and other events
         const handleMessage = (event: MessageEvent) => {
             const message = event.data;
-            if (message.command === 'contextFromCanvas') {
+            switch (message.command) {
+            case 'contextFromCanvas': {
                 // Handle context from canvas
                 logger.debug('📄 Received context from canvas:', message.data);
                 if (message.data.type === 'clear' || !message.data.fileName) {
@@ -213,11 +214,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                     setCurrentContext(message.data);
                     logger.debug('📄 Context set to:', message.data);
                 }
-            } else if (message.command === 'imageSavedToMoodboard') {
+            
+            break;
+            }
+            case 'imageSavedToMoodboard': {
                 // Handle successful image save with full path
                 logger.debug('📎 Image saved with full path:', message.data);
-                setPendingImages(prev => [
-                    ...prev,
+                setPendingImages(previous => [
+                    ...previous,
                     {
                         fileName: message.data.fileName,
                         originalName: message.data.originalName,
@@ -225,20 +229,33 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                     },
                 ]);
                 // Remove from uploading state
-                setUploadingImages(prev => prev.filter(name => name !== message.data.originalName));
-            } else if (message.command === 'imageSaveError') {
+                setUploadingImages(previous => previous.filter(name => name !== message.data.originalName));
+            
+            break;
+            }
+            case 'imageSaveError': {
                 // Handle image save error
                 console.error('📎 Image save error:', message.data);
-                setUploadingImages(prev => prev.filter(name => name !== message.data.originalName));
-            } else if (message.command === 'resetWelcome') {
+                setUploadingImages(previous => previous.filter(name => name !== message.data.originalName));
+            
+            break;
+            }
+            case 'resetWelcome': {
                 // Handle reset welcome command from command palette
                 resetFirstTimeUser();
                 setShowWelcome(true);
                 logger.debug('👋 Welcome screen reset and shown');
-            } else if (message.command === 'setChatPrompt') {
+            
+            break;
+            }
+            case 'setChatPrompt': {
                 // Handle prompt from canvas floating buttons
                 logger.debug('📝 Received prompt from canvas:', message.data.prompt);
                 setInputMessage(message.data.prompt);
+            
+            break;
+            }
+            // No default
             }
         };
 
@@ -254,11 +271,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             // Clean up on unmount
             const existingStyle = document.getElementById(styleId);
             if (existingStyle) {
-                document.head.removeChild(existingStyle);
+                existingStyle.remove();
             }
             const existingWelcomeStyle = document.getElementById(welcomeStyleId);
             if (existingWelcomeStyle) {
-                document.head.removeChild(existingWelcomeStyle);
+                existingWelcomeStyle.remove();
             }
         };
     }, [api, handleNewConversation, resetFirstTimeUser, logger]);
@@ -438,7 +455,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             return;
         }
 
-        const files = Array.from(e.dataTransfer.files);
+        const files = [...e.dataTransfer.files];
         const imageFiles = files.filter(file => file.type.startsWith('image/'));
 
         if (imageFiles.length === 0) {
@@ -476,19 +493,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             const timestamp = Date.now();
             const originalName = file.name || `clipboard-image-${timestamp}`;
             const extension = file.type.split('/')[1] || 'png';
-            const safeName = originalName.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const safeName = originalName.replaceAll(/[^a-zA-Z0-9.-]/g, '_');
             const fileName = safeName.includes('.')
                 ? `${timestamp}_${safeName}`
                 : `${timestamp}_${safeName}.${extension}`;
 
             // Add to uploading state
-            setUploadingImages(prev => [...prev, originalName]);
+            setUploadingImages(previous => [...previous, originalName]);
 
             // Convert to base64 for sending to extension
             try {
                 const base64Data = await new Promise<string>((resolve, reject) => {
                     const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result as string);
+                    reader.addEventListener('load', () => resolve(reader.result as string));
                     reader.onerror = () => reject(new Error(`Failed to read file: ${file.name}`));
                     reader.readAsDataURL(file);
                 });
@@ -513,7 +530,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 );
             } finally {
                 // Remove from uploading state
-                setUploadingImages(prev => prev.filter(name => name !== originalName));
+                setUploadingImages(previous => previous.filter(name => name !== originalName));
             }
         },
         [api, setUploadingImages, logger]
@@ -564,7 +581,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 return;
             }
 
-            const files = Array.from(e.dataTransfer.files);
+            const files = [...e.dataTransfer.files];
             logger.debug(
                 '🎯 Global files from drop:',
                 files.map(f => `${f.name} (${f.type})`)
@@ -606,7 +623,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             logger.debug('📋 Paste detected, checking for images...');
 
             // Look for image items in clipboard
-            const imageItems = Array.from(clipboardItems).filter(item =>
+            const imageItems = [...clipboardItems].filter(item =>
                 item.type.startsWith('image/')
             );
 
@@ -650,14 +667,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         };
     }, [chatHistory, handleImageUpload, showWelcome, api, logger]);
 
-    const renderChatMessage = (msg: ChatMessage, index: number) => {
+    const renderChatMessage = (message: ChatMessage, index: number) => {
         // Helper function to extract text content from CoreMessage
-        const getMessageText = (msg: ChatMessage): string => {
-            if (typeof msg.content === 'string') {
-                return msg.content;
-            } else if (Array.isArray(msg.content)) {
+        const getMessageText = (message_: ChatMessage): string => {
+            if (typeof message_.content === 'string') {
+                return message_.content;
+            } else if (Array.isArray(message_.content)) {
                 // Find text parts and concatenate them
-                return msg.content
+                return message_.content
                     .filter((part: any) => part.type === 'text')
                     .map((part: any) => part.text)
                     .join('\n');
@@ -667,21 +684,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
 
         // Check if message has tool calls
         const hasToolCalls =
-            Array.isArray(msg.content) &&
-            msg.content.some((part: any) => part.type === 'tool-call');
+            Array.isArray(message.content) &&
+            message.content.some((part: any) => part.type === 'tool-call');
 
         // Check if message has tool results
         const hasToolResults =
-            Array.isArray(msg.content) &&
-            msg.content.some((part: any) => part.type === 'tool-result');
+            Array.isArray(message.content) &&
+            message.content.some((part: any) => part.type === 'tool-result');
 
         const isLastMessage = index === (chatHistory?.length ?? 0) - 1;
-        const isLastUserMessage = msg.role === 'user' && isLastMessage;
-        const isStreaming = (msg.role === 'assistant' || hasToolResults) && isLastMessage;
-        const messageText = getMessageText(msg);
+        const isLastUserMessage = message.role === 'user' && isLastMessage;
+        const isStreaming = (message.role === 'assistant' || hasToolResults) && isLastMessage;
+        const messageText = getMessageText(message);
 
         // Handle tool call messages specially - but for mixed content, we need to show both text AND tools
-        if (msg.role === 'assistant' && hasToolCalls) {
+        if (message.role === 'assistant' && hasToolCalls) {
             // Check if there's also text content
             const hasTextContent = messageText.trim().length > 0;
 
@@ -695,19 +712,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                         {layout === 'panel' && (
                             <div className='chat-message__header'>
                                 <span className='chat-message__label'>Claude</span>
-                                {msg.metadata && (
+                                {message.metadata && (
                                     <span className='chat-message__metadata'>
-                                        {msg.metadata.start_time !== undefined &&
-                                            msg.metadata.end_time !== undefined && (
+                                        {message.metadata.start_time !== undefined &&
+                                            message.metadata.end_time !== undefined && (
                                                 <span className='metadata-item'>
-                                                    {msg.metadata.end_time -
-                                                        msg.metadata.start_time}
+                                                    {message.metadata.end_time -
+                                                        message.metadata.start_time}
                                                     ms
                                                 </span>
                                             )}
-                                        {msg.metadata.total_cost_usd && (
+                                        {message.metadata.total_cost_usd && (
                                             <span className='metadata-item'>
-                                                ${msg.metadata.total_cost_usd.toFixed(4)}
+                                                ${message.metadata.total_cost_usd.toFixed(4)}
                                             </span>
                                         )}
                                     </span>
@@ -718,41 +735,45 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                             <MarkdownRenderer content={messageText} />
                             {isStreaming && <span className='streaming-cursor'>▋</span>}
                         </div>
-                        <div className='chat-message__tools'>{renderToolCalls(msg, index)}</div>
+                        <div className='chat-message__tools'>{renderToolCalls(message, index)}</div>
                     </div>
                 );
             } else {
                 // Only tool calls, no text content - use original tool-only rendering
-                return renderToolCalls(msg, index);
+                return renderToolCalls(message, index);
             }
         }
 
         // Handle error messages with actions specially
-        if (msg.role === 'assistant' && msg.metadata?.is_error === true) {
-            return renderErrorMessage(msg, index);
+        if (message.role === 'assistant' && message.metadata?.is_error === true) {
+            return renderErrorMessage(message, index);
         }
 
         // Determine message label and styling
         let messageLabel = '';
         let messageClass = '';
 
-        switch (msg.role) {
-            case 'user':
+        switch (message.role) {
+            case 'user': {
                 messageLabel = 'You';
                 messageClass = 'user';
                 break;
-            case 'assistant':
+            }
+            case 'assistant': {
                 messageLabel = 'Claude';
                 messageClass = 'assistant';
                 break;
-            case 'system':
+            }
+            case 'system': {
                 messageLabel = 'System';
                 messageClass = 'system';
                 break;
-            case 'tool':
+            }
+            case 'tool': {
                 messageLabel = 'Tool Result';
                 messageClass = 'tool-result';
                 break;
+            }
         }
 
         const hasToolCall = hasToolCalls || hasToolResults;
@@ -765,17 +786,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 {layout === 'panel' && (
                     <div className='chat-message__header'>
                         <span className='chat-message__label'>{messageLabel}</span>
-                        {msg.metadata && (
+                        {message.metadata && (
                             <span className='chat-message__metadata'>
-                                {msg.metadata.start_time !== undefined &&
-                                    msg.metadata.end_time !== undefined && (
+                                {message.metadata.start_time !== undefined &&
+                                    message.metadata.end_time !== undefined && (
                                         <span className='metadata-item'>
-                                            {msg.metadata.end_time - msg.metadata.start_time}ms
+                                            {message.metadata.end_time - message.metadata.start_time}ms
                                         </span>
                                     )}
-                                {msg.metadata.total_cost_usd && (
+                                {message.metadata.total_cost_usd && (
                                     <span className='metadata-item'>
-                                        ${msg.metadata.total_cost_usd.toFixed(4)}
+                                        ${message.metadata.total_cost_usd.toFixed(4)}
                                     </span>
                                 )}
                             </span>
@@ -783,7 +804,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                     </div>
                 )}
                 <div className='chat-message__content'>
-                    {msg.role === 'assistant' ? (
+                    {message.role === 'assistant' ? (
                         <MarkdownRenderer content={messageText} />
                     ) : (
                         (() => {
@@ -842,13 +863,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
     };
 
     // New function to handle multiple tool calls in a single message
-    const renderToolCalls = (msg: ChatMessage, index: number) => {
-        if (!Array.isArray(msg.content)) {
+    const renderToolCalls = (message: ChatMessage, index: number) => {
+        if (!Array.isArray(message.content)) {
             return <div key={index}>Invalid tool message content</div>;
         }
 
         // Find ALL tool call parts
-        const toolCallParts: ToolCallPart[] = msg.content.filter((part: any) =>
+        const toolCallParts: ToolCallPart[] = message.content.filter((part: any) =>
             isToolCallPart(part)
         );
 
@@ -892,9 +913,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             const error: string | undefined =
                 toolResultPart?.output.type === 'error-json'
                     ? JSON.stringify(toolResultPart?.output.value)
-                    : toolResultPart?.output.type === 'error-text'
+                    : (toolResultPart?.output.type === 'error-text'
                       ? toolResultPart?.output.value
-                      : undefined;
+                      : undefined);
 
             // Special handling for generateTheme tool calls
             if (toolName === 'generateTheme') {
@@ -910,10 +931,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 const cssFilePath =
                     'cssFilePath' in toolInput
                         ? toolInput.cssFilePath
-                        : toolResultPart?.output?.type === 'json' &&
+                        : (toolResultPart?.output?.type === 'json' &&
                             'cssFilePath' in (toolResultPart?.output?.value as object)
                           ? (toolResultPart?.output?.value as any)?.cssFilePath
-                          : undefined;
+                          : undefined);
 
                 // Try to get CSS file path from metadata or result
                 let isLoadingCss: boolean = true;
@@ -939,12 +960,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                     );
                 }
                 let cssContent: string | undefined = cssSheet;
-                let cssLoadError: string | undefined = undefined;
+                let cssLoadError: string | undefined;
                 if (cssFilePath !== undefined && cssFilePath in state.css) {
-                    if (state.css[cssFilePath].content !== undefined) {
-                        cssContent = state.css[cssFilePath].content;
-                    } else {
+                    if (state.css[cssFilePath].content === undefined) {
                         cssLoadError = state.css[cssFilePath].error;
+                    } else {
+                        cssContent = state.css[cssFilePath].content;
                     }
                     isLoadingCss = false;
                 }
@@ -990,12 +1011,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             const toolComplete = !!toolResultPart;
 
             const toolResult: string =
-                toolResultPart !== undefined
-                    ? toolResultPart.output.type === 'text' ||
+                toolResultPart === undefined
+                    ? ''
+                    : (toolResultPart.output.type === 'text' ||
                       toolResultPart.output.type === 'error-text'
                         ? toolResultPart.output.value
-                        : JSON.stringify((toolResultPart.output as any).value, null, 2)
-                    : '';
+                        : JSON.stringify((toolResultPart.output as any).value, null, 2));
 
             // Get friendly tool name for display
             const getFriendlyToolName = (name: string): string => {
@@ -1012,14 +1033,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 };
                 return (
                     friendlyNames[name] ||
-                    name.replace(/mcp_|_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+                    name.replaceAll(/mcp_|_/g, ' ').replaceAll(/\b\w/g, l => l.toUpperCase())
                 );
             };
 
             const toggleExpanded = () => {
-                setExpandedTools(prev => ({
-                    ...prev,
-                    [uniqueKey]: !prev[uniqueKey],
+                setExpandedTools(previous => ({
+                    ...previous,
+                    [uniqueKey]: !previous[uniqueKey],
                 }));
             };
 
@@ -1040,17 +1061,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             return (
                 <div
                     key={uniqueKey}
-                    className={`tool-message tool-message--${layout} ${toolComplete ? 'tool-message--complete' : ''} ${!toolComplete ? 'tool-message--loading' : ''}`}
+                    className={`tool-message tool-message--${layout} ${toolComplete ? 'tool-message--complete' : ''} ${toolComplete ? '' : 'tool-message--loading'}`}
                 >
                     <div className='tool-message__header' onClick={toggleExpanded}>
                         <div className='tool-message__main'>
                             <span className='tool-icon'>
-                                {!toolComplete ? (
+                                {toolComplete ? (
+                                    <TaskIcon />
+                                ) : (
                                     <div className='loading-icon-simple'>
                                         <div className='loading-ring' />
                                     </div>
-                                ) : (
-                                    <TaskIcon />
                                 )}
                             </span>
                             <div className='tool-info'>
@@ -1110,10 +1131,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                             {toolComplete && (
                                 <div className='tool-detail'>
                                     <span className='tool-detail__label'>
-                                        {error !== undefined ? 'Error Result:' : 'Result:'}
+                                        {error === undefined ? 'Result:' : 'Error Result:'}
                                     </span>
                                     <div
-                                        className={`tool-detail__value tool-detail__value--result ${error !== undefined ? 'tool-detail__value--error' : ''}`}
+                                        className={`tool-detail__value tool-detail__value--result ${error === undefined ? '' : 'tool-detail__value--error'}`}
                                     >
                                         <pre className='tool-result-content'>{toolResult}</pre>
                                     </div>
@@ -1146,7 +1167,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         }
     };
 
-    const renderErrorMessage = (msg: ChatMessage, index: number) => {
+    const renderErrorMessage = (message: ChatMessage, index: number) => {
         const handleActionClick = (action: { text: string; command: string; args?: string }) => {
             logger.debug('Action clicked:', action);
             logger.debug('Executing command:', {
@@ -1187,11 +1208,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 )}
                 <div className='chat-message__content'>
                     <div className='error-message-content'>
-                        {typeof msg.content === 'string' ? msg.content : 'Error occurred'}
+                        {typeof message.content === 'string' ? message.content : 'Error occurred'}
                     </div>
-                    {msg.metadata?.actions !== undefined && msg.metadata.actions.length > 0 && (
+                    {message.metadata?.actions !== undefined && message.metadata.actions.length > 0 && (
                         <div className='error-actions'>
-                            {msg.metadata.actions.map(
+                            {message.metadata.actions.map(
                                 (action: MessageAction, actionIndex: number) => (
                                     <button
                                         key={actionIndex}
@@ -1265,11 +1286,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 <div className='chat-history'>
                     {showWelcome ? (
                         <Welcome onGetStarted={handleWelcomeGetStarted} />
-                    ) : hasConversationMessages ? (
+                    ) : (hasConversationMessages ? (
                         <>{chatHistory?.map(renderChatMessage)}</>
                     ) : (
                         renderPlaceholder()
-                    )}
+                    ))}
                 </div>
 
                 {!showWelcome && (
@@ -1280,24 +1301,24 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                 <span className='context-icon'>
                                     {currentContext.type === 'image'
                                         ? '🖼️'
-                                        : currentContext.type === 'images'
+                                        : (currentContext.type === 'images'
                                           ? '🖼️'
-                                          : '📄'}
+                                          : '📄')}
                                 </span>
                                 <span className='context-text'>
                                     {currentContext.type === 'image'
                                         ? 'Image: '
-                                        : currentContext.type === 'images'
+                                        : (currentContext.type === 'images'
                                           ? 'Images: '
-                                          : 'Context: '}
+                                          : 'Context: ')}
                                     {currentContext.type === 'images'
                                         ? `${currentContext.fileName.split(', ').length} images in moodboard`
-                                        : currentContext.fileName.includes('.superdesign')
+                                        : (currentContext.fileName.includes('.superdesign')
                                           ? (currentContext.fileName.split('.superdesign/')[1] ??
                                             currentContext.fileName.split('/').pop() ??
                                             currentContext.fileName)
                                           : (currentContext.fileName.split('/').pop() ??
-                                            currentContext.fileName)}
+                                            currentContext.fileName))}
                                 </span>
                                 <button
                                     className='context-clear-btn'
@@ -1365,9 +1386,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                 <div className='selector-wrapper'>
                                     <ModelSelector
                                         selectedModel={
-                                            state.provider !== undefined
-                                                ? state.provider[1]
-                                                : undefined
+                                            state.provider === undefined
+                                                ? undefined
+                                                : state.provider[1]
                                         }
                                         onModelChange={(providerId, model) => {
                                             void handleModelChange(providerId, model);
@@ -1387,11 +1408,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                         fileInput.type = 'file';
                                         fileInput.accept = 'image/*';
                                         fileInput.multiple = true;
-                                        fileInput.onchange = e => {
+                                        fileInput.addEventListener('change', e => {
                                             void (async () => {
                                                 const files = (e.target as HTMLInputElement).files;
                                                 if (files) {
-                                                    for (const file of Array.from(files)) {
+                                                    for (const file of files) {
                                                         try {
                                                             await handleImageUpload(file);
                                                         } catch (error) {
@@ -1403,7 +1424,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                                     }
                                                 }
                                             })();
-                                        };
+                                        });
                                         fileInput.click();
                                     }}
                                     disabled={chatHistory === undefined || showWelcome}

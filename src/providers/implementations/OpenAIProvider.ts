@@ -10,7 +10,7 @@ import {
     type ModelConfig,
     type VsCodeConfiguration,
     type ValidationResult,
-    type ProviderInstanceParams,
+    type ProviderInstanceParams as ProviderInstanceParameters,
 } from '../types';
 import type { LanguageModelV2 } from '@ai-sdk/provider';
 
@@ -29,38 +29,38 @@ export class OpenAIProvider extends AIProvider {
         {
             id: 'gpt-4.1',
             displayName: 'GPT-4.1',
-            maxTokens: 128000,
+            maxTokens: 128_000,
             supportsVision: true,
         },
         {
             id: 'gpt-4.1-mini',
             displayName: 'GPT-4.1 Mini',
-            maxTokens: 128000,
+            maxTokens: 128_000,
             supportsVision: true,
         },
         {
             id: 'gpt-4.1-nano',
             displayName: 'GPT-4.1 Nano',
-            maxTokens: 128000,
+            maxTokens: 128_000,
             supportsVision: false,
         },
         {
             id: 'gpt-4o',
             displayName: 'GPT-4o',
             isDefault: true,
-            maxTokens: 128000,
+            maxTokens: 128_000,
             supportsVision: true,
         },
         {
             id: 'gpt-4o-mini',
             displayName: 'GPT-4o Mini',
-            maxTokens: 128000,
+            maxTokens: 128_000,
             supportsVision: true,
         },
         {
             id: 'gpt-4-turbo',
             displayName: 'GPT-4 Turbo',
-            maxTokens: 128000,
+            maxTokens: 128_000,
             supportsVision: true,
         },
         {
@@ -72,29 +72,29 @@ export class OpenAIProvider extends AIProvider {
         {
             id: 'gpt-3.5-turbo',
             displayName: 'GPT-3.5 Turbo',
-            maxTokens: 16384,
+            maxTokens: 16_384,
             supportsVision: false,
         },
     ];
 
-    createInstance(params: ProviderInstanceParams): LanguageModelV2 {
-        const apiKey = params.config.config.get<string>(OpenAIProvider.metadata.apiKeyConfigKey);
-        const baseURL = params.config.config.get<string>('openaiUrl');
+    createInstance(parameters: ProviderInstanceParameters): LanguageModelV2 {
+        const apiKey = parameters.config.config.get<string>(OpenAIProvider.metadata.apiKeyConfigKey);
+        const baseURL = parameters.config.config.get<string>('openaiUrl');
 
         if (apiKey === undefined || apiKey.trim() === '') {
             throw new Error(this.getCredentialsErrorMessage());
         }
 
-        params.config.logger.info('OpenAI API key found');
+        parameters.config.logger.info('OpenAI API key found');
 
         if (baseURL !== undefined) {
-            params.config.logger.info(`Using custom OpenAI base URL: ${baseURL}`);
+            parameters.config.logger.info(`Using custom OpenAI base URL: ${baseURL}`);
         }
 
         const openai = createOpenAI({ apiKey, baseURL });
 
-        params.config.logger.info(`Using OpenAI model: ${params.model}`);
-        return openai(params.model);
+        parameters.config.logger.info(`Using OpenAI model: ${parameters.model}`);
+        return openai(parameters.model);
     }
 
     validateCredentials(config: VsCodeConfiguration): ValidationResult {

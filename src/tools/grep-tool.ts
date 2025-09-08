@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { tool } from 'ai';
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import type { ExecutionContext } from '../types/agent';
 import {
     handleToolError,
@@ -17,7 +17,7 @@ const grepParametersSchema = z.object({
     pattern: z
         .string()
         .describe(
-            'Regular expression pattern to search for (e.g., "function\\s+\\w+", "import.*from")'
+            String.raw`Regular expression pattern to search for (e.g., "function\s+\w+", "import.*from")`
         ),
     path: z
         .string()
@@ -65,11 +65,11 @@ function matchesIncludePattern(filePath: string, includePattern?: string): boole
 
     // Convert glob pattern to regex (simplified)
     const regexPattern = includePattern
-        .replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape special regex chars
-        .replace(/\*\*/g, '###DOUBLESTAR###') // Temporarily replace **
-        .replace(/\*/g, '[^/]*') // * becomes [^/]* (no directory separators)
-        .replace(/###DOUBLESTAR###/g, '.*') // ** becomes .* (any characters)
-        .replace(/\?/g, '[^/]'); // ? becomes [^/] (single char, no dir sep)
+        .replaceAll(/[.+^${}()|[\]\\]/g, String.raw`\$&`) // Escape special regex chars
+        .replaceAll('**', '###DOUBLESTAR###') // Temporarily replace **
+        .replaceAll('*', '[^/]*') // * becomes [^/]* (no directory separators)
+        .replaceAll('###DOUBLESTAR###', '.*') // ** becomes .* (any characters)
+        .replaceAll('?', '[^/]'); // ? becomes [^/] (single char, no dir sep)
 
     const regex = new RegExp(`^${regexPattern}$`);
     return regex.test(filePath);
@@ -162,8 +162,8 @@ function isTextFile(filePath: string): boolean {
         '.proto',
     ];
 
-    const ext = path.extname(filePath).toLowerCase();
-    return textExtensions.includes(ext) || !ext; // Include extensionless files
+    const extension = path.extname(filePath).toLowerCase();
+    return textExtensions.includes(extension) || !extension; // Include extensionless files
 }
 
 /**
@@ -199,15 +199,11 @@ async function findFilesToSearch(
 
                 if (entry.isDirectory()) {
                     await scanDirectory(fullPath);
-                } else if (entry.isFile()) {
-                    // Check if file matches include pattern
-                    if (matchesIncludePattern(relativePath, includePattern)) {
-                        // Only include text files (basic check)
-                        if (isTextFile(fullPath)) {
+                } else if (entry.isFile() && // Check if file matches include pattern
+                    matchesIncludePattern(relativePath, includePattern) && // Only include text files (basic check)
+                        isTextFile(fullPath)) {
                             files.push(fullPath);
                         }
-                    }
-                }
             }
         } catch {
             // Ignore permission errors and continue
@@ -232,12 +228,11 @@ async function searchInFile(
         const content = await fs.promises.readFile(filePath, 'utf8');
         const lines = content.split(/\r?\n/);
 
-        for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+        for (const [lineIndex, line] of lines.entries()) {
             if (matches.length >= maxMatches) {
                 break;
             }
 
-            const line = lines[lineIndex];
             let match;
             regex.lastIndex = 0; // Reset regex state
 
@@ -273,7 +268,7 @@ export function createGrepTool(context: ExecutionContext) {
         description:
             'Search for text patterns within file contents using regular expressions. Can filter by file types and paths.',
         inputSchema: grepParametersSchema,
-        execute: async (params): Promise<ToolResponse> => {
+        execute: async (parameters): Promise<ToolResponse> => {
             try {
                 const {
                     pattern,
@@ -282,7 +277,7 @@ export function createGrepTool(context: ExecutionContext) {
                     case_sensitive = false,
                     max_files = 1000,
                     max_matches = 100,
-                } = params;
+                } = parameters;
 
                 // Pattern validation (test if it's a valid regex)
                 try {
@@ -350,9 +345,9 @@ export function createGrepTool(context: ExecutionContext) {
                     if (fileMatches.length > 0) {
                         // Convert absolute paths to relative paths for output
                         const relativePath = path.relative(absolutePath, file);
-                        fileMatches.forEach(match => {
+                        for (const match of fileMatches) {
                             match.filePath = relativePath;
-                        });
+                        }
 
                         allMatches.push(...fileMatches);
                         filesWithMatches++;
@@ -368,12 +363,12 @@ export function createGrepTool(context: ExecutionContext) {
 
                 // Group matches by file for better readability
                 const matchesByFile: Record<string, GrepMatch[]> = {};
-                allMatches.forEach(match => {
+                for (const match of allMatches) {
                     if (!matchesByFile[match.filePath]) {
                         matchesByFile[match.filePath] = [];
                     }
                     matchesByFile[match.filePath].push(match);
-                });
+                }
 
                 logger.info(summary);
 

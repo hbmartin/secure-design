@@ -1,14 +1,14 @@
 import React from 'react';
 import type { ConnectionLine } from '../types/canvas.types';
 
-interface ConnectionLinesProps {
+interface ConnectionLinesProperties {
     connections: ConnectionLine[];
     containerBounds: { width: number; height: number };
     isVisible: boolean;
     zoomLevel: number;
 }
 
-const ConnectionLines: React.FC<ConnectionLinesProps> = ({
+const ConnectionLines: React.FC<ConnectionLinesProperties> = ({
     connections,
     containerBounds,
     isVisible,

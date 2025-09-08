@@ -90,15 +90,15 @@ export function findNearestFrame(
     let nearestIndex = 0;
     let minDistance = Infinity;
 
-    for (let i = 0; i < itemCount; i++) {
-        const framePos = calculateGridPosition(i, config);
+    for (let index = 0; index < itemCount; index++) {
+        const framePos = calculateGridPosition(index, config);
         const distance = Math.sqrt(
             Math.pow(framePos.x - targetPosition.x, 2) + Math.pow(framePos.y - targetPosition.y, 2)
         );
 
         if (distance < minDistance) {
             minDistance = distance;
-            nearestIndex = i;
+            nearestIndex = index;
         }
     }
 
@@ -173,7 +173,7 @@ export function buildHierarchyTree(designs: DesignFile[]): HierarchyTree {
     const connections: ConnectionLine[] = [];
 
     // First pass: Create nodes and identify roots
-    designs.forEach(design => {
+    for (const design of designs) {
         const node: HierarchyNode = {
             fileName: design.name,
             position: { x: 0, y: 0 }, // Will be calculated later
@@ -188,10 +188,10 @@ export function buildHierarchyTree(designs: DesignFile[]): HierarchyTree {
         if (!design.parentDesign) {
             roots.push(design.name);
         }
-    });
+    }
 
     // Second pass: Build connections
-    nodes.forEach((node, fileName) => {
+    for (const [fileName, node] of nodes.entries()) {
         if (node.parent && nodes.has(node.parent)) {
             const parentNode = nodes.get(node.parent)!;
             connections.push({
@@ -202,7 +202,7 @@ export function buildHierarchyTree(designs: DesignFile[]): HierarchyTree {
                 toPosition: node.position,
             });
         }
-    });
+    }
 
     return {
         roots,
@@ -227,7 +227,7 @@ export function calculateHierarchyPositions(
 
     // Position root nodes first with generous spacing
     let currentRootY = 100; // Start with some padding
-    tree.roots.forEach(rootName => {
+    for (const rootName of tree.roots) {
         const rootNode = tree.nodes.get(rootName)!;
         rootNode.position = {
             x: 50, // Start with some padding from left edge
@@ -254,10 +254,10 @@ export function calculateHierarchyPositions(
             currentRootY + frameHeight + verticalSpacing * 2,
             nextAvailableY + verticalSpacing * 2
         );
-    });
+    }
 
     // Update connection positions
-    tree.connections.forEach(connection => {
+    for (const connection of tree.connections) {
         const fromNode = tree.nodes.get(connection.fromFrame);
         const toNode = tree.nodes.get(connection.toFrame);
 
@@ -271,15 +271,15 @@ export function calculateHierarchyPositions(
                 y: toNode.position.y + frameHeight / 2,
             };
         }
-    });
+    }
 
     // Calculate total bounds
     let maxX = 0,
         maxY = 0;
-    tree.nodes.forEach(node => {
+    for (const node of tree.nodes) {
         maxX = Math.max(maxX, node.position.x + frameWidth + 100);
         maxY = Math.max(maxY, node.position.y + frameHeight + 100);
-    });
+    }
 
     tree.bounds = { width: maxX, height: maxY };
 
@@ -308,9 +308,9 @@ function calculateSubtreeHeight(
 
     // Calculate total height needed for all children
     let totalChildrenHeight = 0;
-    children.forEach(child => {
+    for (const child of children) {
         totalChildrenHeight += calculateSubtreeHeight(child, nodes, config, frameDimensions);
-    });
+    }
 
     // Add spacing between children
     totalChildrenHeight += (children.length - 1) * verticalSpacing;
@@ -344,7 +344,7 @@ function positionChildrenImproved(
     let currentY = startY;
 
     // Position each child without overlapping
-    children.forEach(child => {
+    for (const child of children) {
         child.position = {
             x: parentNode.position.x + frameWidth + horizontalSpacing,
             y: currentY,
@@ -355,7 +355,7 @@ function positionChildrenImproved(
 
         // Move to next position with generous spacing to avoid overlaps
         currentY = Math.max(currentY + frameHeight + verticalSpacing, nextY + verticalSpacing);
-    });
+    }
 
     return currentY;
 }
@@ -373,10 +373,10 @@ export function getHierarchicalPosition(fileName: string, tree: HierarchyTree): 
  */
 export function parseHierarchicalPath(filename: string): string[] {
     // Remove file extension
-    const nameWithoutExt = filename.replace(/\.[^/.]+$/, '');
+    const nameWithoutExtension = filename.replace(/\.[^/.]+$/, '');
 
     // Split by underscores
-    const parts = nameWithoutExt.split('_');
+    const parts = nameWithoutExtension.split('_');
 
     return parts;
 }
@@ -418,7 +418,7 @@ export function getCurrentLevelVersion(filename: string): string {
     const parts = parseHierarchicalPath(filename);
 
     // Return the last part (current level version)
-    return parts[parts.length - 1];
+    return parts.at(-1);
 }
 
 /**
@@ -429,14 +429,14 @@ export function detectDesignRelationships(designs: DesignFile[]): DesignFile[] {
 
     // Create a map for quick lookup
     const designMap = new Map<string, DesignFile>();
-    updatedDesigns.forEach(design => {
+    for (const design of updatedDesigns) {
         // Use filename without extension as the key
-        const nameWithoutExt = design.name.replace(/\.[^/.]+$/, '');
-        designMap.set(nameWithoutExt, design);
-    });
+        const nameWithoutExtension = design.name.replace(/\.[^/.]+$/, '');
+        designMap.set(nameWithoutExtension, design);
+    }
 
     // Auto-detect versions and relationships
-    updatedDesigns.forEach(design => {
+    for (const design of updatedDesigns) {
         // Set version (current level version)
         design.version = getCurrentLevelVersion(design.name);
 
@@ -466,9 +466,9 @@ export function detectDesignRelationships(designs: DesignFile[]): DesignFile[] {
             }
         } else {
             // For root designs, use the version number as branch index
-            design.branchIndex = parseInt(design.version) - 1;
+            design.branchIndex = Number.parseInt(design.version) - 1;
         }
-    });
+    }
 
     return updatedDesigns;
 }

@@ -1,12 +1,12 @@
 import React from 'react';
 import type { ParsedTheme } from '../../utils/themeParser';
 
-interface ThemeDetailsProps {
+interface ThemeDetailsProperties {
     reasoning: string;
     theme: ParsedTheme | null;
 }
 
-const ThemeDetails: React.FC<ThemeDetailsProps> = ({ reasoning, theme }) => {
+const ThemeDetails: React.FC<ThemeDetailsProperties> = ({ reasoning, theme }) => {
     if (!theme) {
         return null;
     }

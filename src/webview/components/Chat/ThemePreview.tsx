@@ -1,13 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 
-interface ThemePreviewProps {
+interface ThemePreviewProperties {
     theme: any;
     isDarkMode: boolean;
     cssSheet: string | undefined;
 }
 
 // System fonts that should not be loaded from Google Fonts
-const SYSTEM_FONTS = [
+const SYSTEM_FONTS = new Set([
     'system-ui',
     'sans-serif',
     'serif',
@@ -33,7 +33,7 @@ const SYSTEM_FONTS = [
     'MS Sans Serif',
     'MS Serif',
     'Pixelated MS Sans Serif',
-];
+]);
 
 // Extract font families from CSS variables
 const extractFontsFromCSS = (cssSheet: string): string[] => {
@@ -47,12 +47,12 @@ const extractFontsFromCSS = (cssSheet: string): string[] => {
         const fontName = match[1].trim();
 
         // Skip system fonts and empty values
-        if (fontName && !SYSTEM_FONTS.includes(fontName)) {
+        if (fontName && !SYSTEM_FONTS.has(fontName)) {
             fonts.add(fontName);
         }
     }
 
-    return Array.from(fonts);
+    return [...fonts];
 };
 
 // Load Google Fonts dynamically
@@ -69,10 +69,10 @@ const loadGoogleFonts = (fontNames: string[]): Promise<void> => {
             ) as HTMLLinkElement;
 
             // Convert font names to Google Fonts URL format
-            const fontParams = fontNames
+            const fontParameters = fontNames
                 .map(name => {
                     try {
-                        const urlName = name.replace(/\s+/g, '+');
+                        const urlName = name.replaceAll(/\s+/g, '+');
                         // Load multiple weights for better coverage
                         return `${urlName}:300,400,500,600,700`;
                     } catch (error) {
@@ -84,16 +84,16 @@ const loadGoogleFonts = (fontNames: string[]): Promise<void> => {
                 .join('&family=');
 
             // If no valid fonts to load, just resolve
-            if (!fontParams) {
+            if (!fontParameters) {
                 resolve();
                 return;
             }
 
-            const fontUrl = `https://fonts.googleapis.com/css2?family=${fontParams}&display=swap`;
+            const fontUrl = `https://fonts.googleapis.com/css2?family=${fontParameters}&display=swap`;
 
             if (existingLink) {
                 existingLink.href = fontUrl;
-                existingLink.onload = () => resolve();
+                existingLink.addEventListener('load', () => resolve());
                 existingLink.onerror = error => {
                     console.warn('Failed to load Google Fonts (existing link):', fontNames, error);
                     resolve(); // Continue even if fonts fail to load
@@ -102,12 +102,12 @@ const loadGoogleFonts = (fontNames: string[]): Promise<void> => {
                 const link = document.createElement('link');
                 link.rel = 'stylesheet';
                 link.href = fontUrl;
-                link.onload = () => resolve();
+                link.addEventListener('load', () => resolve());
                 link.onerror = error => {
                     console.warn('Failed to load Google Fonts (new link):', fontNames, error);
                     resolve(); // Continue even if fonts fail to load
                 };
-                document.head.appendChild(link);
+                document.head.append(link);
             }
 
             // Fallback timeout - resolve after 2 seconds even if fonts haven't loaded
@@ -122,20 +122,20 @@ const loadGoogleFonts = (fontNames: string[]): Promise<void> => {
     });
 };
 
-const ThemePreview: React.FC<ThemePreviewProps> = ({ theme, isDarkMode, cssSheet }) => {
-    const previewRef = useRef<HTMLDivElement>(null);
-    const styleRef = useRef<HTMLStyleElement | null>(null);
-    const fontsLoadedRef = useRef<boolean>(false);
+const ThemePreview: React.FC<ThemePreviewProperties> = ({ theme, isDarkMode, cssSheet }) => {
+    const previewReference = useRef<HTMLDivElement>(null);
+    const styleReference = useRef<HTMLStyleElement | null>(null);
+    const fontsLoadedReference = useRef<boolean>(false);
 
     useEffect(() => {
-        if (!cssSheet || !previewRef.current) {
+        if (!cssSheet || !previewReference.current) {
             return;
         }
 
         const setupPreview = () => {
             // Remove existing style element first
-            if (styleRef.current) {
-                styleRef.current.remove();
+            if (styleReference.current) {
+                styleReference.current.remove();
             }
 
             // Create new style element with the actual CSS immediately
@@ -420,18 +420,18 @@ const ThemePreview: React.FC<ThemePreviewProps> = ({ theme, isDarkMode, cssSheet
           border: 1px solid var(--border);
         }
       `;
-            document.head.appendChild(styleElement);
-            styleRef.current = styleElement;
+            document.head.append(styleElement);
+            styleReference.current = styleElement;
 
             // Load Google Fonts asynchronously (non-blocking)
             const loadFonts = async () => {
                 const requiredFonts = extractFontsFromCSS(cssSheet);
 
-                if (requiredFonts.length > 0 && !fontsLoadedRef.current) {
+                if (requiredFonts.length > 0 && !fontsLoadedReference.current) {
                     try {
                         await loadGoogleFonts(requiredFonts);
                         // eslint-disable-next-line require-atomic-updates
-                        fontsLoadedRef.current = true;
+                        fontsLoadedReference.current = true;
                     } catch (error) {
                         console.warn('Failed to load Google Fonts:', error);
                         // Continue without fonts rather than blocking
@@ -447,8 +447,8 @@ const ThemePreview: React.FC<ThemePreviewProps> = ({ theme, isDarkMode, cssSheet
 
         // Cleanup on unmount
         return () => {
-            if (styleRef.current) {
-                styleRef.current.remove();
+            if (styleReference.current) {
+                styleReference.current.remove();
             }
         };
     }, [cssSheet, isDarkMode]);
@@ -559,7 +559,7 @@ Your branch is up to date</div>
         <div style={containerStyles}>
             <div style={contentStyles}>
                 <div
-                    ref={previewRef}
+                    ref={previewReference}
                     className={`theme-preview-live ${isDarkMode ? 'dark' : ''}`}
                     dangerouslySetInnerHTML={{ __html: sampleHTML }}
                 />

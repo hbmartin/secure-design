@@ -1,11 +1,11 @@
 import React from 'react';
 
-interface ModeToggleProps {
+interface ModeToggleProperties {
     isDarkMode: boolean;
     onToggle: (isDarkMode: boolean) => void;
 }
 
-const ModeToggle: React.FC<ModeToggleProps> = ({ isDarkMode, onToggle }) => {
+const ModeToggle: React.FC<ModeToggleProperties> = ({ isDarkMode, onToggle }) => {
     const handleToggle = () => {
         onToggle(!isDarkMode);
     };

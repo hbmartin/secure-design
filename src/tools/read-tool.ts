@@ -1,5 +1,5 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import * as mime from 'mime-types';
 import { tool } from 'ai';
 import { z } from 'zod';
@@ -57,16 +57,16 @@ function isBinaryFile(filePath: string): boolean {
         }
 
         // Check for null bytes (strong binary indicator)
-        for (let i = 0; i < bytesRead; i++) {
-            if (buffer[i] === 0) {
+        for (let index = 0; index < bytesRead; index++) {
+            if (buffer[index] === 0) {
                 return true;
             }
         }
 
         // Count non-printable characters
         let nonPrintableCount = 0;
-        for (let i = 0; i < bytesRead; i++) {
-            if (buffer[i] < 9 || (buffer[i] > 13 && buffer[i] < 32)) {
+        for (let index = 0; index < bytesRead; index++) {
+            if (buffer[index] < 9 || (buffer[index] > 13 && buffer[index] < 32)) {
                 nonPrintableCount++;
             }
         }
@@ -82,7 +82,7 @@ function isBinaryFile(filePath: string): boolean {
  * Detect file type based on extension and content
  */
 function detectFileType(filePath: string): 'text' | 'image' | 'pdf' | 'binary' {
-    const ext = path.extname(filePath).toLowerCase();
+    const extension = path.extname(filePath).toLowerCase();
     const mimeType = mime.lookup(filePath);
 
     // Check for images
@@ -128,7 +128,7 @@ function detectFileType(filePath: string): 'text' | 'image' | 'pdf' | 'binary' {
         '.lib',
     ];
 
-    if (binaryExtensions.includes(ext)) {
+    if (binaryExtensions.includes(extension)) {
         return 'binary';
     }
 
@@ -318,12 +318,13 @@ export function createReadTool(context: ExecutionContext) {
                         break;
                     }
 
-                    default:
+                    default: {
                         return handleToolError(
                             `Unsupported file type: ${fileType}`,
                             'File type detection',
                             'validation'
                         );
+                    }
                 }
 
                 // Create result

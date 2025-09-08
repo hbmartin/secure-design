@@ -8,7 +8,7 @@ function isPlainObject(x: unknown): x is Record<string, unknown> {
 }
 
 // Safe property getter (avoids property access before existence checks)
-function getProp<T extends string>(o: unknown, key: T): unknown {
+function getProperty<T extends string>(o: unknown, key: T): unknown {
     return typeof o === 'object' && o !== null && key in o
         ? (o as Record<T, unknown>)[key]
         : undefined;
@@ -22,9 +22,9 @@ function isJSONValue(x: unknown, seen = new WeakSet<object>()): x is JSONValue {
 
     // objects / arrays
     if (typeof x === 'object') {
-        const obj = x;
-        if (seen.has(obj)) return false; // cycle guard
-        seen.add(obj);
+        const object = x;
+        if (seen.has(object)) return false; // cycle guard
+        seen.add(object);
 
         if (Array.isArray(x)) return x.every(v => isJSONValue(v, seen));
         if (!isPlainObject(x)) return false;
@@ -39,15 +39,15 @@ function isJSONValue(x: unknown, seen = new WeakSet<object>()): x is JSONValue {
 }
 
 function isTextItem(x: unknown): boolean {
-    const type = getProp(x, 'type');
-    const text = getProp(x, 'text');
+    const type = getProperty(x, 'type');
+    const text = getProperty(x, 'text');
     return type === 'text' && typeof text === 'string';
 }
 
 function isMediaItem(x: unknown): boolean {
-    const type = getProp(x, 'type');
-    const data = getProp(x, 'data');
-    const mediaType = getProp(x, 'mediaType');
+    const type = getProperty(x, 'type');
+    const data = getProperty(x, 'data');
+    const mediaType = getProperty(x, 'mediaType');
     return type === 'media' && typeof data === 'string' && typeof mediaType === 'string';
 }
 
@@ -58,22 +58,28 @@ function isContentArray(x: unknown): boolean {
 // Accepts an already-formed union (validates shape)
 function isLanguageModelV2ToolResultOutput(x: unknown): x is LanguageModelV2ToolResultOutput {
     if (!isPlainObject(x)) return false;
-    const type = getProp(x, 'type');
-    const value = getProp(x, 'value');
+    const type = getProperty(x, 'type');
+    const value = getProperty(x, 'value');
 
     switch (type) {
-        case 'text':
+        case 'text': {
             return typeof value === 'string';
-        case 'json':
+        }
+        case 'json': {
             return isJSONValue(value);
-        case 'error-text':
+        }
+        case 'error-text': {
             return typeof value === 'string';
-        case 'error-json':
+        }
+        case 'error-json': {
             return isJSONValue(value);
-        case 'content':
+        }
+        case 'content': {
             return isContentArray(value);
-        default:
+        }
+        default: {
             return false;
+        }
     }
 }
 
@@ -118,11 +124,11 @@ export function guessToolResultOutput(input: unknown): LanguageModelV2ToolResult
     }
 
     // 6) Last resort: stringify unknown into error-text
-    let msg = '';
+    let message = '';
     try {
-        msg = JSON.stringify(input);
+        message = JSON.stringify(input);
     } catch {
-        msg = Object.prototype.toString.call(input);
+        message = Object.prototype.toString.call(input);
     }
-    return { type: 'error-text', value: `Unrecognized value: ${msg}` };
+    return { type: 'error-text', value: `Unrecognized value: ${message}` };
 }

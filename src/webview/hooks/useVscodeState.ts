@@ -7,23 +7,23 @@ import {
     type Action,
     type WebviewKey,
     type StateReducer,
-    isFnKey,
+    isFnKey as isFunctionKey,
 } from '../../types/ipcReducer';
 
 type PostAction<A extends object> = Pick<Action<A>, 'key' | 'params'>;
 
-function isMyPatchMessage<A extends object>(msg: any, id: WebviewKey): msg is Patch<A> {
+function isMyPatchMessage<A extends object>(message: any, id: WebviewKey): message is Patch<A> {
     return (
-        msg !== null &&
-        msg !== undefined &&
-        typeof msg === 'object' &&
-        'providerId' in msg &&
-        'type' in msg &&
-        'key' in msg &&
-        'patch' in msg &&
-        msg.type === PATCH &&
-        typeof msg.providerId === 'string' &&
-        msg.providerId === id
+        message !== null &&
+        message !== undefined &&
+        typeof message === 'object' &&
+        'providerId' in message &&
+        'type' in message &&
+        'key' in message &&
+        'patch' in message &&
+        message.type === PATCH &&
+        typeof message.providerId === 'string' &&
+        message.providerId === id
     );
 }
 
@@ -52,8 +52,8 @@ export function useVscodeState<S, A extends object>(
                     Object.prototype.hasOwnProperty.call(postReducer, data.key) &&
                     typeof postReducer[data.key] === 'function'
                 ) {
-                    const patchFn = postReducer[data.key];
-                    setState(prev => patchFn(prev, data.patch));
+                    const patchFunction = postReducer[data.key];
+                    setState(previous => patchFunction(previous, data.patch));
                 } else {
                     throw new Error(
                         `Could not find a function for ${String(data.key)} in postReducer`
@@ -68,7 +68,7 @@ export function useVscodeState<S, A extends object>(
     }, [postReducer, providerId]);
 
     const postAction = useCallback(
-        (arg: PostAction<A>) => {
+        (argument: PostAction<A>) => {
             if (vscode === undefined) {
                 throw new Error('Vscode api is undefined');
             }
@@ -76,32 +76,32 @@ export function useVscodeState<S, A extends object>(
             vscode.postMessage({
                 type: ACT,
                 providerId: providerId,
-                key: arg.key,
-                params: arg.params,
+                key: argument.key,
+                params: argument.params,
             } satisfies Action<A>);
         },
         [vscode, providerId]
     );
 
     const actor = new Proxy({} as A, {
-        get(_, prop) {
-            if (typeof prop !== 'string' && typeof prop !== 'symbol') {
-                throw new Error(`Invalid action type: ${String(prop)}`);
+        get(_, property) {
+            if (typeof property !== 'string' && typeof property !== 'symbol') {
+                throw new TypeError(`Invalid action type: ${String(property)}`);
             }
-            if (typeof prop === 'string' && dangerousKeys.has(prop)) {
-                throw new Error(`Dangerous action key is blocked: ${prop}`);
+            if (typeof property === 'string' && dangerousKeys.has(property)) {
+                throw new Error(`Dangerous action key is blocked: ${property}`);
             }
-            if (!isFnKey(prop, postReducer)) {
-                throw new Error(`Unknown or invalid action: ${String(prop)}`);
+            if (!isFunctionKey(property, postReducer)) {
+                throw new Error(`Unknown or invalid action: ${String(property)}`);
             }
-            return (...args: unknown[]) => {
-                const params = args as A[typeof prop] extends (...args: unknown[]) => any
-                    ? Parameters<A[typeof prop]>
+            return (...arguments_: unknown[]) => {
+                const parameters = arguments_ as A[typeof property] extends (...arguments_: unknown[]) => any
+                    ? Parameters<A[typeof property]>
                     : never;
 
                 postAction({
-                    key: prop,
-                    params,
+                    key: property,
+                    params: parameters,
                 } satisfies PostAction<A>);
             };
         },

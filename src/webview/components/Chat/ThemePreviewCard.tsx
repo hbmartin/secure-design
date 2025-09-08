@@ -6,14 +6,14 @@ import ModeToggle from './ModeToggle';
 import { parseThemeCSS, extractColorPalette, type ParsedTheme } from '../../utils/themeParser';
 import type { GroupedColors } from './types';
 
-interface ThemePreviewCardProps {
+interface ThemePreviewCardProperties {
     themeName: string;
     currentCssContent: string | undefined;
     isLoadingCss: boolean;
     cssLoadError?: string;
 }
 
-const ThemePreviewCard: React.FC<ThemePreviewCardProps> = ({
+const ThemePreviewCard: React.FC<ThemePreviewCardProperties> = ({
     themeName,
     currentCssContent,
     isLoadingCss,
@@ -23,7 +23,7 @@ const ThemePreviewCard: React.FC<ThemePreviewCardProps> = ({
     const [parsedTheme, setParsedTheme] = useState<ParsedTheme | null>(null);
     const [activeTab, setActiveTab] = useState<'theme' | 'components'>('theme');
     const [isDarkMode, setIsDarkMode] = useState(false);
-    const [cssParseError, setCssParseError] = useState<undefined | string>(undefined);
+    const [cssParseError, setCssParseError] = useState<undefined | string>();
 
     // Pre-inject minimal CSS to avoid FOUC (Flash of Unstyled Content)
     useEffect(() => {
@@ -44,14 +44,14 @@ const ThemePreviewCard: React.FC<ThemePreviewCardProps> = ({
           border: 1px solid var(--vscode-panel-border);
         }
       `;
-            document.head.appendChild(minimalStyle);
+            document.head.append(minimalStyle);
         }
 
         // Cleanup on unmount
         return () => {
             const styleToRemove = document.getElementById(minimalCssId);
             if (styleToRemove) {
-                document.head.removeChild(styleToRemove);
+                styleToRemove.remove();
             }
         };
     }, []);
@@ -90,12 +90,12 @@ const ThemePreviewCard: React.FC<ThemePreviewCardProps> = ({
     const getGroupedColors = (theme: ParsedTheme): GroupedColors => {
         const palette = extractColorPalette(theme);
         return palette.reduce(
-            (acc, color) => {
-                if (!acc[color.category]) {
-                    acc[color.category] = {};
+            (accumulator, color) => {
+                if (!accumulator[color.category]) {
+                    accumulator[color.category] = {};
                 }
-                acc[color.category][color.name] = color.value;
-                return acc;
+                accumulator[color.category][color.name] = color.value;
+                return accumulator;
             },
             {} as Record<string, Record<string, string>>
         );

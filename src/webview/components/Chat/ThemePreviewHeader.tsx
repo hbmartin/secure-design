@@ -1,6 +1,6 @@
 import React from 'react';
 
-interface ThemePreviewHeaderProps {
+interface ThemePreviewHeaderProperties {
     themeName: string;
     isExpanded: boolean;
     onToggleExpanded: () => void;
@@ -8,7 +8,7 @@ interface ThemePreviewHeaderProps {
     onCopyCSS: () => void;
 }
 
-const ThemePreviewHeader: React.FC<ThemePreviewHeaderProps> = ({
+const ThemePreviewHeader: React.FC<ThemePreviewHeaderProperties> = ({
     themeName,
     isExpanded,
     onToggleExpanded,

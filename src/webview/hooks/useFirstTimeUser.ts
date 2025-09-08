@@ -13,11 +13,6 @@ export const useFirstTimeUser = () => {
 
             setIsFirstTime(isFirstTimeUser);
             setIsLoading(false);
-
-            console.log('First time user check:', {
-                hasVisited: hasVisited,
-                isFirstTimeUser: isFirstTimeUser,
-            });
         } catch (error) {
             console.warn('Failed to check first-time user status:', error);
             // If localStorage fails, assume not first time to avoid showing welcome repeatedly
@@ -30,7 +25,6 @@ export const useFirstTimeUser = () => {
         try {
             localStorage.setItem(FIRST_TIME_USER_KEY, 'visited');
             setIsFirstTime(false);
-            console.log('User marked as returning user');
         } catch (error) {
             console.warn('Failed to mark user as returning user:', error);
         }
@@ -40,7 +34,6 @@ export const useFirstTimeUser = () => {
         try {
             localStorage.removeItem(FIRST_TIME_USER_KEY);
             setIsFirstTime(true);
-            console.log('First time user status reset');
         } catch (error) {
             console.warn('Failed to reset first-time user status:', error);
         }

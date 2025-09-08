@@ -113,9 +113,9 @@ export abstract class BaseProviderService {
      */
     getDefaultModelForProvider(providerId: ProviderId): ModelConfigWithProvider | undefined {
         const found = this.registry.getDefaultModelForProvider(providerId);
-        return found !== undefined
-            ? { model: found, provider: this.registry.getProviderMetadata(providerId) }
-            : undefined;
+        return found === undefined
+            ? undefined
+            : { model: found, provider: this.registry.getProviderMetadata(providerId) };
     }
 
     /**

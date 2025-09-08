@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { tool } from 'ai';
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import type { ExecutionContext } from '../types/agent';
 import {
     handleToolError,
@@ -55,9 +55,9 @@ function shouldIgnore(filename: string, patterns?: string[]): boolean {
     for (const pattern of patterns) {
         // Convert glob pattern to RegExp (simplified version)
         const regexPattern = pattern
-            .replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape special regex chars
-            .replace(/\*/g, '.*') // * becomes .*
-            .replace(/\?/g, '.'); // ? becomes .
+            .replaceAll(/[.+^${}()|[\]\\]/g, String.raw`\$&`) // Escape special regex chars
+            .replaceAll('*', '.*') // * becomes .*
+            .replaceAll('?', '.'); // ? becomes .
 
         const regex = new RegExp(`^${regexPattern}$`);
         if (regex.test(filename)) {
@@ -78,9 +78,9 @@ function formatFileSize(bytes: number): string {
 
     const units = ['B', 'KB', 'MB', 'GB', 'TB'];
     const k = 1024;
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    const index = Math.floor(Math.log(bytes) / Math.log(k));
 
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${units[i]}`;
+    return `${Number.parseFloat((bytes / Math.pow(k, index)).toFixed(1))} ${units[index]}`;
 }
 
 /**
@@ -89,9 +89,9 @@ function formatFileSize(bytes: number): string {
 function formatModifiedTime(date: Date): string {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
-    const diffMinutes = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
+    const diffMinutes = Math.floor(diffMs / 60_000);
+    const diffHours = Math.floor(diffMs / 3_600_000);
+    const diffDays = Math.floor(diffMs / 86_400_000);
 
     if (diffMinutes < 1) {
         return 'just now';
@@ -115,14 +115,14 @@ export function createLsTool(context: ExecutionContext) {
         description:
             'List the contents of a directory in the workspace. Shows files and subdirectories with optional filtering.',
         inputSchema: lsParametersSchema,
-        execute: async (params): Promise<ToolResponse> => {
+        execute: async (parameters): Promise<ToolResponse> => {
             try {
                 const {
                     path: targetPath = '.',
                     show_hidden = false,
                     ignore,
                     detailed = false,
-                } = params;
+                } = parameters;
 
                 // Validate workspace path (handles both absolute and relative paths)
                 const pathError = validateWorkspacePath(targetPath, context);
@@ -224,8 +224,8 @@ export function createLsTool(context: ExecutionContext) {
                             const type = entry.isDirectory ? '[DIR]' : '[FILE]';
                             const size = entry.isDirectory ? '' : ` ${formatFileSize(entry.size)}`;
                             const modified = ` ${formatModifiedTime(entry.modifiedTime)}`;
-                            const ext = entry.extension ? ` .${entry.extension}` : '';
-                            return `${type} ${entry.name}${size}${modified}${ext}`;
+                            const extension = entry.extension ? ` .${entry.extension}` : '';
+                            return `${type} ${entry.name}${size}${modified}${extension}`;
                         })
                         .join('\n');
                 }

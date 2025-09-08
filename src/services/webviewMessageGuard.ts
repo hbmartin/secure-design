@@ -55,11 +55,11 @@ export class WebviewMessageGuard {
                     // Message sent successfully, wait for response
                     Logger.debug(`Message sent: ${message.command} (${requestId})`);
                 },
-                err => {
+                error_ => {
                     // Failed to send message
                     clearTimeout(timeoutHandle);
                     this.pendingRequests.delete(requestId);
-                    const error = err instanceof Error ? err : new Error(String(err));
+                    const error = error_ instanceof Error ? error_ : new Error(String(error_));
                     reject(error);
                     Logger.error(`Failed to send message: ${message.command} - ${error}`);
                 }
@@ -98,19 +98,19 @@ export class WebviewMessageGuard {
     /**
      * Debounce function to prevent rapid repeated messages
      */
-    public static debounce<T extends (...args: any[]) => any>(
-        func: T,
+    public static debounce<T extends (...arguments_: unknown[]) => any>(
+        function_: T,
         wait: number
-    ): (...args: Parameters<T>) => void {
+    ): (...arguments_: Parameters<T>) => void {
         let timeout: NodeJS.Timeout | undefined;
 
-        return (...args: Parameters<T>) => {
+        return (...arguments_: Parameters<T>) => {
             if (timeout) {
                 clearTimeout(timeout);
             }
 
             timeout = setTimeout(() => {
-                func(...args);
+                function_(...arguments_);
             }, wait);
         };
     }
@@ -118,15 +118,15 @@ export class WebviewMessageGuard {
     /**
      * Throttle function to limit message frequency
      */
-    public static throttle<T extends (...args: any[]) => any>(
-        func: T,
+    public static throttle<T extends (...arguments_: unknown[]) => any>(
+        function_: T,
         limit: number
-    ): (...args: Parameters<T>) => void {
+    ): (...arguments_: Parameters<T>) => void {
         let inThrottle = false;
 
-        return (...args: Parameters<T>) => {
+        return (...arguments_: Parameters<T>) => {
             if (!inThrottle) {
-                func(...args);
+                function_(...arguments_);
                 inThrottle = true;
                 setTimeout(() => {
                     inThrottle = false;
@@ -144,14 +144,14 @@ export class WebviewMessageGuard {
         maxAttempts: number = 10,
         delayMs: number = 100
     ): Promise<boolean> {
-        for (let i = 0; i < maxAttempts; i++) {
+        for (let index = 0; index < maxAttempts; index++) {
             try {
                 // Send a ping message
                 await webview.postMessage({ command: 'ping' });
                 Logger.debug('Webview is ready');
                 return true;
             } catch {
-                if (i < maxAttempts - 1) {
+                if (index < maxAttempts - 1) {
                     // Wait before retrying
                     await new Promise(resolve => setTimeout(resolve, delayMs));
                 } else {
@@ -166,14 +166,14 @@ export class WebviewMessageGuard {
     /**
      * Wrap a message handler with error handling and logging
      */
-    public static wrapHandler<T extends (...args: any[]) => any>(
+    public static wrapHandler<T extends (...arguments_: unknown[]) => any>(
         handlerName: string,
         handler: T
-    ): (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>> {
-        return async (...args: Parameters<T>) => {
+    ): (...arguments_: Parameters<T>) => Promise<Awaited<ReturnType<T>>> {
+        return async (...arguments_: Parameters<T>) => {
             try {
                 Logger.debug(`Handling message: ${handlerName}`);
-                const result = await handler(...args);
+                const result = await handler(...arguments_);
                 Logger.debug(`Message handled successfully: ${handlerName}`);
                 return result;
             } catch (error) {
@@ -191,7 +191,7 @@ export class WebviewMessageGuard {
         if (!this.cleanupTimer) {
             this.cleanupTimer = setInterval(() => {
                 this.cleanupPendingRequests();
-            }, 60000); // Clean up every minute
+            }, 60_000); // Clean up every minute
             Logger.debug('WebviewMessageGuard cleanup timer initialized');
         }
     }
