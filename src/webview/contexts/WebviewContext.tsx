@@ -19,7 +19,7 @@ class DeferredPromise<T> {
     timeoutHandle?: ReturnType<typeof setTimeout>;
     private settled = false;
 
-    constructor() {
+    constructor(readonly key: string) {
         this.promise = new Promise<T>((resolve, reject) => {
             this.resolve = (value: T) => {
                 if (!this.settled) {
@@ -116,7 +116,7 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
         ...params: Parameters<ViewAPI[K]>
     ): ReturnType<ViewAPI[K]> => {
         const id = generateId();
-        const deferred = new DeferredPromise<Awaited<ReturnType<ViewAPI[K]>>>();
+        const deferred = new DeferredPromise<Awaited<ReturnType<ViewAPI[K]>>>(key);
 
         const request: ViewApiRequest<K> = {
             type: 'request',
@@ -135,9 +135,6 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
                     return 0; // No timeout for chat messages - handled through events
                 case 'saveChatHistory':
                     return 0; // No timeout for chat-related operations
-                case 'openCanvas':
-                case 'checkCanvasStatus':
-                    return 0; // No timeout for canvas operations
                 case 'selectFile':
                 case 'selectFolder':
                 case 'selectImages':
@@ -220,7 +217,9 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
                 // Handle API response
                 const deferred = pendingRequests.current.get(message.id);
                 if (deferred) {
-                    console.log(`[WebviewContext] Processing response for request ${message.id}`);
+                    console.log(
+                        `[WebviewContext] Processing response for request ${message.id} for ${deferred.key}`
+                    );
                     deferred.clearTimeout(); // Clear timeout to prevent race condition
                     pendingRequests.current.delete(message.id);
                     deferred.resolve(message.value);

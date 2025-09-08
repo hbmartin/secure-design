@@ -13,10 +13,6 @@ export interface ViewAPI {
     showErrorMessage: (message: string) => void;
     executeCommand: (command: string, args?: any) => Promise<void>;
 
-    // Canvas operations
-    checkCanvasStatus: () => Promise<boolean>;
-    openCanvas: () => Promise<void>;
-
     // Extension operations
     initializeSecuredesign: () => Promise<void>;
 

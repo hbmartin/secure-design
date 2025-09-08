@@ -119,8 +119,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
     >([]);
     const timerIntervals = useRef<Record<string, NodeJS.Timeout>>({});
 
-    const [chatHistory, hasConversationMessages] = useMemo(
-        () => [state.messages, (state.messages?.length ?? 0) > 0],
+    const [chatHistory, hasConversationMessages, isChatHistoryLoading] = useMemo(
+        () => [state.messages, (state.messages?.length ?? 0) > 0, state.messages === undefined],
         [state]
     );
 
@@ -182,24 +182,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             document.head.appendChild(welcomeStyleElement);
         }
 
-        // Auto-open canvas if not already open
-        const autoOpenCanvas = async () => {
-            logger.debug('Checking canvas status...');
-            // Check if canvas panel is already open using the new API
-            try {
-                const isCanvasOpen = await api.checkCanvasStatus();
-                logger.debug(`Canvas isCanvasOpen: ${isCanvasOpen}`);
-                if (!isCanvasOpen) {
-                    // Canvas is not open, auto-open it
-                    logger.debug('🎨 Auto-opening canvas view...');
-                    await api.openCanvas();
-                    logger.debug('Canvas opened successfully');
-                }
-            } catch (error) {
-                console.error('Failed to check canvas status or open canvas:', error);
-            }
-        };
-
         // Listen for context messages and other events
         const handleMessage = (event: MessageEvent) => {
             const message = event.data;
@@ -245,11 +227,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         // Add message listener
         window.addEventListener('message', handleMessage);
 
-        // Delay the check slightly to ensure chat is fully loaded
-        const timeoutId = setTimeout(() => void autoOpenCanvas(), 500);
-
         return () => {
-            clearTimeout(timeoutId);
             window.removeEventListener('message', handleMessage);
             // Clean up on unmount
             const existingStyle = document.getElementById(styleId);
@@ -434,7 +412,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         e.preventDefault();
         e.stopPropagation();
 
-        if (chatHistory === undefined) {
+        if (isChatHistoryLoading) {
             return;
         }
 
@@ -576,7 +554,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 imageFiles.map(f => f.name)
             );
 
-            if (imageFiles.length > 0 && chatHistory !== undefined) {
+            if (imageFiles.length > 0 && !isChatHistoryLoading) {
                 logger.debug(
                     '📎 Processing images from global drop:',
                     imageFiles.map(f => f.name)
@@ -594,7 +572,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
 
         const handleGlobalPaste = async (e: ClipboardEvent) => {
             // Only handle paste if we're focused on the chat and not loading
-            if (chatHistory === undefined || showWelcome) {
+            if (isChatHistoryLoading || showWelcome) {
                 return;
             }
 
@@ -648,7 +626,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             document.removeEventListener('drop', dropWrapper);
             document.removeEventListener('paste', pasteWrapper);
         };
-    }, [chatHistory, handleImageUpload, showWelcome, api, logger]);
+    }, [chatHistory, isChatHistoryLoading, handleImageUpload, showWelcome, api, logger]);
 
     const renderChatMessage = (msg: ChatMessage, index: number) => {
         // Helper function to extract text content from CoreMessage
@@ -1252,7 +1230,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                         className='new-conversation-btn'
                         onClick={() => void handleNewConversation()}
                         title='Start a new conversation'
-                        disabled={chatHistory === undefined || chatHistory.length === 0}
+                        disabled={isChatHistoryLoading || !hasConversationMessages}
                     >
                         <svg width='16' height='16' viewBox='0 0 16 16' fill='currentColor'>
                             <path d='M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z' />
@@ -1332,7 +1310,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                             <button
                                 className='add-context-btn'
                                 onClick={handleAddContext}
-                                disabled={chatHistory === undefined}
+                                disabled={isChatHistoryLoading}
                             >
                                 <span className='add-context-icon'>@</span>
                                 Add Context
@@ -1346,7 +1324,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                 value={inputMessage}
                                 onChange={handleInputChange}
                                 onKeyDown={handleKeyDown}
-                                disabled={chatHistory === undefined || showWelcome}
+                                disabled={isChatHistoryLoading || showWelcome}
                                 className='message-input'
                                 rows={1}
                                 style={{
@@ -1372,7 +1350,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                         onModelChange={(providerId, model) => {
                                             void handleModelChange(providerId, model);
                                         }}
-                                        disabled={chatHistory === undefined || showWelcome}
+                                        disabled={isChatHistoryLoading || showWelcome}
                                         modelsWithProvider={state.availableModels}
                                     />
                                 </div>
@@ -1406,7 +1384,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                         };
                                         fileInput.click();
                                     }}
-                                    disabled={chatHistory === undefined || showWelcome}
+                                    disabled={isChatHistoryLoading || showWelcome}
                                     title='Attach images'
                                 >
                                     <svg
@@ -1426,7 +1404,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                         void handleNewConversation();
                                     }}
                                     disabled={
-                                        chatHistory === undefined ||
+                                        isChatHistoryLoading ||
                                         showWelcome ||
                                         !hasConversationMessages
                                     }
@@ -1446,7 +1424,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                     </svg>
                                 </button>
                                 {/* Todo: this should detect whether streaming is ongoing */}
-                                {chatHistory === undefined ? (
+                                {isChatHistoryLoading ? (
                                     <button
                                         onClick={() => {
                                             // Stop functionality can be added later

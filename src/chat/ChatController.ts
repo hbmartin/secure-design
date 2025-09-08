@@ -192,29 +192,17 @@ export class ChatController implements ViewAPI {
         }
     };
 
-    checkCanvasStatus = (): Promise<boolean> => {
-        this.logger.info('API: checkCanvasStatus called');
-        // Check if SuperdesignCanvasPanel is currently open
-        const panels = vscode.window.tabGroups.all.flatMap(group => group.tabs);
-        const canvasPanel = panels.find(
-            tab =>
-                tab.label === 'Securedesign Canvas' ||
-                (tab.input as any)?.viewType === 'securedesign.canvas'
-        );
-        return Promise.resolve(!!canvasPanel);
-    };
-
-    openCanvas = async (): Promise<void> => {
-        this.logger.debug('Opening canvas');
-        await vscode.commands.executeCommand('securedesign.openCanvas');
-    };
-
     initializeSecuredesign = async (): Promise<void> => {
         this.logger.debug('Initializing Securedesign project');
         await vscode.commands.executeCommand('securedesign.initializeProject');
     };
 
     async sendChatMessage(prompt: string | Array<TextPart | ImagePart | FilePart>): Promise<void> {
+        try {
+            void vscode.commands.executeCommand('securedesign.openCanvas');
+        } catch (error) {
+            this.logger.error('Failed to auto-open canvas on sending message', { error });
+        }
         await this.chatMessagesRepository.appendMessage({
             role: 'user',
             content: prompt,
