@@ -1354,19 +1354,6 @@ export function activate(context: vscode.ExtensionContext): void {
     // Set up message handler for auto-canvas functionality
     sidebarProvider.setMessageHandler(message => {
         switch (message.command) {
-            case 'checkCanvasStatus':
-                // Check if canvas panel is currently open for current workspace
-                const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-                const isCanvasOpen = workspaceFolder
-                    ? SuperdesignCanvasPanel.getPanelForWorkspace(
-                          workspaceFolder.uri.toString()
-                      ) !== undefined
-                    : false;
-                sidebarProvider.sendMessage({
-                    command: 'canvasStatusResponse',
-                    isOpen: isCanvasOpen,
-                });
-                break;
 
             case 'autoOpenCanvas':
                 // Auto-open canvas if not already open

@@ -69,11 +69,6 @@ export interface WebviewToExtensionMessages {
         actionArgs?: string;
     };
 
-    // Canvas Status
-    checkCanvasStatus: {
-        command: 'checkCanvasStatus';
-    };
-
     autoOpenCanvas: {
         command: 'autoOpenCanvas';
     };

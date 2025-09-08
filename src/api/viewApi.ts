@@ -14,7 +14,6 @@ export interface ViewAPI {
     executeCommand: (command: string, args?: any) => Promise<void>;
 
     // Canvas operations
-    checkCanvasStatus: () => Promise<boolean>;
     openCanvas: () => Promise<void>;
 
     // Extension operations
