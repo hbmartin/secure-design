@@ -4,12 +4,12 @@ import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import 'highlight.js/styles/vs2015.css'; // Dark theme that matches VS Code
 
-interface MarkdownRendererProps {
+interface MarkdownRendererProperties {
     content: string;
     className?: string;
 }
 
-const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className }) => {
+const MarkdownRenderer: React.FC<MarkdownRendererProperties> = ({ content, className }) => {
     return (
         <div className={`markdown-content ${className ?? ''}`}>
             <ReactMarkdown
@@ -17,36 +17,36 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
                 rehypePlugins={[rehypeHighlight]}
                 components={{
                     // Custom rendering for code blocks
-                    code: ({ className, children, ...props }: any) => {
+                    code: ({ className, children, ...properties }: any) => {
                         const match = /language-(\w+)/.exec(className ?? '');
                         const inline = !className?.includes('language-');
                         return !inline && match ? (
                             <pre className={`language-${match[1]} hljs`}>
-                                <code className={className} {...props}>
+                                <code className={className} {...properties}>
                                     {children}
                                 </code>
                             </pre>
                         ) : (
-                            <code className={`inline-code ${className ?? ''}`} {...props}>
+                            <code className={`inline-code ${className ?? ''}`} {...properties}>
                                 {children}
                             </code>
                         );
                     },
                     // Custom rendering for links to open externally
-                    a: ({ children, href, ...props }) => (
-                        <a href={href} target='_blank' rel='noopener noreferrer' {...props}>
+                    a: ({ children, href, ...properties }) => (
+                        <a href={href} target='_blank' rel='noopener noreferrer' {...properties}>
                             {children}
                         </a>
                     ),
                     // Custom rendering for tables
-                    table: ({ children, ...props }) => (
+                    table: ({ children, ...properties }) => (
                         <div className='table-wrapper'>
-                            <table {...props}>{children}</table>
+                            <table {...properties}>{children}</table>
                         </div>
                     ),
                     // Custom rendering for blockquotes
-                    blockquote: ({ children, ...props }) => (
-                        <blockquote className='markdown-blockquote' {...props}>
+                    blockquote: ({ children, ...properties }) => (
+                        <blockquote className='markdown-blockquote' {...properties}>
                             {children}
                         </blockquote>
                     ),

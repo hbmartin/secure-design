@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { Logger } from './logger';
-import * as path from 'path';
+import * as path from 'node:path';
 
 export interface FileChangeEvent {
     fileName: string;
@@ -51,7 +51,7 @@ export class FileWatcherService implements vscode.Disposable {
         if (this._workspaceChangeListener) {
             // Remove from disposables array to prevent double disposal
             const index = this._disposables.indexOf(this._workspaceChangeListener);
-            if (index > -1) {
+            if (index !== -1) {
                 this._disposables.splice(index, 1);
             }
             this._workspaceChangeListener.dispose();
@@ -59,7 +59,7 @@ export class FileWatcherService implements vscode.Disposable {
         }
 
         // Dispose all remaining event subscriptions
-        while (this._disposables.length) {
+        while (this._disposables.length > 0) {
             const disposable = this._disposables.pop();
             if (disposable) {
                 disposable.dispose();

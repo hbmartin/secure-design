@@ -10,7 +10,7 @@ import {
     type ModelConfig,
     type VsCodeConfiguration,
     type ValidationResult,
-    type ProviderInstanceParams,
+    type ProviderInstanceParams as ProviderInstanceParameters,
 } from '../types';
 import type { LanguageModelV2 } from '@ai-sdk/provider';
 
@@ -30,31 +30,31 @@ export class OpenRouterProvider extends AIProvider {
             id: 'anthropic/claude-3-7-sonnet-20250219',
             displayName: 'Claude 3.7 Sonnet',
             isDefault: true,
-            maxTokens: 200000,
+            maxTokens: 200_000,
             supportsVision: true,
         },
         {
             id: 'anthropic/claude-3-5-sonnet-20241022',
             displayName: 'Claude 3.5 Sonnet',
-            maxTokens: 200000,
+            maxTokens: 200_000,
             supportsVision: true,
         },
         {
             id: 'anthropic/claude-3-opus-20240229',
             displayName: 'Claude 3 Opus',
-            maxTokens: 200000,
+            maxTokens: 200_000,
             supportsVision: true,
         },
         {
             id: 'anthropic/claude-3-sonnet-20240229',
             displayName: 'Claude 3 Sonnet',
-            maxTokens: 200000,
+            maxTokens: 200_000,
             supportsVision: true,
         },
         {
             id: 'anthropic/claude-3-haiku-20240307',
             displayName: 'Claude 3 Haiku',
-            maxTokens: 200000,
+            maxTokens: 200_000,
             supportsVision: true,
         },
 
@@ -62,19 +62,19 @@ export class OpenRouterProvider extends AIProvider {
         {
             id: 'google/gemini-2.5-pro',
             displayName: 'Gemini 2.5 Pro',
-            maxTokens: 1000000,
+            maxTokens: 1_000_000,
             supportsVision: true,
         },
         {
             id: 'google/gemini-2.5-flash',
             displayName: 'Gemini 2.5 Flash',
-            maxTokens: 1000000,
+            maxTokens: 1_000_000,
             supportsVision: true,
         },
         {
             id: 'google/gemini-2.0-flash-001',
             displayName: 'Gemini 2.0 Flash',
-            maxTokens: 1000000,
+            maxTokens: 1_000_000,
             supportsVision: true,
         },
 
@@ -82,19 +82,19 @@ export class OpenRouterProvider extends AIProvider {
         {
             id: 'meta-llama/llama-3.3-70b-instruct',
             displayName: 'Llama 3.3 70B',
-            maxTokens: 131072,
+            maxTokens: 131_072,
             supportsVision: false,
         },
         {
             id: 'meta-llama/llama-3.2-90b-vision-instruct',
             displayName: 'Llama 3.2 90B Vision',
-            maxTokens: 131072,
+            maxTokens: 131_072,
             supportsVision: true,
         },
         {
             id: 'meta-llama/llama-3.1-405b-instruct',
             displayName: 'Llama 3.1 405B',
-            maxTokens: 131072,
+            maxTokens: 131_072,
             supportsVision: false,
         },
 
@@ -102,13 +102,13 @@ export class OpenRouterProvider extends AIProvider {
         {
             id: 'deepseek/deepseek-r1',
             displayName: 'DeepSeek R1',
-            maxTokens: 131072,
+            maxTokens: 131_072,
             supportsVision: false,
         },
         {
             id: 'deepseek/deepseek-chat-v3',
             displayName: 'DeepSeek Chat V3',
-            maxTokens: 131072,
+            maxTokens: 131_072,
             supportsVision: false,
         },
 
@@ -116,13 +116,13 @@ export class OpenRouterProvider extends AIProvider {
         {
             id: 'mistralai/mistral-large-2411',
             displayName: 'Mistral Large 2411',
-            maxTokens: 131072,
+            maxTokens: 131_072,
             supportsVision: false,
         },
         {
             id: 'mistralai/pixtral-large-2411',
             displayName: 'Pixtral Large',
-            maxTokens: 131072,
+            maxTokens: 131_072,
             supportsVision: true,
         },
 
@@ -130,13 +130,13 @@ export class OpenRouterProvider extends AIProvider {
         {
             id: 'x-ai/grok-3',
             displayName: 'Grok 3',
-            maxTokens: 131072,
+            maxTokens: 131_072,
             supportsVision: false,
         },
         {
             id: 'x-ai/grok-2-vision-1212',
             displayName: 'Grok 2 Vision',
-            maxTokens: 131072,
+            maxTokens: 131_072,
             supportsVision: true,
         },
 
@@ -144,13 +144,13 @@ export class OpenRouterProvider extends AIProvider {
         {
             id: 'qwen/qwen-2.5-72b-instruct',
             displayName: 'Qwen 2.5 72B',
-            maxTokens: 131072,
+            maxTokens: 131_072,
             supportsVision: false,
         },
         {
             id: 'qwen/qwen2.5-vl-72b-instruct',
             displayName: 'Qwen2.5 VL 72B',
-            maxTokens: 131072,
+            maxTokens: 131_072,
             supportsVision: true,
         },
 
@@ -158,13 +158,13 @@ export class OpenRouterProvider extends AIProvider {
         {
             id: 'perplexity/sonar-reasoning-pro',
             displayName: 'Sonar Reasoning Pro',
-            maxTokens: 131072,
+            maxTokens: 131_072,
             supportsVision: false,
         },
         {
             id: 'perplexity/sonar-pro',
             displayName: 'Sonar Pro',
-            maxTokens: 131072,
+            maxTokens: 131_072,
             supportsVision: false,
         },
 
@@ -172,27 +172,27 @@ export class OpenRouterProvider extends AIProvider {
         {
             id: 'openrouter/auto',
             displayName: 'Auto (Best Available)',
-            maxTokens: 200000,
+            maxTokens: 200_000,
             supportsVision: true,
         },
     ];
 
-    createInstance(params: ProviderInstanceParams): LanguageModelV2 {
-        const apiKey = params.config.config.get<string>(
+    createInstance(parameters: ProviderInstanceParameters): LanguageModelV2 {
+        const apiKey = parameters.config.config.get<string>(
             OpenRouterProvider.metadata.apiKeyConfigKey
         );
         if (apiKey === undefined || apiKey.trim() === '') {
             throw new Error(this.getCredentialsErrorMessage());
         }
 
-        params.config.logger.info('OpenRouter API key found');
+        parameters.config.logger.info('OpenRouter API key found');
 
         const openrouter = createOpenRouter({
             apiKey: apiKey,
         });
 
-        params.config.logger.info(`Using OpenRouter model: ${params.model}`);
-        return openrouter.chat(params.model);
+        parameters.config.logger.info(`Using OpenRouter model: ${parameters.model}`);
+        return openrouter.chat(parameters.model);
     }
 
     validateCredentials(config: VsCodeConfiguration): ValidationResult {

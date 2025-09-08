@@ -46,7 +46,7 @@ class BaseRepository<Data> {
      * Notify all listeners of the current data
      */
     private notifyListeners(): void {
-        this.listeners.forEach(listener => {
+        for (const listener of this.listeners) {
             try {
                 listener(this.data);
             } catch (error) {
@@ -55,7 +55,7 @@ class BaseRepository<Data> {
                     { error }
                 );
             }
-        });
+        }
     }
 }
 

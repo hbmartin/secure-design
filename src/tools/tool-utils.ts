@@ -1,5 +1,5 @@
-import * as path from 'path';
-import * as fs from 'fs';
+import * as path from 'node:path';
+import * as fs from 'node:fs';
 import type { ExecutionContext } from '../types/agent';
 
 /**
@@ -88,11 +88,7 @@ export function validateWorkspacePath(
 
         // Handle both absolute and relative paths
         let resolvedPath: string;
-        if (path.isAbsolute(filePath)) {
-            resolvedPath = path.normalize(filePath);
-        } else {
-            resolvedPath = path.resolve(context.workingDirectory, filePath);
-        }
+        resolvedPath = path.isAbsolute(filePath) ? path.normalize(filePath) : path.resolve(context.workingDirectory, filePath);
 
         // Check if path is within workspace boundary
         if (!resolvedPath.startsWith(normalizedWorkspace)) {
@@ -113,11 +109,7 @@ export function validateWorkspacePath(
  * Safely resolve a file path (supports both absolute and relative paths)
  */
 export function resolveWorkspacePath(filePath: string, context: ExecutionContext): string {
-    if (path.isAbsolute(filePath)) {
-        return path.normalize(filePath);
-    } else {
-        return path.resolve(context.workingDirectory, filePath);
-    }
+    return path.isAbsolute(filePath) ? path.normalize(filePath) : path.resolve(context.workingDirectory, filePath);
 }
 
 /**
@@ -133,10 +125,10 @@ export function createSuccessResponse(data: Record<string, any>): ToolSuccessRes
 /**
  * Validation helper for required string parameters
  */
-export function validateRequiredString(value: any, paramName: string): ToolErrorResponse | null {
+export function validateRequiredString(value: any, parameterName: string): ToolErrorResponse | null {
     if (!value || typeof value !== 'string' || value.trim() === '') {
         return handleToolError(
-            `${paramName} is required and must be a non-empty string`,
+            `${parameterName} is required and must be a non-empty string`,
             'Parameter validation',
             'validation'
         );

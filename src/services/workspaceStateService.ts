@@ -89,8 +89,8 @@ export class WorkspaceStateService {
     private hashWorkspaceId(workspaceId: string): string {
         // Simple hash function for creating a shorter, stable identifier
         let hash = 0;
-        for (let i = 0; i < workspaceId.length; i++) {
-            const char = workspaceId.charCodeAt(i);
+        for (let index = 0; index < workspaceId.length; index++) {
+            const char = workspaceId.charCodeAt(index);
             hash = (hash << 5) - hash + char;
             hash &= hash; // Convert to 32-bit integer
         }

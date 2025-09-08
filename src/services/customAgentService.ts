@@ -15,7 +15,7 @@ import { createThemeTool } from '../tools/theme-tool';
 import { createLsTool } from '../tools/ls-tool';
 import { createMultieditTool } from '../tools/multiedit-tool';
 import { getModel, getProvider } from '../providers/VsCodeConfiguration';
-import * as os from 'os';
+import * as os from 'node:os';
 import type { ChatMessage } from '../types/chatMessage';
 import type { ReasoningPart, ToolCallPart, ToolResultPart } from '@ai-sdk/provider-utils';
 import { guessToolResultOutput } from './chunkToolOutputToMessageToolOutput';
@@ -94,18 +94,18 @@ export class CustomAgentService implements AgentService {
                 this.logger.info('No workspace root found, using fallback');
                 // Fallback to OS temp directory if no workspace
                 const tempDir = vscode.Uri.file(os.tmpdir());
-                const tempSuperdesignUri = vscode.Uri.joinPath(tempDir, 'superdesign-custom');
+                const temporarySuperdesignUri = vscode.Uri.joinPath(tempDir, 'superdesign-custom');
 
                 try {
-                    await vscode.workspace.fs.stat(tempSuperdesignUri);
+                    await vscode.workspace.fs.stat(temporarySuperdesignUri);
                 } catch (error) {
-                    await vscode.workspace.fs.createDirectory(tempSuperdesignUri);
+                    await vscode.workspace.fs.createDirectory(temporarySuperdesignUri);
                     this.logger.info(
-                        `Created temporary superdesign directory: ${tempSuperdesignUri.fsPath} because of ${error}`
+                        `Created temporary superdesign directory: ${temporarySuperdesignUri.fsPath} because of ${error}`
                     );
                 }
 
-                this.workingDirectory = tempSuperdesignUri.fsPath;
+                this.workingDirectory = temporarySuperdesignUri.fsPath;
                 this.logger.info(`Working directory set to (fallback): ${this.workingDirectory}`);
 
                 vscode.window.showWarningMessage(
@@ -512,7 +512,7 @@ I've created the html design, please reveiw and let me know if you need any chan
     async query(
         conversationHistory: ChatMessage[],
         abortController: AbortController,
-        onMessage: (prev: ChatMessage[]) => void
+        onMessage: (previous: ChatMessage[]) => void
     ): Promise<ChatMessage[]> {
         if (!this.isInitialized) {
             await this.setupWorkingDirectory();
@@ -566,30 +566,24 @@ I've created the html design, please reveiw and let me know if you need any chan
                 }
                 switch (chunk.type) {
                     case 'text-delta': {
-                        const lastMessage = updatedMessages[updatedMessages.length - 1];
+                        const lastMessage = updatedMessages.at(-1);
 
-                        if (
-                            lastMessage !== undefined &&
+                        updatedMessages = lastMessage !== undefined &&
                             lastMessage.role === 'assistant' &&
                             typeof lastMessage.content === 'string' &&
-                            lastMessage.metadata?.is_error !== true
-                        ) {
-                            updatedMessages = [
+                            lastMessage.metadata?.is_error !== true ? [
                                 ...updatedMessages.slice(0, -1),
                                 {
                                     ...lastMessage,
                                     content: lastMessage.content + chunk.text,
                                 },
-                            ];
-                        } else {
-                            updatedMessages = [
+                            ] : [
                                 ...updatedMessages,
                                 {
                                     role: 'assistant',
                                     content: chunk.text,
                                 },
                             ];
-                        }
 
                         break;
                     }
@@ -601,14 +595,14 @@ I've created the html design, please reveiw and let me know if you need any chan
                         break;
                     }
                     case 'error': {
-                        const errorMsg = extractErrorMessage(chunk.error);
-                        this.logger.error(`Stream error: ${errorMsg}`);
+                        const errorMessage = extractErrorMessage(chunk.error);
+                        this.logger.error(`Stream error: ${errorMessage}`);
 
                         updatedMessages = [
                             ...updatedMessages,
                             {
                                 role: 'assistant',
-                                content: errorMsg,
+                                content: errorMessage,
                                 metadata: {
                                     is_error: true,
                                     timestamp: Date.now(),
@@ -651,10 +645,10 @@ I've created the html design, please reveiw and let me know if you need any chan
                         console.log('Tool call complete', { chunk });
                         // Always try to find and update existing tool call first
                         let toolCallUpdated = false;
-                        for (let i = updatedMessages.length - 1; i >= 0; i--) {
-                            let msg = updatedMessages[i];
-                            if (msg.role === 'assistant' && Array.isArray(msg.content)) {
-                                const toolCallIndex = msg.content.findIndex(
+                        for (let index = updatedMessages.length - 1; index >= 0; index--) {
+                            let message = updatedMessages[index];
+                            if (message.role === 'assistant' && Array.isArray(message.content)) {
+                                const toolCallIndex = message.content.findIndex(
                                     (
                                         part:
                                             | TextPart
@@ -667,7 +661,7 @@ I've created the html design, please reveiw and let me know if you need any chan
                                         part.toolCallId === chunk.toolCallId
                                 );
                                 if (toolCallIndex !== -1) {
-                                    const content = [...msg.content];
+                                    const content = [...message.content];
                                     content[toolCallIndex] = {
                                         type: 'tool-call',
                                         toolCallId: chunk.toolCallId,
@@ -678,11 +672,11 @@ I've created the html design, please reveiw and let me know if you need any chan
                                         `Updated tool call with final parameters for ID: ${chunk.toolCallId}`
                                     );
                                     toolCallUpdated = true;
-                                    msg = {
-                                        ...msg,
+                                    message = {
+                                        ...message,
                                         content,
                                     };
-                                    updatedMessages[i] = msg;
+                                    updatedMessages[index] = message;
                                     break;
                                 }
                             }
@@ -768,8 +762,8 @@ I've created the html design, please reveiw and let me know if you need any chan
                     case 'reasoning-start':
                     case 'reasoning-end':
                     case 'reasoning-delta':
-                    case 'raw': {
-                    }
+                    case 'raw':
+                    
                 }
                 onMessage(updatedMessages);
             }
@@ -780,7 +774,7 @@ I've created the html design, please reveiw and let me know if you need any chan
 
             return updatedMessages;
         } catch (error) {
-            const errorMsg = extractErrorMessage(error);
+            const errorMessage = extractErrorMessage(error);
             this.logger.error(`Custom Agent query failed`, { error });
             console.error(`Custom Agent query failed`, { error });
 
@@ -788,7 +782,7 @@ I've created the html design, please reveiw and let me know if you need any chan
                 ...updatedMessages,
                 {
                     role: 'assistant',
-                    content: errorMsg,
+                    content: errorMessage,
                     metadata: {
                         is_error: true,
                         timestamp: Date.now(),

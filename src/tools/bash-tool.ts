@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { tool } from 'ai';
-import { spawn, type ChildProcess } from 'child_process';
-import * as path from 'path';
-import * as os from 'os';
+import { spawn, type ChildProcess } from 'node:child_process';
+import * as path from 'node:path';
+import * as os from 'node:os';
 import type { ExecutionContext } from '../types/agent';
 import {
     handleToolError,
@@ -99,9 +99,9 @@ async function executeCommand(
 
     // Choose shell based on platform
     const shell = isWindows ? 'cmd.exe' : 'bash';
-    const shellArgs = isWindows ? ['/c', command] : ['-c', command];
+    const shellArguments = isWindows ? ['/c', command] : ['-c', command];
 
-    const child: ChildProcess = spawn(shell, shellArgs, {
+    const child: ChildProcess = spawn(shell, shellArguments, {
         cwd: options.cwd,
         env: options.env,
         stdio: options.captureOutput ? ['ignore', 'pipe', 'pipe'] : 'inherit',
@@ -185,7 +185,7 @@ export function createBashTool(context: ExecutionContext) {
             command,
             description,
             directory,
-            timeout = 30000,
+            timeout = 30_000,
             capture_output = true,
             env,
         }): Promise<ToolResponse> => {
@@ -222,7 +222,7 @@ export function createBashTool(context: ExecutionContext) {
                 logger.info(`Working directory: ${workingDir}`);
 
                 // Prepare environment
-                const processEnv = {
+                const processEnvironment = {
                     ...process.env,
                     ...env,
                 };
@@ -230,21 +230,10 @@ export function createBashTool(context: ExecutionContext) {
                 // Execute the command
                 const result = await executeCommand(command, {
                     cwd: absolutePath,
-                    env: processEnv,
+                    env: processEnvironment,
                     timeout,
                     captureOutput: capture_output,
                 });
-
-                // Log results
-                if (result.timedOut) {
-                    logger.info(`Command timed out after ${timeout}ms`);
-                } else if (result.exitCode === 0) {
-                    logger.info(`Command completed successfully in ${result.duration}ms`);
-                } else {
-                    logger.info(
-                        `Command failed with exit code ${result.exitCode} in ${result.duration}ms`
-                    );
-                }
 
                 // Create summary for display
                 let summary = `Command: ${command}\n`;

@@ -10,7 +10,7 @@ import {
     type ModelConfig,
     type VsCodeConfiguration,
     type ValidationResult,
-    type ProviderInstanceParams,
+    type ProviderInstanceParams as ProviderInstanceParameters,
 } from '../types';
 import type { LanguageModelV2 } from '@ai-sdk/provider';
 
@@ -29,7 +29,7 @@ export class MoonshotProvider extends AIProvider {
             id: 'kimi-k2-0711-preview',
             displayName: 'Kimi K2 Preview',
             isDefault: true,
-            maxTokens: 1000000,
+            maxTokens: 1_000_000,
             supportsVision: true,
         },
         {
@@ -41,33 +41,33 @@ export class MoonshotProvider extends AIProvider {
         {
             id: 'moonshot-v1-32k',
             displayName: 'Moonshot v1 32K',
-            maxTokens: 32768,
+            maxTokens: 32_768,
             supportsVision: false,
         },
         {
             id: 'moonshot-v1-128k',
             displayName: 'Moonshot v1 128K',
-            maxTokens: 131072,
+            maxTokens: 131_072,
             supportsVision: false,
         },
     ];
 
-    createInstance(params: ProviderInstanceParams): LanguageModelV2 {
-        const apiKey = params.config.config.get<string>(MoonshotProvider.metadata.apiKeyConfigKey);
+    createInstance(parameters: ProviderInstanceParameters): LanguageModelV2 {
+        const apiKey = parameters.config.config.get<string>(MoonshotProvider.metadata.apiKeyConfigKey);
         if (apiKey === undefined || apiKey.trim() === '') {
             throw new Error(this.getCredentialsErrorMessage());
         }
 
-        params.config.logger.info('Moonshot API key found');
-        params.config.logger.info('Using Moonshot API baseURL: https://api.moonshot.ai/v1');
+        parameters.config.logger.info('Moonshot API key found');
+        parameters.config.logger.info('Using Moonshot API baseURL: https://api.moonshot.ai/v1');
 
         const moonshot = createOpenAI({
             apiKey: apiKey,
             baseURL: 'https://api.moonshot.ai/v1',
         });
 
-        params.config.logger.info(`Using Moonshot model: ${params.model}`);
-        return moonshot(params.model);
+        parameters.config.logger.info(`Using Moonshot model: ${parameters.model}`);
+        return moonshot(parameters.model);
     }
 
     validateCredentials(config: VsCodeConfiguration): ValidationResult {

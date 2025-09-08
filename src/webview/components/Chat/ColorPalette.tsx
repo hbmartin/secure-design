@@ -1,11 +1,11 @@
 import React from 'react';
 import type { GroupedColors } from './types';
 
-interface ColorPaletteProps {
+interface ColorPaletteProperties {
     colors: GroupedColors;
 }
 
-const ColorPalette: React.FC<ColorPaletteProps> = ({ colors }) => {
+const ColorPalette: React.FC<ColorPaletteProperties> = ({ colors }) => {
     const handleColorCopy = (color: string) => {
         void navigator.clipboard.writeText(color);
     };

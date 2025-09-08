@@ -27,9 +27,9 @@ export function getModel(): ModelConfigWithProvider {
     const config = vscode.workspace.getConfiguration(service.configPrefix);
     const stored = config.get<string>(MODEL_KEY);
     const modelsWithProvider =
-        stored !== undefined
-            ? service.getModelForProvider(provider, stored)
-            : service.getDefaultModelForProvider(getProvider());
+        stored === undefined
+            ? service.getDefaultModelForProvider(getProvider())
+            : service.getModelForProvider(provider, stored);
     if (modelsWithProvider === undefined) {
         throw new Error(`No stored model and no default model set for ${provider}`);
     }

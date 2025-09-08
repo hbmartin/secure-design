@@ -32,7 +32,7 @@ export class SuperdesignCanvasPanel {
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
         if (!workspaceFolder) {
             vscode.window.showErrorMessage('Please open a workspace folder first');
-            return undefined;
+            return;
         }
 
         const workspaceKey = workspaceFolder.uri.toString();
@@ -163,10 +163,11 @@ export class SuperdesignCanvasPanel {
         this._panel.webview.onDidReceiveMessage(
             message => {
                 switch (message.command) {
-                    case 'loadDesignFiles':
+                    case 'loadDesignFiles': {
                         void this._loadDesignFiles();
                         break;
-                    case 'selectFrame':
+                    }
+                    case 'selectFrame': {
                         Logger.debug(`Frame selected: ${message.data?.fileName}`);
                         // Update state with selected file
                         if (this._state) {
@@ -174,20 +175,23 @@ export class SuperdesignCanvasPanel {
                             this._saveState();
                         }
                         break;
-                    case 'setContextFromCanvas':
+                    }
+                    case 'setContextFromCanvas': {
                         // Forward context to chat sidebar
                         this._sidebarProvider.sendMessage({
                             command: 'contextFromCanvas',
                             data: message.data,
                         });
                         break;
-                    case 'setChatPrompt':
+                    }
+                    case 'setChatPrompt': {
                         // Forward prompt to chat sidebar
                         this._sidebarProvider.sendMessage({
                             command: 'setChatPrompt',
                             data: message.data,
                         });
                         break;
+                    }
                 }
             },
             null,
@@ -221,7 +225,7 @@ export class SuperdesignCanvasPanel {
         }
 
         // Dispose all other resources first (before panel to avoid recursion)
-        while (this._disposables.length) {
+        while (this._disposables.length > 0) {
             const disposable = this._disposables.pop();
             if (disposable) {
                 try {
@@ -538,7 +542,7 @@ export class SuperdesignCanvasPanel {
         // Match link tags that reference CSS files
         const linkRegex = /<link\s+[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["'][^>]*>/gi;
         let modifiedContent = htmlContent;
-        const matches = Array.from(htmlContent.matchAll(linkRegex));
+        const matches = [...htmlContent.matchAll(linkRegex)];
 
         for (const match of matches) {
             const fullLinkTag = match[0];

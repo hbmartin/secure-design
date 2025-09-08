@@ -36,8 +36,8 @@ export function useDebouncedSave(
     } = options;
 
     const [isSaving, setIsSaving] = useState(false);
-    const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const lastSavedRef = useRef<string>('');
+    const saveTimeoutReference = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const lastSavedReference = useRef<string>('');
 
     useEffect(() => {
         // Only save if all conditions are met:
@@ -47,53 +47,53 @@ export function useDebouncedSave(
         // 4. Content has actually changed
         if (isReady && hasLoadedInitialData && !externalIsSaving) {
             // Check if content has actually changed
-            const currentDataStr = JSON.stringify(data);
-            if (currentDataStr === lastSavedRef.current) {
+            const currentDataString = JSON.stringify(data);
+            if (currentDataString === lastSavedReference.current) {
                 // No actual changes, skip save
                 return;
             }
 
             // Clear any existing timeout
-            if (saveTimeoutRef.current) {
-                clearTimeout(saveTimeoutRef.current);
+            if (saveTimeoutReference.current) {
+                clearTimeout(saveTimeoutReference.current);
             }
 
             // Set a new timeout to save after the specified delay
-            saveTimeoutRef.current = setTimeout(() => {
+            saveTimeoutReference.current = setTimeout(() => {
                 // Snapshot data at debounce time to avoid stale closure
                 const dataToSave = data;
-                const dataStr = JSON.stringify(dataToSave);
+                const dataString = JSON.stringify(dataToSave);
 
                 // Guard against workspace changes by checking if we're still in valid state
                 if (!hasLoadedInitialData) {
                     // Workspace likely changed, bail out
-                    saveTimeoutRef.current = null;
+                    saveTimeoutReference.current = null;
                     return;
                 }
 
                 // Double-check content changed before saving
-                if (dataStr !== lastSavedRef.current) {
+                if (dataString !== lastSavedReference.current) {
                     setIsSaving(true);
-                    lastSavedRef.current = dataStr;
+                    lastSavedReference.current = dataString;
 
                     saveFunction(dataToSave)
                         .catch(error => {
                             console.error('Failed to save data:', error);
                             // Reset saved reference on error so it can be retried
-                            lastSavedRef.current = '';
+                            lastSavedReference.current = '';
                         })
                         .finally(() => {
                             setIsSaving(false);
                         });
                 }
-                saveTimeoutRef.current = null;
+                saveTimeoutReference.current = null;
             }, delay);
         }
 
         // Cleanup on unmount or dependency change
         return () => {
-            if (saveTimeoutRef.current) {
-                clearTimeout(saveTimeoutRef.current);
+            if (saveTimeoutReference.current) {
+                clearTimeout(saveTimeoutReference.current);
             }
         };
     }, [data, saveFunction, delay, isReady, hasLoadedInitialData, externalIsSaving]);
@@ -101,14 +101,14 @@ export function useDebouncedSave(
     // Cleanup timeout on unmount
     useEffect(() => {
         return () => {
-            if (saveTimeoutRef.current) {
-                clearTimeout(saveTimeoutRef.current);
+            if (saveTimeoutReference.current) {
+                clearTimeout(saveTimeoutReference.current);
             }
         };
     }, []);
 
     return {
         isSaving,
-        lastSavedRef,
+        lastSavedRef: lastSavedReference,
     };
 }

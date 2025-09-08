@@ -43,19 +43,19 @@ class LoggerImpl {
     private static readonly outputChannel: vscode.OutputChannel =
         vscode.window.createOutputChannel('Securedesign');
 
-    public static debug(message: string, data: Record<any, any> | undefined = undefined) {
+    public static debug(message: string, data?: Record<any, any>  ) {
         this.log(LogLevel.DEBUG, message, data);
     }
 
-    public static info(message: string, data: Record<any, any> | undefined = undefined) {
+    public static info(message: string, data?: Record<any, any>  ) {
         this.log(LogLevel.INFO, message, data);
     }
 
-    public static warn(message: string, data: Record<any, any> | undefined = undefined) {
+    public static warn(message: string, data?: Record<any, any>  ) {
         this.log(LogLevel.WARN, message, data);
     }
 
-    public static error(message: string, data: Record<any, any> | undefined = undefined) {
+    public static error(message: string, data?: Record<any, any>  ) {
         this.log(LogLevel.ERROR, message, data);
     }
 
@@ -65,14 +65,14 @@ class LoggerImpl {
 
     private static log(level: LogLevel, message: string, data: Record<any, any> | undefined) {
         const timestamp = new Date().toISOString().split('T')[1];
-        const levelStr = LogLevel[level] || 'UNKNOWN';
+        const levelString = LogLevel[level] || 'UNKNOWN';
         const cleanedData = removePromptsFromData(data);
-        if (cleanedData !== undefined) {
-            this.outputChannel.appendLine(
-                `[${timestamp}] [${levelStr}] ${message} : ${JSON.stringify(cleanedData)}`
-            );
+        if (cleanedData === undefined) {
+            this.outputChannel.appendLine(`[${timestamp}] [${levelString}] ${message}`);
         } else {
-            this.outputChannel.appendLine(`[${timestamp}] [${levelStr}] ${message}`);
+            this.outputChannel.appendLine(
+                `[${timestamp}] [${levelString}] ${message} : ${JSON.stringify(cleanedData)}`
+            );
         }
     }
 }

@@ -5,7 +5,7 @@ export interface AgentService {
     query(
         messages: ChatMessage[],
         abortController: AbortController,
-        onMessage: (prev: ChatMessage[]) => void
+        onMessage: (previous: ChatMessage[]) => void
     ): Promise<ChatMessage[]>;
 
     hasApiKey(): boolean;

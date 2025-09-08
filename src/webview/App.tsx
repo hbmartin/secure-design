@@ -14,7 +14,7 @@ const App: React.FC = () => {
 
     useEffect(() => {
         // Detect which view to render based on data-view attribute
-        const rootElement = document.getElementById('root');
+        const rootElement = document.querySelector('#root');
 
         const viewType = rootElement?.getAttribute('data-view');
         const nonceValue = rootElement?.getAttribute('data-nonce');
@@ -25,20 +25,17 @@ const App: React.FC = () => {
 
         if (viewType === 'canvas') {
             setCurrentView('canvas');
-            console.log('🎨 Switching to canvas view');
         } else {
             setCurrentView('chat');
-            console.log('💬 Switching to chat view');
         }
 
         // Inject CSS styles
         const styleElement = document.createElement('style');
         styleElement.textContent = styles;
-        document.head.appendChild(styleElement);
-        console.log('🎨 CSS styles injected');
+        document.head.append(styleElement);
 
         // Get context from window (only needed for chat interface)
-        const webviewContext = (window as any).__WEBVIEW_CONTEXT__;
+        const webviewContext = (globalThis as any).__WEBVIEW_CONTEXT__;
         console.log('🌐 Webview context from window:', webviewContext);
 
         if (webviewContext) {
@@ -49,7 +46,7 @@ const App: React.FC = () => {
         }
 
         return () => {
-            document.head.removeChild(styleElement);
+            styleElement.remove();
         };
     }, []);
 
@@ -57,7 +54,7 @@ const App: React.FC = () => {
 
     const renderView = () => {
         switch (currentView) {
-            case 'canvas':
+            case 'canvas': {
                 try {
                     // Canvas view doesn't need context - it gets data from extension directly
                     return (
@@ -69,8 +66,9 @@ const App: React.FC = () => {
                     console.error('❌ Error rendering CanvasView:', error);
                     return <div>Error rendering canvas: {String(error)}</div>;
                 }
+            }
             case 'chat':
-            default:
+            default: {
                 console.log('💬 Rendering ChatInterface, context:', !!context);
                 // Chat interface needs context
                 if (!context) {
@@ -87,6 +85,7 @@ const App: React.FC = () => {
                     console.error('❌ Error rendering ChatInterface:', error);
                     return <div>Error rendering chat: {String(error)}</div>;
                 }
+            }
         }
     };
 

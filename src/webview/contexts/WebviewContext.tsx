@@ -66,7 +66,7 @@ function generateId(): string {
  */
 interface WebviewContextValue {
     api: {
-        [K in keyof ViewAPI]: (...args: Parameters<ViewAPI[K]>) => ReturnType<ViewAPI[K]>;
+        [K in keyof ViewAPI]: (...arguments_: Parameters<ViewAPI[K]>) => ReturnType<ViewAPI[K]>;
     };
     addListener: <E extends keyof ViewEvents>(key: E, callback: ViewEvents[E]) => void;
     removeListener: <E extends keyof ViewEvents>(key: E, callback: ViewEvents[E]) => void;
@@ -87,7 +87,7 @@ export const useWebviewApi = (): WebviewContextValue => {
     return context;
 };
 
-interface WebviewProviderProps {
+interface WebviewProviderProperties {
     children: React.ReactNode;
 }
 
@@ -96,16 +96,16 @@ const vscodeApi = acquireVsCodeApi();
 /**
  * WebviewProvider provides type-safe API access to webview components
  */
-export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) => {
+export const WebviewProvider: React.FC<WebviewProviderProperties> = ({ children }) => {
     const pendingRequests = useRef<Map<string, DeferredPromise<any>>>(new Map());
-    const listeners = useRef<Map<keyof ViewEvents, Set<(...args: any[]) => void>>>(new Map());
+    const listeners = useRef<Map<keyof ViewEvents, Set<(...arguments_: any[]) => void>>>(new Map());
 
     // Generate context for this webview instance
-    const contextRef = useRef<RequestContext>({
-        viewId: `webview-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    const contextReference = useRef<RequestContext>({
+        viewId: `webview-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
         viewType: 'chat-interface',
         timestamp: Date.now(),
-        sessionId: `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        sessionId: `session-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
     });
 
     /**
@@ -113,7 +113,7 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
      */
     const callApi = <K extends keyof ViewAPI>(
         key: K,
-        ...params: Parameters<ViewAPI[K]>
+        ...parameters: Parameters<ViewAPI[K]>
     ): ReturnType<ViewAPI[K]> => {
         const id = generateId();
         const deferred = new DeferredPromise<Awaited<ReturnType<ViewAPI[K]>>>();
@@ -122,8 +122,8 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
             type: 'request',
             id,
             key,
-            params,
-            context: contextRef.current,
+            params: parameters,
+            context: contextReference.current,
         };
 
         pendingRequests.current.set(id, deferred);
@@ -131,19 +131,24 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
         // Set timeout for request (varies by operation type)
         const getTimeoutForOperation = (operation: string): number => {
             switch (operation) {
-                case 'sendChatMessage':
-                    return 0; // No timeout for chat messages - handled through events
-                case 'saveChatHistory':
-                    return 0; // No timeout for chat-related operations
+                case 'sendChatMessage': {
+                    return 0;
+                } // No timeout for chat messages - handled through events
+                case 'saveChatHistory': {
+                    return 0;
+                } // No timeout for chat-related operations
                 case 'openCanvas':
-                case 'checkCanvasStatus':
-                    return 0; // No timeout for canvas operations
+                case 'checkCanvasStatus': {
+                    return 0;
+                } // No timeout for canvas operations
                 case 'selectFile':
                 case 'selectFolder':
-                case 'selectImages':
-                    return 60000; // 60 seconds for user interaction
-                default:
-                    return 30000; // 30 seconds default
+                case 'selectImages': {
+                    return 60_000;
+                } // 60 seconds for user interaction
+                default: {
+                    return 30_000;
+                } // 30 seconds default
             }
         };
 
@@ -177,11 +182,11 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
      */
     const api = new Proxy({} as WebviewContextValue['api'], {
         get: (_, key: string) => {
-            return (...args: any[]) => {
+            return (...arguments_: any[]) => {
                 // Type assertion is safe here because the proxy ensures correct typing at usage
                 return callApi(
                     key as keyof ViewAPI,
-                    ...(args as Parameters<ViewAPI[keyof ViewAPI]>)
+                    ...(arguments_ as Parameters<ViewAPI[keyof ViewAPI]>)
                 );
             };
         },
@@ -194,14 +199,14 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
         if (!listeners.current.has(key)) {
             listeners.current.set(key, new Set());
         }
-        listeners.current.get(key)!.add(callback as (...args: any[]) => void);
+        listeners.current.get(key)!.add(callback as (...arguments_: any[]) => void);
     };
 
     /**
      * Remove an event listener
      */
     const removeListener = <E extends keyof ViewEvents>(key: E, callback: ViewEvents[E]): void => {
-        listeners.current.get(key)?.delete(callback as (...args: any[]) => void);
+        listeners.current.get(key)?.delete(callback as (...arguments_: any[]) => void);
     };
 
     /**
@@ -242,13 +247,13 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
                 // Handle event
                 const callbacks = listeners.current.get(message.key);
                 if (callbacks && callbacks.size > 0) {
-                    callbacks.forEach(cb => {
+                    for (const callback of callbacks) {
                         try {
-                            cb(...message.value);
+                            callback(...message.value);
                         } catch (error) {
                             console.error('Error in event listener for %s:', message.key, error);
                         }
-                    });
+                    }
                 } else {
                     console.log(
                         `[WebviewContext] No listeners registered for event: ${String(message.key)}`
@@ -277,11 +282,11 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
         const currentRequests = pendingRequests.current;
         return () => {
             // Clear timeouts and reject all pending requests
-            currentRequests.forEach(deferred => {
+            for (const deferred of currentRequests) {
                 deferred.clearTimeout(); // Clear timeout to prevent late firing
                 deferred.reject(new Error('WebviewProvider unmounted')); // Reject first while not settled
                 deferred.markSettled(); // Then mark as settled to prevent subsequent resolve/reject calls
-            });
+            }
             currentRequests.clear();
         };
     }, []);
@@ -303,10 +308,10 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
 export function withWebviewApi<P extends object>(
     Component: React.ComponentType<P>
 ): React.ComponentType<P> {
-    const WrappedComponent: React.FC<P> = props => {
+    const WrappedComponent: React.FC<P> = properties => {
         return (
             <WebviewProvider>
-                <Component {...props} />
+                <Component {...properties} />
             </WebviewProvider>
         );
     };

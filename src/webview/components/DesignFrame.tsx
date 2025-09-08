@@ -6,10 +6,11 @@ import type {
     ViewportMode,
 } from '../types/canvas.types';
 import { MobileIcon, TabletIcon, DesktopIcon, GlobeIcon } from './Icons';
+import { useLogger } from '../hooks/useLogger';
 
 // Import logo images
 
-interface DesignFrameProps {
+interface DesignFrameProperties {
     file: DesignFile;
     position: GridPosition;
     dimensions: FrameDimensions;
@@ -27,7 +28,7 @@ interface DesignFrameProps {
     onSendToChat?: (fileName: string, prompt: string) => void;
 }
 
-const DesignFrame: React.FC<DesignFrameProps> = ({
+const DesignFrame: React.FC<DesignFrameProperties> = ({
     file,
     position,
     dimensions,
@@ -56,6 +57,7 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
         text: string;
         isSuccess: boolean;
     }>({ text: 'Copy design path', isSuccess: false });
+    const logger = useLogger('DesignFrame');
 
     const handleClick = () => {
         onSelect(file.name);
@@ -116,35 +118,43 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
         let platformName = '';
 
         switch (platform) {
-            case 'cursor':
+            case 'cursor': {
                 promptText = `${file.content}\n\nAbove is the design implementation, please use that as a reference to build a similar UI component. Make sure to follow modern React and TypeScript best practices.`;
                 platformName = 'Cursor';
                 break;
-            case 'windsurf':
+            }
+            case 'windsurf': {
                 promptText = `${file.content}\n\nAbove is the design implementation. Please analyze this design and create a similar UI component using modern web technologies and best practices.`;
                 platformName = 'Windsurf';
                 break;
-            case 'claude-code':
+            }
+            case 'claude-code': {
                 promptText = `${file.content}\n\nAbove is the design implementation. Please use this as a reference to create a similar component. Focus on clean, maintainable code structure.`;
                 platformName = 'Claude Code';
                 break;
-            case 'lovable':
+            }
+            case 'lovable': {
                 promptText = `${file.content}\n\nAbove is the design implementation. Please recreate this design as a responsive React component with modern styling.`;
                 platformName = 'Lovable';
                 break;
-            case 'bolt':
+            }
+            case 'bolt': {
                 promptText = `${file.content}\n\nAbove is the design implementation. Please create a similar UI using this as reference. Make it production-ready with proper styling.`;
                 platformName = 'Bolt';
                 break;
+            }
             case undefined:
-            default:
+            default: {
                 promptText = `${file.content}\n\nAbove is the design implementation, please use that as a reference`;
                 platformName = '';
+            }
         }
 
         try {
             await navigator.clipboard.writeText(promptText);
-            console.log(`✅ Copied ${platformName} prompt to clipboard for:`, file.name);
+            logger.info(`✅ Copied ${platformName} prompt to clipboard for:`, {
+                file_name: file.name,
+            });
 
             // Show success state on button
             setCopyButtonState({ text: `Copied for ${platformName}!`, isSuccess: true });
@@ -154,18 +164,20 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
 
             // Hide dropdown
             setShowCopyDropdown(false);
-        } catch (err) {
-            console.error('❌ Failed to copy to clipboard:', err);
+        } catch (error) {
+            console.error('❌ Failed to copy to clipboard:', error);
 
             // Fallback: create a temporary textarea and copy
             const textarea = document.createElement('textarea');
             textarea.value = promptText;
-            document.body.appendChild(textarea);
+            document.body.append(textarea);
             textarea.select();
             document.execCommand('copy');
-            document.body.removeChild(textarea);
+            textarea.remove();
 
-            console.log(`✅ Copied ${platformName} prompt using fallback method for:`, file.name);
+            logger.info(`✅ Copied ${platformName} prompt using fallback method for:`, {
+                file_name: file.name,
+            });
 
             // Show success state on button
             setCopyButtonState({ text: `Copied for ${platformName}!`, isSuccess: true });
@@ -186,25 +198,25 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
 
         try {
             await navigator.clipboard.writeText(designPath);
-            console.log(`✅ Copied design path to clipboard:`, designPath);
+            logger.info(`✅ Copied design path to clipboard:`, { designPath });
 
             // Show success state on button
             setCopyPathButtonState({ text: 'Copied!', isSuccess: true });
             setTimeout(() => {
                 setCopyPathButtonState({ text: 'Copy design path', isSuccess: false });
             }, 2000);
-        } catch (err) {
-            console.error('❌ Failed to copy design path to clipboard:', err);
+        } catch (error) {
+            console.error('❌ Failed to copy design path to clipboard:', error);
 
             // Fallback: create a temporary textarea and copy
             const textarea = document.createElement('textarea');
             textarea.value = designPath;
-            document.body.appendChild(textarea);
+            document.body.append(textarea);
             textarea.select();
             document.execCommand('copy');
-            document.body.removeChild(textarea);
+            textarea.remove();
 
-            console.log(`✅ Copied design path using fallback method:`, designPath);
+            logger.info(`✅ Copied design path using fallback method:`, { designPath });
 
             // Show success state on button
             setCopyPathButtonState({ text: 'Copied!', isSuccess: true });
@@ -234,33 +246,41 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
 
     const getViewportIcon = (mode: ViewportMode): React.ReactElement => {
         switch (mode) {
-            case 'mobile':
+            case 'mobile': {
                 return <MobileIcon />;
-            case 'tablet':
+            }
+            case 'tablet': {
                 return <TabletIcon />;
-            case 'desktop':
+            }
+            case 'desktop': {
                 return <DesktopIcon />;
-            default:
+            }
+            default: {
                 return <DesktopIcon />;
+            }
         }
     };
 
     const getViewportLabel = (mode: ViewportMode): string => {
         switch (mode) {
-            case 'mobile':
+            case 'mobile': {
                 return 'Mobile';
-            case 'tablet':
+            }
+            case 'tablet': {
                 return 'Tablet';
-            case 'desktop':
+            }
+            case 'desktop': {
                 return 'Desktop';
-            default:
+            }
+            default: {
                 return 'Desktop';
+            }
         }
     };
 
     const renderContent = () => {
         switch (renderMode) {
-            case 'iframe':
+            case 'iframe': {
                 // Handle SVG files differently than HTML files
                 if (file.fileType === 'svg') {
                     // For SVG files, wrap in HTML with proper viewport
@@ -338,7 +358,7 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                             onLoad={() => {
                                 setIsLoading(false);
                                 setHasError(false);
-                                console.log(`SVG Frame loaded: ${file.name}`);
+                                logger.info(`SVG Frame loaded: ${file.name}`);
                             }}
                             onError={e => {
                                 setIsLoading(false);
@@ -355,7 +375,7 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                     if (!nonce) {
                         return html;
                     }
-                    return html.replace(/<script/g, `<script nonce="${nonce}"`);
+                    return html.replaceAll('<script', `<script nonce="${nonce}"`);
                 };
 
                 // Inject viewport meta tag and CSP if we have viewport dimensions
@@ -405,7 +425,7 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                         const swUrl = URL.createObjectURL(blob);
                         
                         navigator.serviceWorker.register(swUrl).then(registration => {
-                            console.log('Service Worker registered successfully');
+                            logger.info('Service Worker registered successfully');
                             
                             // Wait for service worker to be active
                             if (registration.active) {
@@ -421,7 +441,7 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                                 });
                             }
                         }).catch(error => {
-                            console.log('Service Worker registration failed, falling back to direct loading');
+                            logger.info('Service Worker registration failed, falling back to direct loading');
                             processImages();
                         });
                     } else {
@@ -536,7 +556,7 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                         onLoad={() => {
                             setIsLoading(false);
                             setHasError(false);
-                            console.log(`Frame loaded: ${file.name} (${viewport})`);
+                            logger.info(`Frame loaded: ${file.name} (${viewport})`);
                         }}
                         onError={e => {
                             setIsLoading(false);
@@ -545,8 +565,9 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                         }}
                     />
                 );
+            }
 
-            case 'html':
+            case 'html': {
                 // Direct HTML/SVG rendering - USE WITH CAUTION (security risk)
                 // Only use for trusted content or when iframe fails
                 if (file.fileType === 'svg') {
@@ -585,9 +606,10 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                         title='⚠️ Direct HTML rendering - potential security risk'
                     />
                 );
+            }
 
             case 'placeholder':
-            default:
+            default: {
                 const placeholderIcon = file.fileType === 'svg' ? '🎨' : '🌐';
                 const placeholderHint =
                     file.fileType === 'svg' ? 'SVG Vector Graphics' : 'HTML Design';
@@ -615,6 +637,7 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                         )}
                     </div>
                 );
+            }
         }
     };
 
@@ -628,7 +651,7 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                 width: `${dimensions.width}px`,
                 height: `${dimensions.height}px`,
                 cursor: isDragging ? 'grabbing' : 'grab',
-                zIndex: isDragging ? 1000 : isSelected ? 10 : 1,
+                zIndex: isDragging ? 1000 : (isSelected ? 10 : 1),
                 opacity: isDragging ? 0.8 : 1,
             }}
             onClick={handleClick}
@@ -772,13 +795,13 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                             onClick={e => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                console.log(
+                                logger.info(
                                     'Dropdown toggle clicked. Current context:',
-                                    (window as any).__WEBVIEW_CONTEXT__
+                                    (globalThis as any).__WEBVIEW_CONTEXT__
                                 );
-                                console.log(
+                                logger.info(
                                     'Logo URIs available:',
-                                    (window as any).__WEBVIEW_CONTEXT__?.logoUris
+                                    (globalThis as any).__WEBVIEW_CONTEXT__?.logoUris
                                 );
                                 setShowCopyDropdown(!showCopyDropdown);
                             }}
@@ -812,19 +835,19 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                                     onClick={e => void handleCopyPrompt(e, 'cursor')}
                                 >
                                     <img
-                                        src={(window as any).__WEBVIEW_CONTEXT__?.logoUris?.cursor}
+                                        src={(globalThis as any).__WEBVIEW_CONTEXT__?.logoUris?.cursor}
                                         alt='Cursor'
                                         className='platform-logo'
                                         onError={e => {
                                             console.error(
                                                 'Failed to load Cursor logo:',
-                                                (window as any).__WEBVIEW_CONTEXT__?.logoUris
+                                                (globalThis as any).__WEBVIEW_CONTEXT__?.logoUris
                                                     ?.cursor
                                             );
                                             console.error('Image error event:', e);
                                         }}
                                         onLoad={() =>
-                                            console.log('Cursor logo loaded successfully')
+                                            logger.info('Cursor logo loaded successfully')
                                         }
                                     />
                                     <span>Cursor</span>
@@ -835,20 +858,20 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                                 >
                                     <img
                                         src={
-                                            (window as any).__WEBVIEW_CONTEXT__?.logoUris?.windsurf
+                                            (globalThis as any).__WEBVIEW_CONTEXT__?.logoUris?.windsurf
                                         }
                                         alt='Windsurf'
                                         className='platform-logo'
                                         onError={e => {
                                             console.error(
                                                 'Failed to load Windsurf logo:',
-                                                (window as any).__WEBVIEW_CONTEXT__?.logoUris
+                                                (globalThis as any).__WEBVIEW_CONTEXT__?.logoUris
                                                     ?.windsurf
                                             );
                                             console.error('Image error event:', e);
                                         }}
                                         onLoad={() =>
-                                            console.log('Windsurf logo loaded successfully')
+                                            logger.info('Windsurf logo loaded successfully')
                                         }
                                     />
                                     <span>Windsurf</span>
@@ -859,7 +882,7 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                                 >
                                     <img
                                         src={
-                                            (window as any).__WEBVIEW_CONTEXT__?.logoUris
+                                            (globalThis as any).__WEBVIEW_CONTEXT__?.logoUris
                                                 ?.claudeCode
                                         }
                                         alt='Claude Code'
@@ -867,13 +890,13 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                                         onError={e => {
                                             console.error(
                                                 'Failed to load Claude Code logo:',
-                                                (window as any).__WEBVIEW_CONTEXT__?.logoUris
+                                                (globalThis as any).__WEBVIEW_CONTEXT__?.logoUris
                                                     ?.claudeCode
                                             );
                                             console.error('Image error event:', e);
                                         }}
                                         onLoad={() =>
-                                            console.log('Claude Code logo loaded successfully')
+                                            logger.info('Claude Code logo loaded successfully')
                                         }
                                     />
                                     <span>Claude Code</span>
@@ -883,19 +906,19 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                                     onClick={e => void handleCopyPrompt(e, 'lovable')}
                                 >
                                     <img
-                                        src={(window as any).__WEBVIEW_CONTEXT__?.logoUris?.lovable}
+                                        src={(globalThis as any).__WEBVIEW_CONTEXT__?.logoUris?.lovable}
                                         alt='Lovable'
                                         className='platform-logo'
                                         onError={e => {
                                             console.error(
                                                 'Failed to load Lovable logo:',
-                                                (window as any).__WEBVIEW_CONTEXT__?.logoUris
+                                                (globalThis as any).__WEBVIEW_CONTEXT__?.logoUris
                                                     ?.lovable
                                             );
                                             console.error('Image error event:', e);
                                         }}
                                         onLoad={() =>
-                                            console.log('Lovable logo loaded successfully')
+                                            logger.info('Lovable logo loaded successfully')
                                         }
                                     />
                                     <span>Lovable</span>
@@ -905,17 +928,17 @@ const DesignFrame: React.FC<DesignFrameProps> = ({
                                     onClick={e => void handleCopyPrompt(e, 'bolt')}
                                 >
                                     <img
-                                        src={(window as any).__WEBVIEW_CONTEXT__?.logoUris?.bolt}
+                                        src={(globalThis as any).__WEBVIEW_CONTEXT__?.logoUris?.bolt}
                                         alt='Bolt'
                                         className='platform-logo'
                                         onError={e => {
                                             console.error(
                                                 'Failed to load Bolt logo:',
-                                                (window as any).__WEBVIEW_CONTEXT__?.logoUris?.bolt
+                                                (globalThis as any).__WEBVIEW_CONTEXT__?.logoUris?.bolt
                                             );
                                             console.error('Image error event:', e);
                                         }}
-                                        onLoad={() => console.log('Bolt logo loaded successfully')}
+                                        onLoad={() => logger.info('Bolt logo loaded successfully')}
                                     />
                                     <span>Bolt</span>
                                 </button>

@@ -150,12 +150,12 @@ function extractShadows(variables: Record<string, string>): Record<string, strin
         'shadow-2xl',
     ];
 
-    shadowKeys.forEach(key => {
-        const varKey = `--${key}`;
-        if (variables[varKey]) {
-            shadows[key] = variables[varKey];
+    for (const key of shadowKeys) {
+        const variableKey = `--${key}`;
+        if (variables[variableKey]) {
+            shadows[key] = variables[variableKey];
         }
-    });
+    }
 
     return shadows;
 }
@@ -329,26 +329,17 @@ export function extractColorPalette(
         { name: 'Primary Foreground', value: colors.primaryForeground, category: 'Brand' },
         { name: 'Secondary', value: colors.secondary, category: 'Brand' },
         { name: 'Secondary Foreground', value: colors.secondaryForeground, category: 'Brand' }
-    );
-
-    // Background colors
-    palette.push(
+    , 
         { name: 'Background', value: colors.background, category: 'Surface' },
         { name: 'Foreground', value: colors.foreground, category: 'Surface' },
         { name: 'Card', value: colors.card, category: 'Surface' },
         { name: 'Card Foreground', value: colors.cardForeground, category: 'Surface' }
-    );
-
-    // Interactive colors
-    palette.push(
+    , 
         { name: 'Accent', value: colors.accent, category: 'Interactive' },
         { name: 'Destructive', value: colors.destructive, category: 'Interactive' },
         { name: 'Border', value: colors.border, category: 'Interactive' },
         { name: 'Ring', value: colors.ring, category: 'Interactive' }
-    );
-
-    // Chart colors
-    palette.push(
+    , 
         { name: 'Chart 1', value: colors.chart1, category: 'Data' },
         { name: 'Chart 2', value: colors.chart2, category: 'Data' },
         { name: 'Chart 3', value: colors.chart3, category: 'Data' },

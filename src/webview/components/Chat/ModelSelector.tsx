@@ -2,14 +2,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import { BrainIcon } from '../Icons';
 import type { ModelConfigWithProvider, ProviderId } from '../../../providers/types';
 
-interface ModelSelectorProps {
+interface ModelSelectorProperties {
     selectedModel: string | undefined;
     onModelChange: (providerId: ProviderId, model: string) => void;
     disabled?: boolean;
     modelsWithProvider: ModelConfigWithProvider[];
 }
 
-const ModelSelector: React.FC<ModelSelectorProps> = ({
+const ModelSelector: React.FC<ModelSelectorProperties> = ({
     selectedModel,
     onModelChange,
     disabled,
@@ -18,8 +18,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
-    const triggerRef = useRef<HTMLButtonElement>(null);
-    const modalRef = useRef<HTMLDivElement>(null);
+    const triggerReference = useRef<HTMLButtonElement>(null);
+    const modalReference = useRef<HTMLDivElement>(null);
 
     const filteredModels = modelsWithProvider.filter(
         mp =>
@@ -33,11 +33,11 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
         'Loading...';
 
     const calculateDropdownPosition = () => {
-        if (!triggerRef.current) {
+        if (!triggerReference.current) {
             return;
         }
 
-        const triggerRect = triggerRef.current.getBoundingClientRect();
+        const triggerRect = triggerReference.current.getBoundingClientRect();
         const modalHeight = 190; // Reduced from 220 since we removed add models section
         const modalWidth = 240;
         const padding = 8;
@@ -68,10 +68,10 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (
-                modalRef.current &&
-                !modalRef.current.contains(event.target as Node) &&
-                triggerRef.current &&
-                !triggerRef.current.contains(event.target as Node)
+                modalReference.current &&
+                !modalReference.current.contains(event.target as Node) &&
+                triggerReference.current &&
+                !triggerReference.current.contains(event.target as Node)
             ) {
                 setIsOpen(false);
             }
@@ -332,7 +332,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
 
             <div className='model-selector-wrapper'>
                 <button
-                    ref={triggerRef}
+                    ref={triggerReference}
                     className='model-selector-trigger'
                     onClick={handleToggleOpen}
                     disabled={disabled}
@@ -362,7 +362,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
                     <div className='model-selector-modal'>
                         <div
                             className='model-selector-content'
-                            ref={modalRef}
+                            ref={modalReference}
                             style={{
                                 top: dropdownPosition.top,
                                 left: dropdownPosition.left,

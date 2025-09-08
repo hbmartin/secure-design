@@ -43,7 +43,7 @@ import {
 import { useLogger } from '../hooks/useLogger';
 import { useWebviewApi } from '../contexts/WebviewContext';
 
-interface CanvasViewProps {
+interface CanvasViewProperties {
     nonce: string | null;
 }
 
@@ -73,7 +73,7 @@ const CANVAS_CONFIG: CanvasConfig = {
     },
 };
 
-const CanvasView: React.FC<CanvasViewProps> = ({ nonce }) => {
+const CanvasView: React.FC<CanvasViewProperties> = ({ nonce }) => {
     const [designFiles, setDesignFiles] = useState<DesignFile[]>([]);
     const [selectedFrames, setSelectedFrames] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -94,7 +94,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ nonce }) => {
     const [layoutMode, setLayoutMode] = useState<LayoutMode>('grid');
     const [hierarchyTree, setHierarchyTree] = useState<HierarchyTree | null>(null);
     const [showConnections, setShowConnections] = useState(true);
-    const transformRef = useRef<ReactZoomPanPinchRef>(null);
+    const transformReference = useRef<ReactZoomPanPinchRef>(null);
     const { vscode } = useWebviewApi();
     const logger = useLogger('CanvasView');
 
@@ -111,7 +111,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ nonce }) => {
         canvasRect: DOMRect
     ): GridPosition => {
         // Get current transform state from the TransformWrapper
-        const transformState = transformRef.current?.instance?.transformState;
+        const transformState = transformReference.current?.instance?.transformState;
         const currentScale = transformState?.scale ?? 1;
         const currentTranslateX = transformState?.positionX ?? 0;
         const currentTranslateY = transformState?.positionY ?? 0;
@@ -136,8 +136,8 @@ const CanvasView: React.FC<CanvasViewProps> = ({ nonce }) => {
     };
 
     const handleFrameViewportChange = (fileName: string, viewport: ViewportMode) => {
-        setFrameViewports(prev => ({
-            ...prev,
+        setFrameViewports(previous => ({
+            ...previous,
             [fileName]: viewport,
         }));
     };
@@ -147,9 +147,9 @@ const CanvasView: React.FC<CanvasViewProps> = ({ nonce }) => {
         if (useGlobalViewport) {
             // Update all frames to the new global viewport
             const newFrameViewports: FrameViewportState = {};
-            designFiles.forEach(file => {
+            for (const file of designFiles) {
                 newFrameViewports[file.name] = viewport;
-            });
+            }
             setFrameViewports(newFrameViewports);
 
             // Update hierarchy positioning when viewport changes to adjust connection spacing
@@ -159,7 +159,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ nonce }) => {
                 let totalHeight = 0;
                 let frameCount = 0;
 
-                designFiles.forEach(_file => {
+                for (const _file of designFiles) {
                     const viewportDimensions = currentConfig.viewports[viewport] ?? {
                         width: currentConfig.frameSize.width,
                         height: currentConfig.frameSize.height,
@@ -167,7 +167,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ nonce }) => {
                     totalWidth += viewportDimensions.width;
                     totalHeight += viewportDimensions.height + 50; // Add header space
                     frameCount++;
-                });
+                }
 
                 const avgFrameDimensions =
                     frameCount > 0
@@ -194,9 +194,9 @@ const CanvasView: React.FC<CanvasViewProps> = ({ nonce }) => {
         if (newUseGlobal) {
             // Set all frames to current global viewport
             const newFrameViewports: FrameViewportState = {};
-            designFiles.forEach(file => {
+            for (const file of designFiles) {
                 newFrameViewports[file.name] = globalViewportMode;
-            });
+            }
             setFrameViewports(newFrameViewports);
         }
     };
@@ -241,13 +241,13 @@ const CanvasView: React.FC<CanvasViewProps> = ({ nonce }) => {
                     let totalHeight = 0;
                     let frameCount = 0;
 
-                    filesWithRelationships.forEach(file => {
+                    for (const file of filesWithRelationships) {
                         const frameViewport = getFrameViewport(file.name);
                         const viewportDimensions = currentConfig.viewports[frameViewport];
                         totalWidth += viewportDimensions.width;
                         totalHeight += viewportDimensions.height + 50; // Add header space
                         frameCount++;
-                    });
+                    }
 
                     const avgFrameDimensions =
                         frameCount > 0
@@ -268,23 +268,25 @@ const CanvasView: React.FC<CanvasViewProps> = ({ nonce }) => {
 
                     // Auto-center view after files are loaded
                     setTimeout(() => {
-                        if (transformRef.current) {
-                            transformRef.current.resetTransform();
+                        if (transformReference.current) {
+                            transformReference.current.resetTransform();
                         }
                     }, 100);
                     break;
                 }
-                case 'error':
+                case 'error': {
                     setError(message.data.error);
                     setIsLoading(false);
                     break;
+                }
 
-                case 'fileChanged':
+                case 'fileChanged': {
                     // Handle file system changes (will implement in Task 2.3)
                     logger.info('File changed:', message.data);
                     // Re-request files when changes occur
                     vscode.postMessage({ command: 'loadDesignFiles' });
                     break;
+                }
             }
         };
 
@@ -336,8 +338,8 @@ const CanvasView: React.FC<CanvasViewProps> = ({ nonce }) => {
 
     // Canvas control functions
     const handleZoomIn = useCallback(() => {
-        if (transformRef.current) {
-            const currentState = transformRef.current.instance?.transformState;
+        if (transformReference.current) {
+            const currentState = transformReference.current.instance?.transformState;
             logger.info('🔍 ZOOM IN - Before:', {
                 scale: currentState?.scale,
                 positionX: currentState?.positionX,
@@ -348,11 +350,11 @@ const CanvasView: React.FC<CanvasViewProps> = ({ nonce }) => {
                 smooth: false,
             });
 
-            transformRef.current.zoomIn(0.05);
+            transformReference.current.zoomIn(0.05);
 
             // Log after zoom (with small delay to capture the change)
             setTimeout(() => {
-                const newState = transformRef.current?.instance?.transformState;
+                const newState = transformReference.current?.instance?.transformState;
                 logger.info('🔍 ZOOM IN - After:', {
                     scale: newState?.scale,
                     positionX: newState?.positionX,
@@ -370,8 +372,8 @@ const CanvasView: React.FC<CanvasViewProps> = ({ nonce }) => {
     }, [logger]);
 
     const handleZoomOut = useCallback(() => {
-        if (transformRef.current) {
-            const currentState = transformRef.current.instance?.transformState;
+        if (transformReference.current) {
+            const currentState = transformReference.current.instance?.transformState;
             logger.info('🔍 ZOOM OUT - Before:', {
                 scale: currentState?.scale,
                 positionX: currentState?.positionX,
@@ -379,11 +381,11 @@ const CanvasView: React.FC<CanvasViewProps> = ({ nonce }) => {
                 step: 0.05,
             });
 
-            transformRef.current.zoomOut(0.05);
+            transformReference.current.zoomOut(0.05);
 
             // Log after zoom (with small delay to capture the change)
             setTimeout(() => {
-                const newState = transformRef.current?.instance?.transformState;
+                const newState = transformReference.current?.instance?.transformState;
                 logger.info('🔍 ZOOM OUT - After:', {
                     scale: newState?.scale,
                     positionX: newState?.positionX,
@@ -401,18 +403,18 @@ const CanvasView: React.FC<CanvasViewProps> = ({ nonce }) => {
     }, [logger]);
 
     const handleResetZoom = useCallback(() => {
-        if (transformRef.current) {
-            const currentState = transformRef.current.instance?.transformState;
+        if (transformReference.current) {
+            const currentState = transformReference.current.instance?.transformState;
             logger.info('🔍 RESET ZOOM - Before:', {
                 scale: currentState?.scale,
                 positionX: currentState?.positionX,
                 positionY: currentState?.positionY,
             });
 
-            transformRef.current.resetTransform();
+            transformReference.current.resetTransform();
 
             setTimeout(() => {
-                const newState = transformRef.current?.instance?.transformState;
+                const newState = transformReference.current?.instance?.transformState;
                 logger.info('🔍 RESET ZOOM - After:', {
                     scale: newState?.scale,
                     positionX: newState?.positionX,
@@ -422,13 +424,13 @@ const CanvasView: React.FC<CanvasViewProps> = ({ nonce }) => {
         }
     }, [logger]);
 
-    const handleTransformChange = (ref: ReactZoomPanPinchRef) => {
-        const state = ref.state;
+    const handleTransformChange = (reference: ReactZoomPanPinchRef) => {
+        const state = reference.state;
 
         // Prevent negative or zero scales
         if (state.scale <= 0) {
             console.error('🚨 INVALID SCALE DETECTED:', state.scale, '- Resetting to minimum');
-            ref.setTransform(state.positionX, state.positionY, 0.1);
+            reference.setTransform(state.positionX, state.positionY, 0.1);
             return;
         }
 
@@ -517,8 +519,8 @@ const CanvasView: React.FC<CanvasViewProps> = ({ nonce }) => {
             y: mousePos.y - dragState.offset.y,
         };
 
-        setDragState(prev => ({
-            ...prev,
+        setDragState(previous => ({
+            ...previous,
             currentPosition: newPosition,
         }));
     };
@@ -536,8 +538,8 @@ const CanvasView: React.FC<CanvasViewProps> = ({ nonce }) => {
         };
 
         // Save the new position
-        setCustomPositions(prev => ({
-            ...prev,
+        setCustomPositions(previous => ({
+            ...previous,
             [dragState.draggedFrame!]: snappedPosition,
         }));
 
@@ -604,24 +606,27 @@ const CanvasView: React.FC<CanvasViewProps> = ({ nonce }) => {
             if ((e.metaKey || e.ctrlKey) && !e.shiftKey) {
                 switch (e.key) {
                     case '=':
-                    case '+':
+                    case '+': {
                         e.preventDefault();
                         handleZoomIn();
                         break;
-                    case '-':
+                    }
+                    case '-': {
                         e.preventDefault();
                         handleZoomOut();
                         break;
-                    case '0':
+                    }
+                    case '0': {
                         e.preventDefault();
                         handleResetZoom();
                         break;
+                    }
                 }
             }
         };
 
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        globalThis.addEventListener('keydown', handleKeyDown);
+        return () => globalThis.removeEventListener('keydown', handleKeyDown);
     }, [logger, handleResetZoom, handleZoomIn, handleZoomOut]);
 
     if (isLoading) {
@@ -641,7 +646,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ nonce }) => {
                 <div className='error-message'>
                     <h3>Error loading canvas</h3>
                     <p>{error}</p>
-                    <button onClick={() => window.location.reload()}>Retry</button>
+                    <button onClick={() => globalThis.location.reload()}>Retry</button>
                 </div>
             </div>
         );
@@ -779,7 +784,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ nonce }) => {
 
             {/* Infinite Canvas */}
             <TransformWrapper
-                ref={transformRef}
+                ref={transformReference}
                 initialScale={1}
                 minScale={0.1} // Lower min scale to prevent negative values
                 maxScale={3} // Higher max scale for more zoom range
@@ -807,14 +812,14 @@ const CanvasView: React.FC<CanvasViewProps> = ({ nonce }) => {
                     step: 1, // Ultra-fine pinch steps
                 }}
                 centerOnInit
-                onTransformed={ref => handleTransformChange(ref)}
-                onZoom={ref => {
-                    const state = ref.state;
+                onTransformed={reference => handleTransformChange(reference)}
+                onZoom={reference => {
+                    const state = reference.state;
 
                     // Check for invalid scale and fix it
                     if (state.scale <= 0) {
                         console.error('🚨 ZOOM EVENT - Invalid scale:', state.scale, '- Fixing...');
-                        ref.setTransform(state.positionX, state.positionY, 0.1);
+                        reference.setTransform(state.positionX, state.positionY, 0.1);
                         return;
                     }
 
@@ -825,27 +830,27 @@ const CanvasView: React.FC<CanvasViewProps> = ({ nonce }) => {
                         event: 'onZoom',
                     });
                 }}
-                onPanning={ref => {
+                onPanning={reference => {
                     logger.info('👆 PAN EVENT:', {
-                        scale: ref.state.scale,
-                        positionX: ref.state.positionX,
-                        positionY: ref.state.positionY,
+                        scale: reference.state.scale,
+                        positionX: reference.state.positionX,
+                        positionY: reference.state.positionY,
                         event: 'onPanning',
                     });
                 }}
-                onZoomStart={ref => {
+                onZoomStart={reference => {
                     logger.info('🔍 ZOOM START:', {
-                        scale: ref.state.scale,
-                        positionX: ref.state.positionX,
-                        positionY: ref.state.positionY,
+                        scale: reference.state.scale,
+                        positionX: reference.state.positionX,
+                        positionY: reference.state.positionY,
                         event: 'onZoomStart',
                     });
                 }}
-                onZoomStop={ref => {
+                onZoomStop={reference => {
                     logger.info('🔍 ZOOM STOP:', {
-                        scale: ref.state.scale,
-                        positionX: ref.state.positionX,
-                        positionY: ref.state.positionY,
+                        scale: reference.state.scale,
+                        positionX: reference.state.positionX,
+                        positionY: reference.state.positionY,
                         event: 'onZoomStop',
                     });
                 }}

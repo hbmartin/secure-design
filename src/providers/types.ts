@@ -110,7 +110,7 @@ export function isProviderMetadataWithApiKey(
 /**
  * Provider instance creation parameters
  */
-export interface ProviderInstanceParams {
+export interface ProviderInstanceParameters {
     /** The model to use */
     model: string;
     /** Provider configuration */
@@ -204,7 +204,7 @@ export abstract class AIProvider {
      * @param params Provider instance parameters
      * @returns AI SDK model instance
      */
-    abstract createInstance(params: ProviderInstanceParams): LanguageModelV2;
+    abstract createInstance(parameters: ProviderInstanceParameters): LanguageModelV2;
 
     /**
      * Validate provider credentials

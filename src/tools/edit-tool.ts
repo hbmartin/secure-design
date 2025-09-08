@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { tool } from 'ai';
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import type { ExecutionContext } from '../types/agent';
 import {
     handleToolError,
@@ -51,7 +51,7 @@ interface CalculatedEdit {
  * Escape special regex characters
  */
 function escapeRegExp(string: string): string {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return string.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 }
 
 /**
@@ -93,7 +93,7 @@ function calculateEdit(
     try {
         currentContent = fs.readFileSync(absolutePath, 'utf8');
         // Normalize line endings to LF
-        currentContent = currentContent.replace(/\r\n/g, '\n');
+        currentContent = currentContent.replaceAll('\r\n', '\n');
     } catch (error) {
         return {
             currentContent: '',

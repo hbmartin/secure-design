@@ -31,8 +31,8 @@ function createActionDelegate(
             try {
                 const content = await getCssFileContent(filePath);
                 return { filePath, content };
-            } catch (e) {
-                return { filePath, error: e instanceof Error ? e.message : String(e) };
+            } catch (error) {
+                return { filePath, error: error instanceof Error ? error.message : String(error) };
             }
         },
         getCurrentProvider: function (): [ProviderId, string] {
@@ -113,16 +113,19 @@ export class ChatSidebarProvider extends BaseWebviewViewProvider<ChatSidebarActi
 
         // Handle special legacy messages that aren't yet migrated to the new API
         switch (message.command) {
-            case 'showContextPicker':
+            case 'showContextPicker': {
                 // Keep this until we have a proper UI component replacement
                 await this.handleShowContextPicker(webview);
                 break;
-            case 'log':
+            }
+            case 'log': {
                 break;
-            default:
+            }
+            default: {
                 // All other commands should now use the new API
                 this.logger.warn(`Received unmigrated legacy command: ${message.command}`, message);
                 break;
+            }
         }
 
         // Prepare context info for logging
@@ -254,18 +257,22 @@ export class ChatSidebarProvider extends BaseWebviewViewProvider<ChatSidebarActi
             }
 
             switch (selected.action) {
-                case 'selectFile':
+                case 'selectFile': {
                     await this.handleSelectFile(webview);
                     break;
-                case 'selectFolder':
+                }
+                case 'selectFolder': {
                     await this.handleSelectFolder(webview);
                     break;
-                case 'selectImages':
+                }
+                case 'selectImages': {
                     await this.handleSelectImages(webview);
                     break;
-                case 'canvasContent':
+                }
+                case 'canvasContent': {
                     await this.handleCanvasContent(webview);
                     break;
+                }
             }
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to show context picker: ${error}`);

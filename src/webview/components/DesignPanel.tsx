@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 
-interface DesignPanelProps {
+interface DesignPanelProperties {
     vscode: any;
 }
 
-const DesignPanel: React.FC<DesignPanelProps> = ({ vscode }) => {
+const DesignPanel: React.FC<DesignPanelProperties> = ({ vscode }) => {
     const [activeTab, setActiveTab] = useState('colors');
     const [colors, _setColors] = useState([
         { name: 'Primary', value: '#007ACC' },

@@ -11,7 +11,7 @@ export interface ViewAPI {
     // Utility operations
     showInformationMessage: (message: string) => void;
     showErrorMessage: (message: string) => void;
-    executeCommand: (command: string, args?: any) => Promise<void>;
+    executeCommand: (command: string, arguments_?: any) => Promise<void>;
 
     // Canvas operations
     checkCanvasStatus: () => Promise<boolean>;
@@ -105,57 +105,57 @@ export type ViewApiMessage = ViewApiRequest | ViewApiResponse | ViewApiError | V
 /**
  * Type guard to check if a message is a valid API request
  */
-export function isViewApiRequest(msg: any): msg is ViewApiRequest {
+export function isViewApiRequest(message: any): message is ViewApiRequest {
     return (
-        msg &&
-        typeof msg === 'object' &&
-        msg.type === 'request' &&
-        typeof msg.id === 'string' &&
-        typeof msg.key === 'string' &&
-        Array.isArray(msg.params) &&
-        (msg.context === undefined ||
-            (typeof msg.context === 'object' &&
-                typeof msg.context.viewId === 'string' &&
-                typeof msg.context.viewType === 'string' &&
-                typeof msg.context.timestamp === 'number'))
+        message &&
+        typeof message === 'object' &&
+        message.type === 'request' &&
+        typeof message.id === 'string' &&
+        typeof message.key === 'string' &&
+        Array.isArray(message.params) &&
+        (message.context === undefined ||
+            (typeof message.context === 'object' &&
+                typeof message.context.viewId === 'string' &&
+                typeof message.context.viewType === 'string' &&
+                typeof message.context.timestamp === 'number'))
     );
 }
 
 /**
  * Type guard to check if a message is a valid API response
  */
-export function isViewApiResponse(msg: any): msg is ViewApiResponse {
+export function isViewApiResponse(message: any): message is ViewApiResponse {
     return (
-        msg &&
-        typeof msg === 'object' &&
-        msg.type === 'response' &&
-        typeof msg.id === 'string' &&
-        msg.hasOwnProperty('value')
+        message &&
+        typeof message === 'object' &&
+        message.type === 'response' &&
+        typeof message.id === 'string' &&
+        message.hasOwnProperty('value')
     );
 }
 
 /**
  * Type guard to check if a message is a valid API error
  */
-export function isViewApiError(msg: any): msg is ViewApiError {
+export function isViewApiError(message: any): message is ViewApiError {
     return (
-        msg &&
-        typeof msg === 'object' &&
-        msg.type === 'error' &&
-        typeof msg.id === 'string' &&
-        typeof msg.value === 'string'
+        message &&
+        typeof message === 'object' &&
+        message.type === 'error' &&
+        typeof message.id === 'string' &&
+        typeof message.value === 'string'
     );
 }
 
 /**
  * Type guard to check if a message is a valid API event
  */
-export function isViewApiEvent(msg: any): msg is ViewApiEvent {
+export function isViewApiEvent(message: any): message is ViewApiEvent {
     return (
-        msg &&
-        typeof msg === 'object' &&
-        msg.type === 'event' &&
-        typeof msg.key === 'string' &&
-        Array.isArray(msg.value)
+        message &&
+        typeof message === 'object' &&
+        message.type === 'event' &&
+        typeof message.key === 'string' &&
+        Array.isArray(message.value)
     );
 }

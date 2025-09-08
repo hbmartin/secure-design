@@ -53,7 +53,7 @@ export class ProviderRegistry implements IProviderRegistry {
      * @returns Array of all registered providers
      */
     getAllProviders(): AIProvider[] {
-        return Array.from(this.providers.values());
+        return [...this.providers.values()];
     }
 
     /**
@@ -61,7 +61,7 @@ export class ProviderRegistry implements IProviderRegistry {
      * @returns Array of all model configurations with provider info
      */
     getAllModels(): Array<ModelConfigWithProvider> {
-        return Array.from(this.providers.entries()).flatMap(([providerId, provider]) =>
+        return [...this.providers.entries()].flatMap(([providerId, provider]) =>
             provider.models.map(model => ({
                 model,
                 provider: this.getProviderMetadata(providerId),
@@ -112,7 +112,7 @@ export class ProviderRegistry implements IProviderRegistry {
      * @returns Array of registered provider IDs
      */
     getProviderIds(): ProviderId[] {
-        return Array.from(this.providers.keys());
+        return [...this.providers.keys()];
     }
 
     /**
@@ -121,7 +121,7 @@ export class ProviderRegistry implements IProviderRegistry {
      * @returns Array of providers that support the feature
      */
     findProvidersByFeature(featureCheck: (provider: AIProvider) => boolean): AIProvider[] {
-        return Array.from(this.providers.values()).filter(featureCheck);
+        return [...this.providers.values()].filter(featureCheck);
     }
 
     /**

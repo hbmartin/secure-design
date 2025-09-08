@@ -8,7 +8,7 @@ import {
     type WebviewKey,
     PATCH,
     type ActionDelegate,
-    type FnKeys,
+    type FnKeys as FunctionKeys,
     type Patches,
     type Patch,
 } from '../types/ipcReducer';
@@ -84,12 +84,12 @@ export abstract class BaseWebviewViewProvider<A extends object>
             if (isMyActionMessage<A>(message, this.providerId)) {
                 this.logger.debug('Received action message from webview', message);
 
-                const delegateFn = this.webviewActionDelegate[message.key];
-                if (typeof delegateFn !== 'function') {
-                    throw new Error(`Unknown action key: ${String(message.key)}`);
+                const delegateFunction = this.webviewActionDelegate[message.key];
+                if (typeof delegateFunction !== 'function') {
+                    throw new TypeError(`Unknown action key: ${String(message.key)}`);
                 }
 
-                const patch = await delegateFn(...message.params);
+                const patch = await delegateFunction(...message.params);
 
                 this._view?.webview.postMessage({
                     type: PATCH,
@@ -110,7 +110,7 @@ export abstract class BaseWebviewViewProvider<A extends object>
         });
     }
 
-    public postPatch<K extends FnKeys<A> = FnKeys<A>>(key: K, patch: Patches<A>[K]) {
+    public postPatch<K extends FunctionKeys<A> = FunctionKeys<A>>(key: K, patch: Patches<A>[K]) {
         this._view?.webview.postMessage({
             type: PATCH,
             providerId: this.providerId,

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { tool } from 'ai';
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import type { ExecutionContext } from '../types/agent';
 import {
     handleToolError,
@@ -66,26 +66,26 @@ function globToRegex(pattern: string, caseSensitive: boolean = false): RegExp {
 
     // Handle brace expansion like {js,ts,jsx}
     const braceRegex = /\{([^}]+)\}/g;
-    regexPattern = regexPattern.replace(braceRegex, (_, content) => {
+    regexPattern = regexPattern.replaceAll(braceRegex, (_, content) => {
         const options = content.split(',').map((s: string) => s.trim());
         return `(${options.join('|')})`;
     });
 
     // Escape regex special characters except glob chars
     regexPattern = regexPattern
-        .replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape special regex chars except *, ?, and already handled {}
-        .replace(/\\\{/g, '{') // Restore { that we want to keep
-        .replace(/\\\}/g, '}') // Restore } that we want to keep
-        .replace(/\\\|/g, '|') // Restore | that we want to keep
-        .replace(/\\\(/g, '(') // Restore ( that we want to keep
-        .replace(/\\\)/g, ')'); // Restore ) that we want to keep
+        .replaceAll(/[.+^${}()|[\]\\]/g, String.raw`\$&`) // Escape special regex chars except *, ?, and already handled {}
+        .replaceAll(String.raw`\{`, '{') // Restore { that we want to keep
+        .replaceAll(String.raw`\}`, '}') // Restore } that we want to keep
+        .replaceAll(String.raw`\|`, '|') // Restore | that we want to keep
+        .replaceAll(String.raw`\(`, '(') // Restore ( that we want to keep
+        .replaceAll(String.raw`\)`, ')'); // Restore ) that we want to keep
 
     // Handle glob patterns
     regexPattern = regexPattern
-        .replace(/\*\*/g, '###DOUBLESTAR###') // Temporarily replace **
-        .replace(/\*/g, '[^/]*') // * becomes [^/]* (match any chars except path separator)
-        .replace(/###DOUBLESTAR###/g, '.*') // ** becomes .* (match any chars including path separator)
-        .replace(/\?/g, '[^/]'); // ? becomes [^/] (match single char except path separator)
+        .replaceAll('**', '###DOUBLESTAR###') // Temporarily replace **
+        .replaceAll('*', '[^/]*') // * becomes [^/]* (match any chars except path separator)
+        .replaceAll('###DOUBLESTAR###', '.*') // ** becomes .* (match any chars including path separator)
+        .replaceAll('?', '[^/]'); // ? becomes [^/] (match single char except path separator)
 
     const flags = caseSensitive ? '' : 'i';
     return new RegExp(`^${regexPattern}$`, flags);
@@ -207,7 +207,7 @@ function sortResults(results: GlobFileEntry[], sortByTime: boolean): GlobFileEnt
     }
 
     // Sort by modification time (newest first) with recent files prioritized
-    const oneDayAgo = new Date().getTime() - 24 * 60 * 60 * 1000;
+    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
 
     return results.sort((a, b) => {
         const aTime = a.modifiedTime.getTime();
@@ -239,17 +239,17 @@ export function createGlobTool(context: ExecutionContext) {
         description:
             'Find files and directories matching glob patterns (e.g., "*.js", "src/**/*.ts"). Efficient for locating files by name or path structure.',
         inputSchema: globParametersSchema,
-        execute: async (params): Promise<ToolResponse> => {
+        execute: async (parameters): Promise<ToolResponse> => {
             try {
                 const {
                     pattern,
                     path: searchPath = '.',
                     case_sensitive = false,
-                    include_dirs = false,
+                    include_dirs: include_directories = false,
                     show_hidden = false,
                     max_results = 500,
                     sort_by_time = false,
-                } = params;
+                } = parameters;
 
                 // Validate workspace path (handles both absolute and relative paths)
                 const pathError = validateWorkspacePath(searchPath, context);
@@ -273,7 +273,7 @@ export function createGlobTool(context: ExecutionContext) {
 
                 // Find matching files
                 const matches = await findMatches(absolutePath, regex, {
-                    includeDirs: include_dirs,
+                    includeDirs: include_directories,
                     showHidden: show_hidden,
                     maxResults: max_results,
                 });
