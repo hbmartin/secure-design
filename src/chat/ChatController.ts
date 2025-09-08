@@ -192,18 +192,17 @@ export class ChatController implements ViewAPI {
         }
     };
 
-    openCanvas = async (): Promise<void> => {
-        this.logger.debug('Opening canvas');
-        await vscode.commands.executeCommand('securedesign.openCanvas');
-    };
-
     initializeSecuredesign = async (): Promise<void> => {
         this.logger.debug('Initializing Securedesign project');
         await vscode.commands.executeCommand('securedesign.initializeProject');
     };
 
     async sendChatMessage(prompt: string | Array<TextPart | ImagePart | FilePart>): Promise<void> {
-        void this.openCanvas();
+        try {
+            void vscode.commands.executeCommand('securedesign.openCanvas');
+        } catch (error) {
+            this.logger.error('Failed to auto-open canvas on sending message', { error });
+        }
         await this.chatMessagesRepository.appendMessage({
             role: 'user',
             content: prompt,

@@ -1354,7 +1354,6 @@ export function activate(context: vscode.ExtensionContext): void {
     // Set up message handler for auto-canvas functionality
     sidebarProvider.setMessageHandler(message => {
         switch (message.command) {
-
             case 'autoOpenCanvas':
                 // Auto-open canvas if not already open
                 SuperdesignCanvasPanel.createOrShow(context.extensionUri, sidebarProvider);

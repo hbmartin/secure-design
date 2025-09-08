@@ -626,7 +626,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             document.removeEventListener('drop', dropWrapper);
             document.removeEventListener('paste', pasteWrapper);
         };
-    }, [chatHistory, handleImageUpload, showWelcome, api, logger]);
+    }, [chatHistory, isChatHistoryLoading, handleImageUpload, showWelcome, api, logger]);
 
     const renderChatMessage = (msg: ChatMessage, index: number) => {
         // Helper function to extract text content from CoreMessage
