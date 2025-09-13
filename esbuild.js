@@ -1,4 +1,5 @@
 const esbuild = require('esbuild');
+const path = require('path');
 
 const production = process.argv.includes('--production');
 const watch = process.argv.includes('--watch');
@@ -65,6 +66,9 @@ async function main() {
         },
         jsx: 'automatic', // This enables JSX support
         keepNames: debug, // Preserve function names for better stack traces
+        alias: {
+            react: path.resolve(__dirname, './node_modules/react'),
+        },
     });
 
     if (watch) {

@@ -3,8 +3,8 @@ import {
     isViewApiResponse,
     isViewApiError,
     isViewApiEvent,
-    type ViewAPI,
-    type ViewEvents,
+    type ChatViewAPI,
+    type ChatViewEvents,
     type ViewApiRequest,
     type RequestContext,
 } from '../../api/viewApi';
@@ -66,10 +66,12 @@ function generateId(): string {
  */
 interface WebviewContextValue {
     api: {
-        [K in keyof ViewAPI]: (...args: Parameters<ViewAPI[K]>) => ReturnType<ViewAPI[K]>;
+        [K in keyof ChatViewAPI]: (
+            ...args: Parameters<ChatViewAPI[K]>
+        ) => ReturnType<ChatViewAPI[K]>;
     };
-    addListener: <E extends keyof ViewEvents>(key: E, callback: ViewEvents[E]) => void;
-    removeListener: <E extends keyof ViewEvents>(key: E, callback: ViewEvents[E]) => void;
+    addListener: <E extends keyof ChatViewEvents>(key: E, callback: ChatViewEvents[E]) => void;
+    removeListener: <E extends keyof ChatViewEvents>(key: E, callback: ChatViewEvents[E]) => void;
     isReady: boolean;
     vscode: VsCodeApi;
 }
@@ -98,7 +100,7 @@ const vscodeApi = acquireVsCodeApi();
  */
 export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) => {
     const pendingRequests = useRef<Map<string, DeferredPromise<any>>>(new Map());
-    const listeners = useRef<Map<keyof ViewEvents, Set<(...args: any[]) => void>>>(new Map());
+    const listeners = useRef<Map<keyof ChatViewEvents, Set<(...args: any[]) => void>>>(new Map());
 
     // Generate context for this webview instance
     const contextRef = useRef<RequestContext>({
@@ -111,12 +113,12 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
     /**
      * Type-safe API caller with request/response matching
      */
-    const callApi = <K extends keyof ViewAPI>(
+    const callApi = <K extends keyof ChatViewAPI>(
         key: K,
-        ...params: Parameters<ViewAPI[K]>
-    ): ReturnType<ViewAPI[K]> => {
+        ...params: Parameters<ChatViewAPI[K]>
+    ): ReturnType<ChatViewAPI[K]> => {
         const id = generateId();
-        const deferred = new DeferredPromise<Awaited<ReturnType<ViewAPI[K]>>>(key);
+        const deferred = new DeferredPromise<Awaited<ReturnType<ChatViewAPI[K]>>>(key);
 
         const request: ViewApiRequest<K> = {
             type: 'request',
@@ -166,7 +168,7 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
             deferred.reject(error instanceof Error ? error : new Error(String(error)));
         }
 
-        return deferred.promise as ReturnType<ViewAPI[K]>;
+        return deferred.promise as ReturnType<ChatViewAPI[K]>;
     };
 
     /**
@@ -177,8 +179,8 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
             return (...args: any[]) => {
                 // Type assertion is safe here because the proxy ensures correct typing at usage
                 return callApi(
-                    key as keyof ViewAPI,
-                    ...(args as Parameters<ViewAPI[keyof ViewAPI]>)
+                    key as keyof ChatViewAPI,
+                    ...(args as Parameters<ChatViewAPI[keyof ChatViewAPI]>)
                 );
             };
         },
@@ -187,7 +189,10 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
     /**
      * Add an event listener with type safety
      */
-    const addListener = <E extends keyof ViewEvents>(key: E, callback: ViewEvents[E]): void => {
+    const addListener = <E extends keyof ChatViewEvents>(
+        key: E,
+        callback: ChatViewEvents[E]
+    ): void => {
         if (!listeners.current.has(key)) {
             listeners.current.set(key, new Set());
         }
@@ -197,7 +202,10 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
     /**
      * Remove an event listener
      */
-    const removeListener = <E extends keyof ViewEvents>(key: E, callback: ViewEvents[E]): void => {
+    const removeListener = <E extends keyof ChatViewEvents>(
+        key: E,
+        callback: ChatViewEvents[E]
+    ): void => {
         listeners.current.get(key)?.delete(callback as (...args: any[]) => void);
     };
 

@@ -29,6 +29,18 @@ export class WorkspaceStateService {
         return context.workspaceState.update(workspaceKey, value);
     }
 
+    public secureGet(key: string): Thenable<string | undefined> {
+        return this.ensureContext().secrets.get(key);
+    }
+
+    public secureSet(key: string, value: string): Thenable<void> {
+        return this.ensureContext().secrets.store(key, value);
+    }
+
+    public secureRemove(key: string): Thenable<void> {
+        return this.ensureContext().secrets.delete(key);
+    }
+
     /**
      * Get a unique identifier for the current workspace
      * This ID is stable regardless of folder order in multi-root workspaces

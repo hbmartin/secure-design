@@ -6,21 +6,25 @@ import type ChatMessagesRepository from './ChatMessagesRepository';
 import type { ChatMessage } from '../types/chatMessage';
 import { getLogger, Logger } from '../services/logger';
 import type { VsCodeConfiguration, ProviderId } from '../providers/types';
-import type { ViewEvents, ViewAPI } from '../api/viewApi';
+import type { ChatViewEvents, ChatViewAPI } from '../api/viewApi';
 import type { TextPart, ImagePart, FilePart } from '@ai-sdk/provider-utils';
+import { assertRecordStringString } from 'ai-sdk-react-model-picker';
 
 /**
  * Interface for event triggering capability to avoid circular dependencies
  */
 export interface EventTrigger {
-    triggerEvent<E extends keyof ViewEvents>(key: E, ...params: Parameters<ViewEvents[E]>): void;
+    triggerEvent<E extends keyof ChatViewEvents>(
+        key: E,
+        ...params: Parameters<ChatViewEvents[E]>
+    ): void;
 }
 
 /**
  * ChatController handles all chat-related business logic and coordinates between services.
  * This separates business logic from the API provider and makes the system more testable.
  */
-export class ChatController implements ViewAPI {
+export class ChatController implements ChatViewAPI {
     private currentRequestController?: AbortController;
     private readonly logger = getLogger('ChatController');
 
@@ -31,6 +35,28 @@ export class ChatController implements ViewAPI {
         private readonly eventTrigger: EventTrigger,
         private readonly chatMessagesRepository: ChatMessagesRepository
     ) {}
+
+    // The followuing 3 functions implement StorageAdapter for securely storing provider keys
+    get(key: string): PromiseLike<Record<string, string> | undefined> {
+        return this.workspaceState.secureGet(key).then(result => {
+            if (result !== undefined) {
+                try {
+                    const parsed = JSON.parse(result);
+                    assertRecordStringString(parsed as unknown);
+                    return parsed;
+                } catch (error) {
+                    this.logger.error(`Could not retrieve secure key ${key}`, { error });
+                }
+            }
+            return undefined;
+        });
+    }
+    set(key: string, value: Record<string, string>): PromiseLike<void> {
+        return this.workspaceState.secureSet(key, JSON.stringify(value));
+    }
+    remove(key: string): PromiseLike<void> {
+        return this.workspaceState.secureRemove(key);
+    }
 
     selectFile = async (): Promise<string | null> => {
         this.logger.info('API: selectFile called');
