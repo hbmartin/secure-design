@@ -1,7 +1,7 @@
 import type * as vscode from 'vscode';
 import { getLogger } from '../services/logger';
 import type { EventTrigger } from '../chat/ChatController';
-import type { RequestContext, ViewApiEvent, ViewEvents } from '../api/viewApi';
+import type { RequestContext, ViewApiEvent, ChatViewEvents } from '../api/viewApi';
 
 /**
  * WebviewApiProvider implements the type-safe API contract between host and webviews.
@@ -21,7 +21,10 @@ export class WebviewApiProvider implements vscode.Disposable, EventTrigger {
      * Type-safe event triggering to all connected webviews
      * Prunes failing webviews to prevent unbounded growth and repeated failures
      */
-    triggerEvent<E extends keyof ViewEvents>(key: E, ...params: Parameters<ViewEvents[E]>): void {
+    triggerEvent<E extends keyof ChatViewEvents>(
+        key: E,
+        ...params: Parameters<ChatViewEvents[E]>
+    ): void {
         const event: ViewApiEvent<E> = {
             type: 'event',
             key,

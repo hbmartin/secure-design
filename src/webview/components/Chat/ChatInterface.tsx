@@ -28,6 +28,8 @@ import type {
     ToolResultPart,
 } from '@ai-sdk/provider-utils';
 import { isToolCallPart, isToolResultPart } from '../../utils/chatUtils';
+import { createDefaultRegistry, ModelSelect, type StorageAdapter } from 'ai-sdk-react-model-picker';
+import mpStyles from 'ai-sdk-react-model-picker/styles.css';
 
 interface ChatInterfaceProps {
     layout: WebviewLayout;
@@ -111,6 +113,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         null
     );
     const [showWelcome, setShowWelcome] = useState<boolean>(false);
+    const storage: StorageAdapter = {
+        get: (key: string): PromiseLike<Record<string, string> | undefined> => api.get(key),
+        set: (key: string, value: Record<string, string>) => api.set(key, value),
+        remove: (key: string): PromiseLike<void> => api.remove(key),
+    };
 
     // Drag and drop state
     const [uploadingImages, setUploadingImages] = useState<string[]>([]);
@@ -180,6 +187,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             welcomeStyleElement.id = welcomeStyleId;
             welcomeStyleElement.textContent = welcomeStyles;
             document.head.appendChild(welcomeStyleElement);
+        }
+
+        const mpStyleId = 'mp-styles';
+        let mpStyleElement = document.getElementById(mpStyleId) as HTMLStyleElement;
+
+        if (!mpStyleElement) {
+            mpStyleElement = document.createElement('style');
+            mpStyleElement.id = mpStyleId;
+            mpStyleElement.textContent = mpStyles;
+            document.head.appendChild(mpStyleElement);
         }
 
         // Listen for context messages and other events
@@ -1341,6 +1358,25 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                         <div className='input-controls'>
                             <div className='selectors-group'>
                                 <div className='selector-wrapper'>
+                                    <ModelSelect
+                                        storage={storage}
+                                        providerRegistry={createDefaultRegistry()}
+                                        selectedModelId={
+                                            state.provider !== undefined
+                                                ? (state.provider[1] as any)
+                                                : undefined
+                                        }
+                                        onModelChange={mcwp => console.log(mcwp)}
+                                        onConfigureProviders={() =>
+                                            api.showInformationMessage(
+                                                'Re-configuring provider settings is not implemented yet'
+                                            )
+                                        }
+                                    />
+                                </div>
+                            </div>
+                            <div className='selectors-group'>
+                                <div className='selector-wrapper'>
                                     <ModelSelector
                                         selectedModel={
                                             state.provider !== undefined
@@ -1397,37 +1433,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                         <path d='M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z' />
                                     </svg>
                                 </button>
-                                <button
-                                    className='clear-history-btn'
-                                    onClick={() => {
-                                        console.log('clearchathistory button clicked');
-                                        void handleNewConversation();
-                                    }}
-                                    disabled={
-                                        isChatHistoryLoading ||
-                                        showWelcome ||
-                                        !hasConversationMessages
-                                    }
-                                    title='Clear chat history'
-                                >
-                                    <svg
-                                        width='12'
-                                        height='12'
-                                        viewBox='0 0 16 16'
-                                        fill='currentColor'
-                                    >
-                                        <path d='M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z' />
-                                        <path
-                                            fillRule='evenodd'
-                                            d='M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z'
-                                        />
-                                    </svg>
-                                </button>
                                 {/* Todo: this should detect whether streaming is ongoing */}
                                 {isChatHistoryLoading ? (
                                     <button
                                         onClick={() => {
-                                            // Stop functionality can be added later
+                                            // TODO: Add Stop functionality
                                             logger.debug('Stop requested');
                                         }}
                                         className='send-btn stop-btn'

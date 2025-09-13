@@ -132,7 +132,7 @@ export class ChatSidebarProvider extends BaseWebviewViewProvider<ChatSidebarActi
 
         // Log request context for debugging and analytics (except for log messages to avoid infinite loop)
         if (message.key !== 'log') {
-            this.logger.debug(`Handling API request: ${message.key} ${contextInfo}`);
+            this.logger.debug(`Handling API request: ${message.key} ${message.params}`);
         }
 
         // Check if this is a new API message format
