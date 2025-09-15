@@ -1,14 +1,12 @@
 import * as vscode from 'vscode';
 import type { AgentService } from '../types/agent';
 import type { WorkspaceStateService } from '../services/workspaceStateService';
-import type { ProviderService } from '../providers/ProviderService';
 import type ChatMessagesRepository from './ChatMessagesRepository';
 import type { ChatMessage } from '../types/chatMessage';
 import { getLogger, Logger } from '../services/logger';
-import type { VsCodeConfiguration, ProviderId } from '../providers/types';
 import type { ChatViewEvents, ChatViewAPI } from '../api/viewApi';
 import type { TextPart, ImagePart, FilePart } from '@ai-sdk/provider-utils';
-import { assertRecordStringString } from 'ai-sdk-react-model-picker';
+import { SecureStorageService } from '../services/secureStorageService';
 
 /**
  * Interface for event triggering capability to avoid circular dependencies
@@ -24,38 +22,17 @@ export interface EventTrigger {
  * ChatController handles all chat-related business logic and coordinates between services.
  * This separates business logic from the API provider and makes the system more testable.
  */
-export class ChatController implements ChatViewAPI {
+export class ChatController extends SecureStorageService implements ChatViewAPI {
     private currentRequestController?: AbortController;
     private readonly logger = getLogger('ChatController');
 
     constructor(
         private readonly agentService: AgentService,
-        private readonly workspaceState: WorkspaceStateService,
-        private readonly providerService: ProviderService,
         private readonly eventTrigger: EventTrigger,
-        private readonly chatMessagesRepository: ChatMessagesRepository
-    ) {}
-
-    // The followuing 3 functions implement StorageAdapter for securely storing provider keys
-    get(key: string): PromiseLike<Record<string, string> | undefined> {
-        return this.workspaceState.secureGet(key).then(result => {
-            if (result !== undefined) {
-                try {
-                    const parsed = JSON.parse(result);
-                    assertRecordStringString(parsed as unknown);
-                    return parsed;
-                } catch (error) {
-                    this.logger.error(`Could not retrieve secure key ${key}`, { error });
-                }
-            }
-            return undefined;
-        });
-    }
-    set(key: string, value: Record<string, string>): PromiseLike<void> {
-        return this.workspaceState.secureSet(key, JSON.stringify(value));
-    }
-    remove(key: string): PromiseLike<void> {
-        return this.workspaceState.secureRemove(key);
+        private readonly chatMessagesRepository: ChatMessagesRepository,
+        workspaceState: WorkspaceStateService
+    ) {
+        super(workspaceState);
     }
 
     selectFile = async (): Promise<string | null> => {
@@ -310,88 +287,6 @@ export class ChatController implements ChatViewAPI {
         } else {
             Logger.info('No active chat request to stop');
         }
-    }
-
-    /**
-     * Change provider configuration
-     */
-    async changeProvider(
-        providerId: string,
-        model: string
-    ): Promise<{ success: boolean; provider: string; model: string }> {
-        Logger.info(`[ChatController] Starting changeProvider: ${providerId}, ${model}`);
-
-        try {
-            const config = vscode.workspace.getConfiguration('securedesign');
-
-            // Update configuration
-            Logger.debug('[ChatController] Updating aiModelProvider configuration');
-            await config.update('aiModelProvider', providerId, vscode.ConfigurationTarget.Global);
-
-            Logger.debug('[ChatController] Updating aiModel configuration');
-            await config.update('aiModel', model, vscode.ConfigurationTarget.Global);
-
-            // Validate credentials
-            Logger.debug('[ChatController] Validating provider credentials');
-            const providerConfig: VsCodeConfiguration = {
-                config: config,
-                logger: Logger,
-            };
-
-            const validation = this.providerService.validateCredentialsForProvider(
-                providerId as ProviderId,
-                providerConfig
-            );
-
-            if (!validation.isValid) {
-                Logger.warn(
-                    '[ChatController] Provider credentials not valid, showing warning dialog'
-                );
-                const providerMetadata = this.providerService.getProviderMetadata(
-                    providerId as ProviderId
-                );
-                const displayName = `${providerMetadata.name} (${this.providerService.getModelDisplayName(model, providerId as ProviderId)})`;
-
-                const result = await vscode.window.showWarningMessage(
-                    `${displayName} selected, but credentials are not configured. Would you like to configure them now?`,
-                    'Configure Credentials',
-                    'Later'
-                );
-
-                if (result === 'Configure Credentials') {
-                    Logger.debug('[ChatController] User chose to configure credentials');
-                    await vscode.commands.executeCommand(providerMetadata.configureCommand);
-                }
-            } else {
-                Logger.debug('[ChatController] Provider credentials are valid');
-            }
-
-            // Trigger provider changed event
-            Logger.debug('[ChatController] Triggering providerChanged event');
-            this.eventTrigger.triggerEvent('providerChanged', providerId, model);
-
-            Logger.info(
-                `[ChatController] Successfully changed provider to: ${providerId}, ${model}`
-            );
-
-            return {
-                success: true,
-                provider: providerId,
-                model: model,
-            };
-        } catch (error) {
-            Logger.error('[ChatController] changeProvider failed:', {
-                error: error instanceof Error ? error.message : String(error),
-            });
-            throw error; // Re-throw to propagate the error
-        }
-    }
-
-    /**
-     * Get workspace state service for history operations
-     */
-    getWorkspaceState(): WorkspaceStateService {
-        return this.workspaceState;
     }
 
     /**

@@ -45,41 +45,6 @@
   "contributes": {
     "commands": [
       {
-        "command": "securedesign.configureApiKey",
-        "title": "Configure Anthropic API Key",
-        "category": "Securedesign"
-      },
-      {
-        "command": "securedesign.configureOpenAIApiKey",
-        "title": "Configure OpenAI API Key",
-        "category": "Securedesign"
-      },
-      {
-        "command": "securedesign.configureOpenAIUrl",
-        "title": "Configure OpenAI url",
-        "category": "Securedesign"
-      },
-      {
-        "command": "securedesign.configureOpenRouterApiKey",
-        "title": "Configure OpenRouter API Key",
-        "category": "Securedesign"
-      },
-      {
-        "command": "securedesign.configureGoogleApiKey",
-        "title": "Configure Google API Key",
-        "category": "Securedesign"
-      },
-      {
-        "command": "securedesign.configureAWSBedrock",
-        "title": "Configure AWS Bedrock",
-        "category": "Securedesign"
-      },
-      {
-        "command": "securedesign.configureMoonshotApiKey",
-        "title": "Configure Moonshot API Key",
-        "category": "Securedesign"
-      },
-      {
         "command": "securedesign.showChatSidebar",
         "title": "Show Chat Sidebar",
         "category": "Securedesign"
@@ -160,60 +125,14 @@
     "configuration": {
       "title": "Securedesign",
       "properties": {
-        "securedesign.anthropicApiKey": {
-          "type": "string",
-          "description": "Anthropic API key for Claude Code integration",
-          "scope": "application"
-        },
-        "securedesign.openaiApiKey": {
-          "type": "string",
-          "description": "OpenAI API key for custom agent",
-          "scope": "application"
-        },
-        "securedesign.openaiUrl": {
-          "type": "string",
-          "description": "OpenAI url for custom agent",
-          "scope": "application"
-        },
-        "securedesign.openrouterApiKey": {
-          "type": "string",
-          "description": "OpenRouter API key for custom agent",
-          "scope": "application"
-        },
-        "securedesign.googleApiKey": {
-          "type": "string",
-          "description": "Google API key for Gemini models.",
-          "scope": "application"
-        },
         "securedesign.aiModelProvider": {
           "type": "string",
           "description": "AI model provider for custom agent",
           "scope": "application"
         },
-        "securedesign.moonshotApiKey": {
-          "type": "string",
-          "description": "Moonshot AI API key for Kimi K2 integration",
-          "scope": "application"
-        },
         "securedesign.aiModel": {
           "type": "string",
           "description": "Specific AI model to use (e.g., gpt-4o, claude-3-5-sonnet-20241022)",
-          "scope": "application"
-        },
-        "securedesign.awsAccessKeyId": {
-          "type": "string",
-          "description": "AWS Access Key ID for Bedrock integration",
-          "scope": "application"
-        },
-        "securedesign.awsSecretAccessKey": {
-          "type": "string",
-          "description": "AWS Secret Access Key for Bedrock integration",
-          "scope": "application"
-        },
-        "securedesign.awsRegion": {
-          "type": "string",
-          "default": "us-east-1",
-          "description": "AWS region for Bedrock services",
           "scope": "application"
         }
       }

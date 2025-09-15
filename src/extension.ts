@@ -6,9 +6,7 @@ import type { WebviewApiProvider } from './providers/WebviewApiProvider';
 import { ServiceContainer } from './di/ServiceContainer';
 import { Logger } from './services/logger';
 import { WorkspaceStateService } from './services/workspaceStateService';
-import { ProviderService } from './providers/ProviderService';
 import { WebviewMessageGuard } from './services/webviewMessageGuard';
-import { registerProviderCommands } from './providerConfiguration';
 import { SuperdesignCanvasPanel } from './SuperdesignCanvasPanel';
 import type ChatMessagesRepository from './chat/ChatMessagesRepository';
 
@@ -1252,8 +1250,6 @@ export function activate(context: vscode.ExtensionContext): void {
     const serviceContainer = new ServiceContainer(context);
     serviceContainer.initialize();
 
-    ProviderService.getInstance();
-
     // Get services from container
     const apiProvider = serviceContainer.get<WebviewApiProvider>('apiProvider');
     const sidebarProvider = serviceContainer.get<ChatSidebarProvider>('sidebarProvider');
@@ -1408,7 +1404,6 @@ export function activate(context: vscode.ExtensionContext): void {
     });
 
     context.subscriptions.push(
-        ...registerProviderCommands(),
         serviceContainer,
         apiProvider,
         sidebarDisposable,

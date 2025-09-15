@@ -1,7 +1,6 @@
 import type * as vscode from 'vscode';
 import { CustomAgentService } from '../services/customAgentService';
 import { WorkspaceStateService } from '../services/workspaceStateService';
-import { ProviderService } from '../providers/ProviderService';
 import { ChatController } from '../chat/ChatController';
 import ChatMessagesRepository from '../chat/ChatMessagesRepository';
 import { WebviewApiProvider } from '../providers/WebviewApiProvider';
@@ -25,11 +24,9 @@ export class ServiceContainer implements vscode.Disposable {
 
         // Initialize base services first
         const workspaceStateService = WorkspaceStateService.getInstance();
-        const providerService = ProviderService.getInstance();
-        const customAgent = new CustomAgentService();
+        const customAgent = new CustomAgentService(workspaceStateService);
 
         this.services.set('workspaceStateService', workspaceStateService);
-        this.services.set('providerService', providerService);
         this.services.set('customAgent', customAgent);
 
         // Initialize repository
@@ -42,10 +39,9 @@ export class ServiceContainer implements vscode.Disposable {
         // Create ChatController with apiProvider as EventTrigger
         const chatController = new ChatController(
             customAgent,
-            workspaceStateService,
-            providerService,
             apiProvider, // apiProvider implements EventTrigger interface
-            chatMessagesRepository
+            chatMessagesRepository,
+            workspaceStateService
         );
         this.services.set('chatController', chatController);
 

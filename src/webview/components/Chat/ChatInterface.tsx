@@ -7,11 +7,8 @@ import MarkdownRenderer from '../MarkdownRenderer';
 import { TaskIcon, CheckIcon, LightBulbIcon } from '../Icons';
 import Welcome from '../Welcome';
 import ThemePreviewCard from './ThemePreviewCard';
-import ModelSelector from './ModelSelector';
 import chatStyles from './ChatInterface.css';
-
 import welcomeStyles from '../Welcome/Welcome.css';
-import { ProviderService, type ProviderId } from '../../../providers';
 import { useLogger } from '../../hooks/useLogger';
 import { useVscodeState } from '../../hooks/useVscodeState';
 import {
@@ -28,7 +25,7 @@ import type {
     ToolResultPart,
 } from '@ai-sdk/provider-utils';
 import { isToolCallPart, isToolResultPart } from '../../utils/chatUtils';
-import { createDefaultRegistry, ModelSelect, type StorageAdapter } from 'ai-sdk-react-model-picker';
+import { createDefaultRegistry, ModelSelect } from 'ai-sdk-react-model-picker';
 import mpStyles from 'ai-sdk-react-model-picker/styles.css';
 
 interface ChatInterfaceProps {
@@ -64,24 +61,6 @@ const postReducer: StateReducer<ChatSidebarState, ChatSidebarActions> = {
             messages: [],
         };
     },
-    getCurrentProvider: function (
-        prevState: ChatSidebarState,
-        patch: [ProviderId, string]
-    ): ChatSidebarState {
-        return {
-            ...prevState,
-            provider: [patch[0], patch[1]],
-        };
-    },
-    setProvider: function (
-        prevState: ChatSidebarState,
-        patch: [ProviderId, string]
-    ): ChatSidebarState {
-        return {
-            ...prevState,
-            provider: [patch[0], patch[1]],
-        };
-    },
     sendChatMessage: function (prevState: ChatSidebarState, _: void): ChatSidebarState {
         return prevState;
     },
@@ -96,8 +75,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         {
             css: {},
             messages: undefined,
-            provider: undefined,
-            availableModels: ProviderService.getInstance().getAvailableModels(),
         } satisfies ChatSidebarState
     );
 
@@ -113,11 +90,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         null
     );
     const [showWelcome, setShowWelcome] = useState<boolean>(false);
-    const storage: StorageAdapter = {
+    const storage = useRef({
         get: (key: string): PromiseLike<Record<string, string> | undefined> => api.get(key),
         set: (key: string, value: Record<string, string>) => api.set(key, value),
         remove: (key: string): PromiseLike<void> => api.remove(key),
-    };
+    });
 
     // Drag and drop state
     const [uploadingImages, setUploadingImages] = useState<string[]>([]);
@@ -130,10 +107,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         () => [state.messages, (state.messages?.length ?? 0) > 0, state.messages === undefined],
         [state]
     );
-
-    const handleModelChange = async (providerId: ProviderId, modelId: string) => {
-        await actor.setProvider(providerId, modelId);
-    };
 
     const handleNewConversation = useCallback(async () => {
         // Clear UI state immediately for responsive UX
@@ -162,7 +135,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
     // Load initial chat history when component mounts
     useEffect(() => {
         actor.loadChats();
-        actor.getCurrentProvider();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -254,6 +226,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             const existingWelcomeStyle = document.getElementById(welcomeStyleId);
             if (existingWelcomeStyle) {
                 document.head.removeChild(existingWelcomeStyle);
+            }
+            const existingMpStyle = document.getElementById(mpStyleId);
+            if (existingMpStyle) {
+                document.head.removeChild(existingMpStyle);
             }
         };
     }, [api, handleNewConversation, resetFirstTimeUser, logger]);
@@ -1359,39 +1335,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                             <div className='selectors-group'>
                                 <div className='selector-wrapper'>
                                     <ModelSelect
-                                        storage={storage}
+                                        storage={storage.current}
                                         providerRegistry={createDefaultRegistry()}
-                                        selectedModelId={
-                                            state.provider !== undefined
-                                                ? (state.provider[1] as any)
-                                                : undefined
-                                        }
                                         onModelChange={mcwp => console.log(mcwp)}
-                                        onConfigureProviders={() =>
-                                            api.showInformationMessage(
-                                                'Re-configuring provider settings is not implemented yet'
-                                            )
-                                        }
                                     />
                                 </div>
                             </div>
-                            <div className='selectors-group'>
-                                <div className='selector-wrapper'>
-                                    <ModelSelector
-                                        selectedModel={
-                                            state.provider !== undefined
-                                                ? state.provider[1]
-                                                : undefined
-                                        }
-                                        onModelChange={(providerId, model) => {
-                                            void handleModelChange(providerId, model);
-                                        }}
-                                        disabled={isChatHistoryLoading || showWelcome}
-                                        modelsWithProvider={state.availableModels}
-                                    />
-                                </div>
-                            </div>
-
                             <div className='input-actions'>
                                 <button
                                     className='attach-btn'

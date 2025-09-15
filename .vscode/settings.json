@@ -12,5 +12,8 @@
     "typescript.tsc.autoDetect": "off",
     "eslint.enable": true,
     "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "eslint.useFlatConfig": true,
+    "eslint.workingDirectories": [{ "mode": "auto" }],
+    "typescript.tsdk": "node_modules/typescript/lib"
 }
