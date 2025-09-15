@@ -15,5 +15,22 @@
       "Bash(npx eslint:*)"
     ],
     "deny": []
+  },
+    "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npm run format"
+          },
+          {
+            "type": "command",
+            "command": "npm run check-types"
+          }
+        ]
+      }
+    ]
   }
 }

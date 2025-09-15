@@ -1,6 +1,7 @@
+import type { StorageAdapter } from 'ai-sdk-react-model-picker';
 import type { ChatMessage } from '../types/chatMessage';
 
-export interface ViewAPI {
+export interface ChatViewAPI extends StorageAdapter {
     stopChat: () => void;
 
     // Context operations
@@ -31,7 +32,7 @@ export interface ViewAPI {
  * Events that can be triggered by the host and listened to by webviews
  * These represent notifications/updates flowing from host to webview
  */
-export interface ViewEvents {
+export interface ChatViewEvents {
     // Chat events
     chatStreamStart: () => void;
     chatStreamEnd: () => void;
@@ -70,18 +71,18 @@ export interface RequestContext {
 /**
  * Internal message types for request/response communication
  */
-export interface ViewApiRequest<K extends keyof ViewAPI = keyof ViewAPI> {
+export interface ViewApiRequest<K extends keyof ChatViewAPI = keyof ChatViewAPI> {
     type: 'request';
     id: string;
     key: K;
-    params: Parameters<ViewAPI[K]>;
+    params: Parameters<ChatViewAPI[K]>;
     context?: RequestContext;
 }
 
-export interface ViewApiResponse<K extends keyof ViewAPI = keyof ViewAPI> {
+export interface ViewApiResponse<K extends keyof ChatViewAPI = keyof ChatViewAPI> {
     type: 'response';
     id: string;
-    value: Awaited<ReturnType<ViewAPI[K]>>;
+    value: Awaited<ReturnType<ChatViewAPI[K]>>;
 }
 
 export interface ViewApiError {
@@ -90,10 +91,10 @@ export interface ViewApiError {
     value: string;
 }
 
-export interface ViewApiEvent<E extends keyof ViewEvents = keyof ViewEvents> {
+export interface ViewApiEvent<E extends keyof ChatViewEvents = keyof ChatViewEvents> {
     type: 'event';
     key: E;
-    value: Parameters<ViewEvents[E]>;
+    value: Parameters<ChatViewEvents[E]>;
 }
 
 export type ViewApiMessage = ViewApiRequest | ViewApiResponse | ViewApiError | ViewApiEvent;
