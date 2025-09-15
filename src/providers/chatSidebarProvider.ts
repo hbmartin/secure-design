@@ -10,8 +10,6 @@ import { type ChatSidebarActions, ChatSidebarKey } from '../types/chatSidebarTyp
 import { type ActionDelegate } from '../types/ipcReducer';
 import type { ChatMessage } from '../types';
 import getCssFileContent from '../chat/getCssFileContent';
-import type { ProviderId } from './types';
-import { getModel, setModel } from './VsCodeConfiguration';
 import type { TextPart, ImagePart, FilePart } from '@ai-sdk/provider-utils';
 
 function createActionDelegate(
@@ -34,17 +32,6 @@ function createActionDelegate(
             } catch (e) {
                 return { filePath, error: e instanceof Error ? e.message : String(e) };
             }
-        },
-        getCurrentProvider: function (): [ProviderId, string] {
-            const currentModel = getModel();
-            return [currentModel.provider.id, currentModel.model.id];
-        },
-        setProvider: async function (
-            providerId: ProviderId,
-            modelId: string
-        ): Promise<[ProviderId, string]> {
-            await setModel(providerId, modelId);
-            return [providerId, modelId];
         },
         sendChatMessage: function (prompt: string | (TextPart | ImagePart | FilePart)[]) {
             void chatController.sendChatMessage(prompt);

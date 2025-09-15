@@ -2,8 +2,6 @@ import { type FilePart, streamText, type TextPart } from 'ai';
 import type { LanguageModelV2 } from '@ai-sdk/provider';
 import * as vscode from 'vscode';
 import type { AgentService, ExecutionContext } from '../types/agent';
-import type { VsCodeConfiguration } from '../providers/types';
-import { ProviderService } from '../providers/ProviderService';
 import { getLogger } from './logger';
 import { createReadTool } from '../tools/read-tool';
 import { createWriteTool } from '../tools/write-tool';
@@ -14,11 +12,13 @@ import { createGrepTool } from '../tools/grep-tool';
 import { createThemeTool } from '../tools/theme-tool';
 import { createLsTool } from '../tools/ls-tool';
 import { createMultieditTool } from '../tools/multiedit-tool';
-import { getModel, getProvider } from '../providers/VsCodeConfiguration';
 import * as os from 'os';
 import type { ChatMessage } from '../types/chatMessage';
 import type { ReasoningPart, ToolCallPart, ToolResultPart } from '@ai-sdk/provider-utils';
 import { guessToolResultOutput } from './chunkToolOutputToMessageToolOutput';
+import type { WorkspaceStateService } from './workspaceStateService';
+import { getSdkLanguageModel } from 'ai-sdk-react-model-picker';
+import { SecureStorageService } from './secureStorageService';
 
 const extractErrorMessage = (error: unknown): string => {
     if (error === null || error === undefined) {
@@ -42,15 +42,15 @@ const extractErrorMessage = (error: unknown): string => {
 
 export class CustomAgentService implements AgentService {
     private workingDirectory: string = '';
-    private readonly providerService: ProviderService;
     private isInitialized = false;
     private readonly logger = getLogger('CustomAgentService');
+    private readonly storage: SecureStorageService;
 
-    constructor() {
-        this.providerService = ProviderService.getInstance();
+    constructor(workspaceStateService: WorkspaceStateService) {
         this.setupWorkingDirectory().catch(error => {
             this.logger.info(`Error in setupWorkingDirectory: ${error}`);
         });
+        this.storage = new SecureStorageService(workspaceStateService);
     }
 
     private async setupWorkingDirectory() {
@@ -121,15 +121,6 @@ export class CustomAgentService implements AgentService {
             this.logger.info(`Working directory set to (final fallback): ${this.workingDirectory}`);
             this.isInitialized = true;
         }
-    }
-
-    private getModel(): LanguageModelV2 {
-        const modelToUse = getModel();
-
-        return this.providerService.createModel(modelToUse.model.id, modelToUse.provider.id, {
-            config: vscode.workspace.getConfiguration('securedesign'),
-            logger: getLogger('cAS Provider'),
-        });
     }
 
     private getSystemPrompt(): string {
@@ -545,8 +536,9 @@ I've created the html design, please reveiw and let me know if you need any chan
                 generateTheme: createThemeTool(executionContext),
             };
 
+            const model: LanguageModelV2 = await getSdkLanguageModel(this.storage);
             const result = streamText({
-                model: this.getModel(),
+                model,
                 system: this.getSystemPrompt(),
                 messages: conversationHistory,
                 tools: tools,
@@ -816,23 +808,6 @@ I've created the html design, please reveiw and let me know if you need any chan
 
     getWorkingDirectory(): string {
         return this.workingDirectory;
-    }
-
-    hasApiKey(): boolean {
-        const provider = getProvider();
-
-        // Create provider configuration
-        const providerConfig: VsCodeConfiguration = {
-            config: vscode.workspace.getConfiguration('securedesign'),
-            logger: getLogger('hasAPIKey'),
-        };
-
-        // Use provider service to check credentials
-        const validation = this.providerService.validateCredentialsForProvider(
-            provider,
-            providerConfig
-        );
-        return validation.isValid;
     }
 
     isApiKeyAuthError(errorMessage: string): boolean {

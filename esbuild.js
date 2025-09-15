@@ -68,6 +68,7 @@ async function main() {
         keepNames: debug, // Preserve function names for better stack traces
         alias: {
             react: path.resolve(__dirname, './node_modules/react'),
+            'react/jsx-runtime': path.resolve(__dirname, './node_modules/react/jsx-runtime.js'),
         },
     });
 

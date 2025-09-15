@@ -8,7 +8,6 @@ export interface AgentService {
         onMessage: (prev: ChatMessage[]) => void
     ): Promise<ChatMessage[]>;
 
-    hasApiKey(): boolean;
     isApiKeyAuthError(errorMessage: string): boolean;
 }
 
