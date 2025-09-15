@@ -275,7 +275,7 @@
     "typescript": "^5.9.2"
   },
   "dependencies": {
-    "@ai-sdk/amazon-bedrock": "^3.0.19",
+    "@ai-sdk/amazon-bedrock": "^3.0.21",
     "@ai-sdk/anthropic": "^2.0.15",
     "@ai-sdk/google": "^2.0.13",
     "@ai-sdk/openai": "^2.0.28",
