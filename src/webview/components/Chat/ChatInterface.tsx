@@ -713,7 +713,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 messageClass = 'user';
                 break;
             case 'assistant':
-                messageLabel = 'Claude';
+                messageLabel = 'AI';
                 messageClass = 'assistant';
                 break;
             case 'system':
@@ -1127,6 +1127,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             void api.executeCommand(action.command, action.args);
         };
 
+        // TODO: implement this
         const handleCloseError = () => {
             // Since we can't directly modify chat history anymore,
             // we'll just hide the error message visually
@@ -1217,7 +1218,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         >
             {layout === 'panel' && (
                 <header className='chat-header'>
-                    <h2>💬 Chat with Claude</h2>
+                    <h2>💬 Chat with SecureDesign</h2>
                     <p>Ask Claude anything about code, design, or development!</p>
                     <button
                         className='new-conversation-btn'

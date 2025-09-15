@@ -215,11 +215,6 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
     useEffect(() => {
         const handleMessage = (event: MessageEvent<any>) => {
             const message = event.data;
-            console.log('[WebviewContext] Received message:', {
-                type: message.type,
-                id: message.id,
-                key: message.key,
-            });
 
             if (isViewApiResponse(message)) {
                 const deferred = pendingRequests.current.get(message.id);
