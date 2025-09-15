@@ -250,7 +250,7 @@
     "@types/chai": "^5.2.2",
     "@types/mime-types": "^3.0.1",
     "@types/mocha": "^10.0.10",
-    "@types/node": "20.19.1",
+    "@types/node": "24.4.0",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",
     "@types/sinon": "^17.0.4",
