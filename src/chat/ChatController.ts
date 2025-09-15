@@ -32,7 +32,7 @@ export class ChatController extends SecureStorageService implements ChatViewAPI 
         private readonly chatMessagesRepository: ChatMessagesRepository,
         workspaceState: WorkspaceStateService
     ) {
-        super(workspaceState);
+        super(workspaceState.secrets());
     }
 
     selectFile = async (): Promise<string | null> => {
@@ -258,13 +258,7 @@ export class ChatController extends SecureStorageService implements ChatViewAPI 
             if (this.agentService.isApiKeyAuthError?.(errorMessage)) {
                 // TODO: open the correct config for the given AI provider
                 Logger.error('API key authentication error detected');
-                this.eventTrigger.triggerEvent('chatError', errorMessage, [
-                    {
-                        text: 'Open Settings',
-                        command: 'workbench.action.openSettings',
-                        args: '@ext:HaroldMartin.securedesign',
-                    },
-                ]);
+                vscode.window.showErrorMessage(`Chat failed: ${error}`);
             } else {
                 // Regular error - show standard error message
                 vscode.window.showErrorMessage(`Chat failed: ${error}`);

@@ -665,7 +665,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                     >
                         {layout === 'panel' && (
                             <div className='chat-message__header'>
-                                <span className='chat-message__label'>Claude</span>
+                                <span className='chat-message__label'>AI</span>
                                 {msg.metadata && (
                                     <span className='chat-message__metadata'>
                                         {msg.metadata.start_time !== undefined &&
@@ -1337,7 +1337,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                     <ModelSelect
                                         storage={storage.current}
                                         providerRegistry={createDefaultRegistry()}
-                                        onModelChange={mcwp => console.log(mcwp)}
                                     />
                                 </div>
                             </div>

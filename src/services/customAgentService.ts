@@ -50,7 +50,7 @@ export class CustomAgentService implements AgentService {
         this.setupWorkingDirectory().catch(error => {
             this.logger.info(`Error in setupWorkingDirectory: ${error}`);
         });
-        this.storage = new SecureStorageService(workspaceStateService);
+        this.storage = new SecureStorageService(workspaceStateService.secrets());
     }
 
     private async setupWorkingDirectory() {
@@ -542,6 +542,7 @@ I've created the html design, please reveiw and let me know if you need any chan
                 system: this.getSystemPrompt(),
                 messages: conversationHistory,
                 tools: tools,
+                abortSignal: abortController.signal,
             });
 
             this.logger.info('AI SDK streamText created, starting to process chunks...');

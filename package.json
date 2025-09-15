@@ -2,7 +2,7 @@
   "name": "securedesign",
   "displayName": "securedesign",
   "description": "The 1st Design Agent lives inside your IDE",
-  "version": "0.0.18",
+  "version": "0.1.0",
   "publisher": "HaroldMartin",
   "icon": "icon.png",
   "repository": {
@@ -37,7 +37,6 @@
     "automation"
   ],
   "activationEvents": [
-    "onCommand:securedesign.openSettings",
     "onCommand:securedesign.openCanvas",
     "onView:securedesign.chatView"
   ],
@@ -59,7 +58,7 @@
         "command": "securedesign.clearChatHistory",
         "title": "Clear Chat",
         "category": "Securedesign",
-        "icon": "$(clear-all)"
+        "icon": "$(trash)"
       },
       {
         "command": "securedesign.resetWelcome",
@@ -72,10 +71,10 @@
         "category": "Securedesign"
       },
       {
-        "command": "securedesign.openSettings",
-        "title": "Open Settings",
+        "command": "securedesign.reportBug",
+        "title": "Report Bug",
         "category": "Securedesign",
-        "icon": "$(settings-gear)"
+        "icon": "$(bug)"
       },
       {
         "command": "securedesign.dumpWorkspaceState",
@@ -92,12 +91,12 @@
           "group": "navigation"
         },
         {
-          "command": "securedesign.openSettings",
+          "command": "securedesign.clearChatHistory",
           "when": "view == securedesign.chatView",
           "group": "navigation"
         },
         {
-          "command": "securedesign.clearChatHistory",
+          "command": "securedesign.reportBug",
           "when": "view == securedesign.chatView",
           "group": "navigation"
         }
@@ -121,21 +120,6 @@
           "icon": "icon.svg"
         }
       ]
-    },
-    "configuration": {
-      "title": "Securedesign",
-      "properties": {
-        "securedesign.aiModelProvider": {
-          "type": "string",
-          "description": "AI model provider for custom agent",
-          "scope": "application"
-        },
-        "securedesign.aiModel": {
-          "type": "string",
-          "description": "Specific AI model to use (e.g., gpt-4o, claude-3-5-sonnet-20241022)",
-          "scope": "application"
-        }
-      }
     }
   },
   "scripts": {
@@ -174,8 +158,8 @@
     "@types/react-dom": "^19.1.9",
     "@types/sinon": "^17.0.4",
     "@types/vscode": "1.99.1",
-    "@typescript-eslint/eslint-plugin": "^8.43.0",
-    "@typescript-eslint/parser": "^8.43.0",
+    "@typescript-eslint/eslint-plugin": "^8.44.0",
+    "@typescript-eslint/parser": "^8.44.0",
     "@vscode/test-cli": "^0.0.11",
     "@vscode/test-electron": "^2.5.2",
     "chai": "^5.3.3",
@@ -194,13 +178,13 @@
     "typescript": "^5.9.2"
   },
   "dependencies": {
-    "@ai-sdk/amazon-bedrock": "^3.0.20",
-    "@ai-sdk/anthropic": "^2.0.16",
+    "@ai-sdk/amazon-bedrock": "^3.0.22",
+    "@ai-sdk/anthropic": "^2.0.17",
     "@ai-sdk/google": "^2.0.14",
     "@ai-sdk/openai": "^2.0.30",
     "@openrouter/ai-sdk-provider": "^1.2.0",
     "ai": "^5.0.44",
-    "ai-sdk-react-model-picker": "^0.1.4",
+    "ai-sdk-react-model-picker": "^0.1.7",
     "execa": "^9.6.0",
     "glob": "^11.0.3",
     "highlight.js": "^11.11.1",

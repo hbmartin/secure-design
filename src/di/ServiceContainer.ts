@@ -22,7 +22,7 @@ export class ServiceContainer implements vscode.Disposable {
     initialize(): void {
         Logger.info('Initializing ServiceContainer...');
 
-        // Initialize base services first
+        // WSS is initialized in extension.ts
         const workspaceStateService = WorkspaceStateService.getInstance();
         const customAgent = new CustomAgentService(workspaceStateService);
 

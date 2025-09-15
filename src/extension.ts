@@ -1336,16 +1336,11 @@ export function activate(context: vscode.ExtensionContext): void {
         }
     );
 
-    // Register open settings command
-    const openSettingsDisposable = vscode.commands.registerCommand(
-        'securedesign.openSettings',
-        () => {
-            vscode.commands.executeCommand(
-                'workbench.action.openSettings',
-                '@ext:HaroldMartin.securedesign'
-            );
-        }
-    );
+    const reportBugDisposable = vscode.commands.registerCommand('securedesign.reportBug', () => {
+        vscode.env.openExternal(
+            vscode.Uri.parse('https://github.com/hbmartin/secure-design/issues')
+        );
+    });
 
     // Set up message handler for auto-canvas functionality
     sidebarProvider.setMessageHandler(message => {
@@ -1413,8 +1408,8 @@ export function activate(context: vscode.ExtensionContext): void {
         clearChatDisposable,
         resetWelcomeDisposable,
         initializeProjectDisposable,
-        openSettingsDisposable,
-        workspaceChangeDisposable
+        workspaceChangeDisposable,
+        reportBugDisposable
     );
 
     context.subscriptions.push(

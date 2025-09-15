@@ -222,17 +222,11 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
             });
 
             if (isViewApiResponse(message)) {
-                // Handle API response
                 const deferred = pendingRequests.current.get(message.id);
-                if (deferred) {
-                    console.log(
-                        `[WebviewContext] Processing response for request ${message.id} for ${deferred.key}`
-                    );
+                if (deferred !== undefined) {
                     deferred.clearTimeout(); // Clear timeout to prevent race condition
                     pendingRequests.current.delete(message.id);
                     deferred.resolve(message.value);
-                } else {
-                    console.warn(`No pending request found for response ID: ${message.id}`);
                 }
             } else if (isViewApiError(message)) {
                 // Handle API error
@@ -256,10 +250,6 @@ export const WebviewProvider: React.FC<WebviewProviderProps> = ({ children }) =>
                             console.error('Error in event listener for %s:', message.key, error);
                         }
                     });
-                } else {
-                    console.log(
-                        `[WebviewContext] No listeners registered for event: ${String(message.key)}`
-                    );
                 }
             } else if (message && typeof message === 'object' && 'providerId' in message) {
                 // No-op, handled by new IPC system

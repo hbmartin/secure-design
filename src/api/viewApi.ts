@@ -82,7 +82,7 @@ export interface ViewApiRequest<K extends keyof ChatViewAPI = keyof ChatViewAPI>
 export interface ViewApiResponse<K extends keyof ChatViewAPI = keyof ChatViewAPI> {
     type: 'response';
     id: string;
-    value: Awaited<ReturnType<ChatViewAPI[K]>>;
+    value?: Awaited<ReturnType<ChatViewAPI[K]>>;
 }
 
 export interface ViewApiError {
@@ -123,11 +123,11 @@ export function isViewApiRequest(msg: any): msg is ViewApiRequest {
  */
 export function isViewApiResponse(msg: any): msg is ViewApiResponse {
     return (
-        msg &&
+        msg !== null &&
+        msg !== undefined &&
         typeof msg === 'object' &&
         msg.type === 'response' &&
-        typeof msg.id === 'string' &&
-        msg.hasOwnProperty('value')
+        typeof msg.id === 'string'
     );
 }
 
