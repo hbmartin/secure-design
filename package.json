@@ -67,7 +67,7 @@
       },
       {
         "command": "securedesign.initializeProject",
-        "title": "Initialize Securedesign",
+        "title": "Initialize SecureDesign",
         "category": "Securedesign"
       },
       {
@@ -116,7 +116,7 @@
       "activitybar": [
         {
           "id": "securedesign-sidebar",
-          "title": "Securedesign",
+          "title": "SecureDesign",
           "icon": "icon.svg"
         }
       ]
@@ -184,7 +184,7 @@
     "@ai-sdk/openai": "^2.0.30",
     "@openrouter/ai-sdk-provider": "^1.2.0",
     "ai": "^5.0.44",
-    "ai-sdk-react-model-picker": "^0.1.7",
+    "ai-sdk-react-model-picker": "^0.1.8",
     "execa": "^9.6.0",
     "glob": "^11.0.3",
     "highlight.js": "^11.11.1",
