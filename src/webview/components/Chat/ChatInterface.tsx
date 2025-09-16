@@ -370,7 +370,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             logger.debug('🚀 Successfully initialized Securedesign');
         } catch (error) {
             console.error('Failed to initialize Securedesign:', error);
-            api.showErrorMessage('Failed to initialize Securedesign');
+            api.showErrorMessage('Failed to initialize SecureDesign');
         }
     };
 
@@ -665,7 +665,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                     >
                         {layout === 'panel' && (
                             <div className='chat-message__header'>
-                                <span className='chat-message__label'>Claude</span>
+                                <span className='chat-message__label'>AI</span>
                                 {msg.metadata && (
                                     <span className='chat-message__metadata'>
                                         {msg.metadata.start_time !== undefined &&
@@ -713,7 +713,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 messageClass = 'user';
                 break;
             case 'assistant':
-                messageLabel = 'Claude';
+                messageLabel = 'AI';
                 messageClass = 'assistant';
                 break;
             case 'system':
@@ -1127,6 +1127,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             void api.executeCommand(action.command, action.args);
         };
 
+        // TODO: implement this
         const handleCloseError = () => {
             // Since we can't directly modify chat history anymore,
             // we'll just hide the error message visually
@@ -1196,12 +1197,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                     <p>
                         <strong>Cursor/Windsurf/Claude Code rules already added</strong>, prompt
                         Cursor/Windsurf/Claude Code to design UI like{' '}
-                        <kbd>Help me design a calculator UI</kbd> and preview the UI in Securedesign
+                        <kbd>Help me design a calculator UI</kbd> and preview the UI in SecureDesign
                         canvas by <kbd>Cmd+Shift+P</kbd>{' '}
-                        <code>&apos;Securedesign: Open canvas view&apos;</code>
+                        <code>&apos;SecureDesign: Open canvas view&apos;</code>
                     </p>
                     <div className='empty-state-divider'>OR</div>
-                    <p>Start now by prompting Securedesign.</p>
+                    <p>Start now by prompting SecureDesign.</p>
                 </div>
             </div>
         </div>
@@ -1217,8 +1218,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         >
             {layout === 'panel' && (
                 <header className='chat-header'>
-                    <h2>💬 Chat with Claude</h2>
-                    <p>Ask Claude anything about code, design, or development!</p>
+                    <h2>💬 Chat with SecureDesign</h2>
+                    <p>Ask anything about code, design, or development!</p>
                     <button
                         className='new-conversation-btn'
                         onClick={() => void handleNewConversation()}
@@ -1337,7 +1338,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                     <ModelSelect
                                         storage={storage.current}
                                         providerRegistry={createDefaultRegistry()}
-                                        onModelChange={mcwp => console.log(mcwp)}
                                     />
                                 </div>
                             </div>

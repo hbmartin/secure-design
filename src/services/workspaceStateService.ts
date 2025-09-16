@@ -17,6 +17,10 @@ export class WorkspaceStateService {
         this.context = context;
     }
 
+    public secrets(): vscode.SecretStorage {
+        return this.ensureContext().secrets;
+    }
+
     public get<T>(key: string): T | undefined {
         const context = this.ensureContext();
         const workspaceKey = this.getNamespacedKey(key);
@@ -27,18 +31,6 @@ export class WorkspaceStateService {
         const context = this.ensureContext();
         const workspaceKey = this.getNamespacedKey(key);
         return context.workspaceState.update(workspaceKey, value);
-    }
-
-    public secureGet(key: string): Thenable<string | undefined> {
-        return this.ensureContext().secrets.get(key);
-    }
-
-    public secureSet(key: string, value: string): Thenable<void> {
-        return this.ensureContext().secrets.store(key, value);
-    }
-
-    public secureRemove(key: string): Thenable<void> {
-        return this.ensureContext().secrets.delete(key);
     }
 
     /**

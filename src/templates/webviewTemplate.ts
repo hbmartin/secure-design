@@ -25,7 +25,7 @@ export function generateWebviewHtml(
         <meta charset="UTF-8">
         <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline' https://fonts.googleapis.com; img-src ${webview.cspSource} data: https: vscode-webview:; script-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource} https://fonts.gstatic.com;">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Securedesign Chat</title>
+        <title>SecureDesign Chat</title>
         <style>
             body {
                 font-family: var(--vscode-font-family);
