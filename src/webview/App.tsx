@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import ChatInterface from './components/Chat/ChatInterface';
 import CanvasView from './components/CanvasView';
-import { WebviewProvider } from './contexts/WebviewContext';
-import type { WebviewContext } from '../types/context';
+import { WebviewProvider } from 'react-vscode-webview-ipc/client';
 
 // Import CSS as string for esbuild
 import styles from './App.css';
+import { CanvasContextKey, ChatContextKey } from './context-keys';
 
 const App: React.FC = () => {
-    const [context, setContext] = useState<WebviewContext | null>(null);
     const [currentView, setCurrentView] = useState<'chat' | 'canvas'>('chat');
     const [nonce, setNonce] = useState<string | null>(null);
 
@@ -37,23 +36,14 @@ const App: React.FC = () => {
         document.head.appendChild(styleElement);
         console.log('🎨 CSS styles injected');
 
-        // Get context from window (only needed for chat interface)
-        const webviewContext = (window as any).__WEBVIEW_CONTEXT__;
-        console.log('🌐 Webview context from window:', webviewContext);
-
-        if (webviewContext) {
-            setContext(webviewContext);
-            console.log('✅ Context set:', webviewContext);
-        } else {
-            console.log('⚠️ No webview context found in window');
-        }
-
         return () => {
             document.head.removeChild(styleElement);
         };
     }, []);
 
     console.log(`[APP] currentView: ${currentView}`);
+    const webviewContext = (window as any).__WEBVIEW_CONTEXT__;
+    console.log(`[APP] webviewContext: ${webviewContext}`);
 
     const renderView = () => {
         switch (currentView) {
@@ -61,7 +51,7 @@ const App: React.FC = () => {
                 try {
                     // Canvas view doesn't need context - it gets data from extension directly
                     return (
-                        <WebviewProvider>
+                        <WebviewProvider viewType='App.tsx:canvas' contextKey={CanvasContextKey}>
                             <CanvasView nonce={nonce} />
                         </WebviewProvider>
                     );
@@ -71,32 +61,15 @@ const App: React.FC = () => {
                 }
             case 'chat':
             default:
-                console.log('💬 Rendering ChatInterface, context:', !!context);
-                // Chat interface needs context
-                if (!context) {
-                    console.log('⏳ Context not ready, showing loading...');
-                    return <div>Loading...</div>;
-                }
-                try {
-                    return (
-                        <WebviewProvider>
-                            <ChatInterface layout={context.layout} />
-                        </WebviewProvider>
-                    );
-                } catch (error) {
-                    console.error('❌ Error rendering ChatInterface:', error);
-                    return <div>Error rendering chat: {String(error)}</div>;
-                }
+                return (
+                    <WebviewProvider viewType='App.tsx:chat' contextKey={ChatContextKey}>
+                        <ChatInterface layout={webviewContext.layout ?? 'sidebar'} />
+                    </WebviewProvider>
+                );
         }
     };
-
-    return (
-        <div
-            className={`superdesign-app ${currentView}-view ${context?.layout ? `${context.layout}-layout` : ''}`}
-        >
-            {renderView()}
-        </div>
-    );
+    const layout = webviewContext?.layout ?? (currentView === 'canvas' ? 'panel' : 'sidebar');
+    return <div className={`superdesign-app ${currentView}-view ${layout}`}>{renderView()}</div>;
 };
 
 export default App;

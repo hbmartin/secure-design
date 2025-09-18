@@ -2,11 +2,9 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import { ChatSidebarProvider } from './providers/chatSidebarProvider';
-import type { WebviewApiProvider } from './providers/WebviewApiProvider';
 import { ServiceContainer } from './di/ServiceContainer';
-import { Logger } from './services/logger';
+import { type WebviewApiProvider, Logger } from 'react-vscode-webview-ipc/host';
 import { WorkspaceStateService } from './services/workspaceStateService';
-import { WebviewMessageGuard } from './services/webviewMessageGuard';
 import { SuperdesignCanvasPanel } from './SuperdesignCanvasPanel';
 import type ChatMessagesRepository from './chat/ChatMessagesRepository';
 
@@ -1234,24 +1232,15 @@ html.dark {
 }
 
 export function activate(context: vscode.ExtensionContext): void {
+    Logger.setOutputChannel(vscode.window.createOutputChannel('SecureDesign'));
     const workspaceStateService = WorkspaceStateService.getInstance();
     workspaceStateService.initialize(context);
-
-    WebviewMessageGuard.initialize();
-
-    // Push disposal to subscriptions to ensure cleanup even if deactivate isn't called
-    context.subscriptions.push({
-        dispose: () => {
-            WebviewMessageGuard.dispose();
-            Logger.info('WebviewMessageGuard disposed via subscription');
-        },
-    });
 
     const serviceContainer = new ServiceContainer(context);
     serviceContainer.initialize();
 
     // Get services from container
-    const apiProvider = serviceContainer.get<WebviewApiProvider>('apiProvider');
+    const apiProvider = serviceContainer.get<WebviewApiProvider<any>>('apiProvider');
     const sidebarProvider = serviceContainer.get<ChatSidebarProvider>('sidebarProvider');
 
     // Register the webview view provider for sidebar
@@ -1429,11 +1418,6 @@ export function activate(context: vscode.ExtensionContext): void {
 }
 
 export function deactivate() {
-    // Dispose all canvas panels
     SuperdesignCanvasPanel.disposeAll();
-
-    // Dispose WebviewMessageGuard cleanup timer and pending requests
-    WebviewMessageGuard.dispose();
-
     Logger.dispose();
 }

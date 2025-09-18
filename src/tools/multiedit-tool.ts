@@ -10,7 +10,7 @@ import {
     validateFileExists,
     type ToolResponse,
 } from './tool-utils';
-import { getLogger } from '../services/logger';
+import { getLogger } from 'react-vscode-webview-ipc/host';
 
 const singleEditSchema = z.object({
     old_string: z

@@ -163,7 +163,7 @@
     "@vscode/test-cli": "^0.0.11",
     "@vscode/test-electron": "^2.5.2",
     "chai": "^5.3.3",
-    "esbuild": "^0.25.9",
+    "esbuild": "^0.25.10",
     "eslint": "^9.35.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jsx-a11y": "^6.10.2",
@@ -181,10 +181,10 @@
     "@ai-sdk/amazon-bedrock": "^3.0.22",
     "@ai-sdk/anthropic": "^2.0.17",
     "@ai-sdk/google": "^2.0.14",
-    "@ai-sdk/openai": "^2.0.30",
+    "@ai-sdk/openai": "^2.0.32",
     "@openrouter/ai-sdk-provider": "^1.2.0",
-    "ai": "^5.0.44",
-    "ai-sdk-react-model-picker": "^0.1.8",
+    "ai": "^5.0.46",
+    "ai-sdk-react-model-picker": "^0.1.9",
     "execa": "^9.6.0",
     "glob": "^11.0.3",
     "highlight.js": "^11.11.1",
@@ -195,10 +195,11 @@
     "react-dom": "^19.1.1",
     "react-hook-form": "^7.62.0",
     "react-markdown": "^10.1.0",
+    "react-vscode-webview-ipc": "^0.1.1",
     "react-zoom-pan-pinch": "^3.7.0",
     "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",
-    "zod": "^4.1.8"
+    "zod": "^4.1.9"
   },
   "overrides": {
     "zod-to-json-schema": "npm:@alcyone-labs/zod-to-json-schema@latest"

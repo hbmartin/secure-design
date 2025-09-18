@@ -1,8 +1,9 @@
 import type { StorageAdapter } from 'ai-sdk-react-model-picker';
 import type { ChatMessage } from '../types/chatMessage';
+import type { ClientCalls, HostCalls } from 'react-vscode-webview-ipc/client';
 
-export interface ChatViewAPI extends StorageAdapter {
-    stopChat: () => void;
+export interface ChatViewAPI extends StorageAdapter, ClientCalls {
+    stopChat: () => Promise<void>;
 
     // Context operations
     selectFile: () => Promise<string | null>;
@@ -10,8 +11,8 @@ export interface ChatViewAPI extends StorageAdapter {
     selectImages: () => Promise<string[] | null>;
 
     // Utility operations
-    showInformationMessage: (message: string) => void;
-    showErrorMessage: (message: string) => void;
+    showInformationMessage: (message: string) => Promise<void>;
+    showErrorMessage: (message: string) => Promise<void>;
     executeCommand: (command: string, args?: any) => Promise<void>;
 
     // Extension operations
@@ -32,7 +33,7 @@ export interface ChatViewAPI extends StorageAdapter {
  * Events that can be triggered by the host and listened to by webviews
  * These represent notifications/updates flowing from host to webview
  */
-export interface ChatViewEvents {
+export interface ChatViewEvents extends HostCalls {
     // Chat events
     chatStreamStart: () => void;
     chatStreamEnd: () => void;
@@ -56,103 +57,4 @@ export interface ChatViewEvents {
     imageSaveError: (data: { fileName: string; originalName: string; error: string }) => void;
     uploadFailed: (error: string) => void;
     base64ImageResult: (data: { filePath: string; base64Data: string; mimeType: string }) => void;
-}
-
-/**
- * Request context information for tracking and debugging
- */
-export interface RequestContext {
-    viewId: string;
-    viewType: string;
-    timestamp: number;
-    sessionId?: string;
-}
-
-/**
- * Internal message types for request/response communication
- */
-export interface ViewApiRequest<K extends keyof ChatViewAPI = keyof ChatViewAPI> {
-    type: 'request';
-    id: string;
-    key: K;
-    params: Parameters<ChatViewAPI[K]>;
-    context?: RequestContext;
-}
-
-export interface ViewApiResponse<K extends keyof ChatViewAPI = keyof ChatViewAPI> {
-    type: 'response';
-    id: string;
-    value?: Awaited<ReturnType<ChatViewAPI[K]>>;
-}
-
-export interface ViewApiError {
-    type: 'error';
-    id: string;
-    value: string;
-}
-
-export interface ViewApiEvent<E extends keyof ChatViewEvents = keyof ChatViewEvents> {
-    type: 'event';
-    key: E;
-    value: Parameters<ChatViewEvents[E]>;
-}
-
-export type ViewApiMessage = ViewApiRequest | ViewApiResponse | ViewApiError | ViewApiEvent;
-
-/**
- * Type guard to check if a message is a valid API request
- */
-export function isViewApiRequest(msg: any): msg is ViewApiRequest {
-    return (
-        msg &&
-        typeof msg === 'object' &&
-        msg.type === 'request' &&
-        typeof msg.id === 'string' &&
-        typeof msg.key === 'string' &&
-        Array.isArray(msg.params) &&
-        (msg.context === undefined ||
-            (typeof msg.context === 'object' &&
-                typeof msg.context.viewId === 'string' &&
-                typeof msg.context.viewType === 'string' &&
-                typeof msg.context.timestamp === 'number'))
-    );
-}
-
-/**
- * Type guard to check if a message is a valid API response
- */
-export function isViewApiResponse(msg: any): msg is ViewApiResponse {
-    return (
-        msg !== null &&
-        msg !== undefined &&
-        typeof msg === 'object' &&
-        msg.type === 'response' &&
-        typeof msg.id === 'string'
-    );
-}
-
-/**
- * Type guard to check if a message is a valid API error
- */
-export function isViewApiError(msg: any): msg is ViewApiError {
-    return (
-        msg &&
-        typeof msg === 'object' &&
-        msg.type === 'error' &&
-        typeof msg.id === 'string' &&
-        typeof msg.value === 'string'
-    );
-}
-
-/**
- * Type guard to check if a message is a valid API event
- */
-export function isViewApiEvent(msg: any): msg is ViewApiEvent {
-    return (
-        msg &&
-        typeof msg === 'object' &&
-        msg.type === 'event' &&
-        typeof msg.key === 'string' &&
-        Array.isArray(msg.value)
-    );
 }

@@ -10,7 +10,7 @@ import {
     createSuccessResponse,
     type ToolResponse,
 } from './tool-utils';
-import { getLogger } from '../services/logger';
+import { getLogger } from 'react-vscode-webview-ipc/host';
 
 const editParametersSchema = z.object({
     file_path: z

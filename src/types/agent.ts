@@ -1,4 +1,4 @@
-import type { ILogger } from '../services/ILogger';
+import type { ILogger } from 'react-vscode-webview-ipc/host';
 import type { ChatMessage } from './chatMessage';
 
 export interface AgentService {

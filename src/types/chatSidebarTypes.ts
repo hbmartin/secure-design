@@ -1,5 +1,5 @@
 import type { ChatMessage } from './chatMessage';
-import type { WebviewKey } from './ipcReducer';
+import type { WebviewKey } from 'react-vscode-webview-ipc/client';
 import type { TextPart, ImagePart, FilePart } from '@ai-sdk/provider-utils';
 
 export const ChatSidebarKey = 'securedesign.chatView' as WebviewKey;

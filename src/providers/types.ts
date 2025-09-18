@@ -5,7 +5,7 @@
 
 import type * as vscode from 'vscode';
 import type { LanguageModelV2 } from '@ai-sdk/provider';
-import type { ILogger } from '../services/ILogger';
+import type { ILogger } from 'react-vscode-webview-ipc/host';
 
 export type Brand<T, B> = T & { readonly __brand: B };
 

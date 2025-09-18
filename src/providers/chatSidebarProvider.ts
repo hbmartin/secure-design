@@ -1,16 +1,20 @@
 import * as vscode from 'vscode';
 import { generateWebviewHtml as _generateWebviewHtml } from '../templates/webviewTemplate';
-import type { WebviewContext } from '../types/context';
-import type { WebviewApiProvider } from './WebviewApiProvider';
-import { isViewApiRequest, type ViewApiError, type ViewApiResponse } from '../api/viewApi';
+import {
+    BaseWebviewViewProvider,
+    isViewApiRequest,
+    type ActionDelegate,
+    type ViewApiError,
+    type ViewApiResponse,
+    type WebviewApiProvider,
+} from 'react-vscode-webview-ipc/host';
 import type { ChatController } from '../chat/ChatController';
 import type ChatMessagesRepository from '../chat/ChatMessagesRepository';
-import { BaseWebviewViewProvider } from './BaseWebviewViewProvider';
 import { type ChatSidebarActions, ChatSidebarKey } from '../types/chatSidebarTypes';
-import { type ActionDelegate } from '../types/ipcReducer';
 import type { ChatMessage } from '../types';
 import getCssFileContent from '../chat/getCssFileContent';
 import type { TextPart, ImagePart, FilePart } from '@ai-sdk/provider-utils';
+import type { ChatViewAPI, ChatViewEvents } from '../api/viewApi';
 
 function createActionDelegate(
     chatMessagesRepository: ChatMessagesRepository,
@@ -47,7 +51,7 @@ export class ChatSidebarProvider extends BaseWebviewViewProvider<ChatSidebarActi
 
     constructor(
         _extensionUri: vscode.Uri,
-        apiProvider: WebviewApiProvider,
+        apiProvider: WebviewApiProvider<ChatViewEvents>,
         private readonly chatController: ChatController,
         private readonly chatMessagesRepository: ChatMessagesRepository
     ) {
@@ -60,12 +64,8 @@ export class ChatSidebarProvider extends BaseWebviewViewProvider<ChatSidebarActi
         });
     }
 
-    generateWebviewHtml(
-        webview: vscode.Webview,
-        extensionUri: vscode.Uri,
-        context: WebviewContext
-    ): string {
-        return _generateWebviewHtml(webview, extensionUri, context);
+    generateWebviewHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
+        return _generateWebviewHtml(webview, extensionUri);
     }
 
     public setMessageHandler(handler: (message: any) => void) {
@@ -89,17 +89,99 @@ export class ChatSidebarProvider extends BaseWebviewViewProvider<ChatSidebarActi
     /**
      * Handle incoming messages from webview with full type safety
      */
-    protected async handleMessage(message: any, webview: vscode.Webview): Promise<void> {
+    protected async handleMessage(message: unknown, webview: vscode.Webview): Promise<void> {
+        if (message === null || typeof message !== 'object') {
+            return Promise.resolve();
+        }
+        if (!('key' in message) || message.key !== 'log') {
+            this.logger.debug('Calling custom message handler', { message });
+        }
         // First try custom message handler for auto-canvas functionality
         if (this.customMessageHandler) {
-            if (message.key !== 'log') {
-                this.logger.debug('Calling custom message handler');
-            }
             this.customMessageHandler(message);
         }
 
+        // Check if this is a new API message format
+        if (isViewApiRequest<ChatViewAPI>(message)) {
+            try {
+                // Call the API method with type safety
+                const result = await Promise.resolve(
+                    this.chatController.viewApiDelegate[message.key](...message.params)
+                );
+
+                if (message.key === 'saveImageToMoodboard') {
+                    const imageData = message.params[0];
+                    if (
+                        imageData &&
+                        typeof imageData === 'object' &&
+                        'fileName' in imageData &&
+                        'originalName' in imageData
+                    ) {
+                        if (typeof result === 'string') {
+                            webview.postMessage({
+                                type: 'event',
+                                key: 'imageSavedToMoodboard',
+                                value: {
+                                    fileName: imageData.fileName,
+                                    originalName: imageData.originalName,
+                                    fullPath: result,
+                                },
+                            });
+                        } else {
+                            webview.postMessage({
+                                type: 'event',
+                                key: 'imageSaveError',
+                                value: {
+                                    fileName: imageData.fileName,
+                                    originalName: imageData.originalName,
+                                    error: result,
+                                },
+                            });
+                        }
+                    }
+                }
+
+                // Send typed response
+                const response: ViewApiResponse<ChatViewAPI> = {
+                    type: 'response',
+                    id: message.id,
+                    value: result,
+                };
+
+                try {
+                    await webview.postMessage(response);
+                } catch (postError) {
+                    this.logger.error(
+                        `Failed to send response for ${String(message.key)}: ${String(postError)}`
+                    );
+
+                    throw postError; // Re-throw to ensure caller knows the operation failed
+                }
+            } catch (error) {
+                this.logger.error(`API call failed for ${String(message.key)}: ${String(error)}`, {
+                    error,
+                });
+
+                // Send typed error
+                const errorResponse: ViewApiError = {
+                    type: 'error',
+                    id: message.id,
+                    value: error instanceof Error ? error.message : 'An unexpected error occurred',
+                };
+
+                try {
+                    await webview.postMessage(errorResponse);
+                } catch (postError) {
+                    this.logger.error(
+                        `Failed to send error response for ${String(message.key)}: ${String(postError)}`
+                    );
+                }
+            }
+            return;
+        }
+
         // Handle special legacy messages that aren't yet migrated to the new API
-        switch (message.command) {
+        switch ('command' in message && message.command) {
             case 'showContextPicker':
                 // Keep this until we have a proper UI component replacement
                 await this.handleShowContextPicker(webview);
@@ -108,99 +190,8 @@ export class ChatSidebarProvider extends BaseWebviewViewProvider<ChatSidebarActi
                 break;
             default:
                 // All other commands should now use the new API
-                this.logger.warn(`Received unmigrated legacy command: ${message.command}`, message);
+                this.logger.warn(`Received unmigrated legacy command`, { message });
                 break;
-        }
-
-        // Prepare context info for logging
-        const contextInfo = message.context
-            ? `from ${message.context.viewType}:${message.context.viewId}`
-            : 'without context';
-
-        // Log request context for debugging and analytics (except for log messages to avoid infinite loop)
-        if (message.key !== 'log') {
-            this.logger.debug(`Handling API request: ${message.key} ${message.params}`);
-        }
-
-        // Check if this is a new API message format
-        if (!isViewApiRequest(message)) {
-            return;
-        }
-
-        try {
-            // Call the API method with type safety
-            const result = await Promise.resolve(
-                (this.chatController[message.key] as any)(...message.params)
-            );
-
-            if (message.key === 'saveImageToMoodboard') {
-                const imageData = message.params[0];
-                if (
-                    imageData &&
-                    typeof imageData === 'object' &&
-                    'fileName' in imageData &&
-                    'originalName' in imageData
-                ) {
-                    if (typeof result === 'string') {
-                        webview.postMessage({
-                            type: 'event',
-                            key: 'imageSavedToMoodboard',
-                            value: {
-                                fileName: imageData.fileName,
-                                originalName: imageData.originalName,
-                                fullPath: result,
-                            },
-                        });
-                    } else {
-                        webview.postMessage({
-                            type: 'event',
-                            key: 'imageSaveError',
-                            value: {
-                                fileName: imageData.fileName,
-                                originalName: imageData.originalName,
-                                error: result,
-                            },
-                        });
-                    }
-                }
-            }
-
-            // Send typed response
-            const response: ViewApiResponse = {
-                type: 'response',
-                id: message.id,
-                value: result,
-            };
-
-            try {
-                await webview.postMessage(response);
-            } catch (postError) {
-                this.logger.error(
-                    `Failed to send response for ${message.key}: ${String(postError)}`
-                );
-
-                throw postError; // Re-throw to ensure caller knows the operation failed
-            }
-        } catch (error) {
-            this.logger.error(
-                `API call failed for ${message.key} ${contextInfo}: ${String(error)}`,
-                { error }
-            );
-
-            // Send typed error
-            const errorResponse: ViewApiError = {
-                type: 'error',
-                id: message.id,
-                value: error instanceof Error ? error.message : 'An unexpected error occurred',
-            };
-
-            try {
-                await webview.postMessage(errorResponse);
-            } catch (postError) {
-                this.logger.error(
-                    `Failed to send error response for ${message.key}: ${String(postError)}`
-                );
-            }
         }
     }
 

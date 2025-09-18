@@ -1,10 +1,8 @@
 import * as vscode from 'vscode';
-import type { WebviewContext } from '../types/context';
 
 export function generateWebviewHtml(
     webview: vscode.Webview,
     extensionUri: vscode.Uri,
-    context: WebviewContext
 ): string {
     const scriptUri = webview.asWebviewUri(
         vscode.Uri.joinPath(extensionUri, 'dist', 'webview.js')
@@ -31,11 +29,11 @@ export function generateWebviewHtml(
                 font-family: var(--vscode-font-family);
                 font-size: var(--vscode-font-size);
                 font-weight: var(--vscode-font-weight);
-                color: ${context.layout === 'sidebar' ? 'var(--vscode-sideBar-foreground)' : 'var(--vscode-panel-foreground)'};
-                background-color: ${context.layout === 'sidebar' ? 'var(--vscode-sideBar-background)' : 'var(--vscode-panel-background)'};
-                border-right: ${context.layout === 'sidebar' ? '1px solid var(--vscode-sideBar-border)' : '1px solid var(--vscode-panel-border)'};
+                color: var(--vscode-sideBar-foreground);
+                background-color: var(--vscode-sideBar-background);
+                border-right: 1px solid var(--vscode-sideBar-border);
                 margin: 0;
-                padding: ${context.layout === 'sidebar' ? '8px' : '16px'};
+                padding: 8px;
                 height: 100vh;
                 overflow: hidden;
                 box-sizing: border-box;
@@ -45,11 +43,8 @@ export function generateWebviewHtml(
     <body>
         <div id="root"></div>
         <script>
-            // Debug: Check if context data is being generated
-            console.log('About to set webview context. Context object:', ${JSON.stringify({ ...context, logoUris })});
-            
             // Initialize context for React app
-            window.__WEBVIEW_CONTEXT__ = ${JSON.stringify({ ...context, logoUris })};
+            window.__WEBVIEW_CONTEXT__ = ${JSON.stringify({ extensionUri, logoUris })};
             
             // Debug logging in webview
             console.log('Webview context set:', window.__WEBVIEW_CONTEXT__);

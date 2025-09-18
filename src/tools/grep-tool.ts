@@ -11,7 +11,7 @@ import {
     validateDirectoryExists,
     type ToolResponse,
 } from './tool-utils';
-import { getLogger } from '../services/logger';
+import { getLogger } from 'react-vscode-webview-ipc/host';
 
 const grepParametersSchema = z.object({
     pattern: z
