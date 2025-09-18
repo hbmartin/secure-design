@@ -2,7 +2,7 @@ import { type FilePart, streamText, type TextPart } from 'ai';
 import type { LanguageModelV2 } from '@ai-sdk/provider';
 import * as vscode from 'vscode';
 import type { AgentService, ExecutionContext } from '../types/agent';
-import { getLogger } from './logger';
+import { getLogger } from 'react-vscode-webview-ipc/host';
 import { createReadTool } from '../tools/read-tool';
 import { createWriteTool } from '../tools/write-tool';
 import { createBashTool } from '../tools/bash-tool';

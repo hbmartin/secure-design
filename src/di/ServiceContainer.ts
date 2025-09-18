@@ -3,9 +3,9 @@ import { CustomAgentService } from '../services/customAgentService';
 import { WorkspaceStateService } from '../services/workspaceStateService';
 import { ChatController } from '../chat/ChatController';
 import ChatMessagesRepository from '../chat/ChatMessagesRepository';
-import { WebviewApiProvider } from '../providers/WebviewApiProvider';
+import { getLogger, WebviewApiProvider } from 'react-vscode-webview-ipc/host';
 import { ChatSidebarProvider } from '../providers/chatSidebarProvider';
-import { Logger } from '../services/logger';
+import type { ChatViewEvents } from '../api/viewApi';
 
 /**
  * Service container for dependency injection
@@ -13,6 +13,7 @@ import { Logger } from '../services/logger';
  */
 export class ServiceContainer implements vscode.Disposable {
     private readonly services = new Map<string, any>();
+    private readonly logger = getLogger('ServiceContainer');
 
     constructor(private readonly context: vscode.ExtensionContext) {}
 
@@ -20,7 +21,7 @@ export class ServiceContainer implements vscode.Disposable {
      * Initialize all services in the correct order
      */
     initialize(): void {
-        Logger.info('Initializing ServiceContainer...');
+        this.logger.info('Initializing ServiceContainer...');
 
         // WSS is initialized in extension.ts
         const workspaceStateService = WorkspaceStateService.getInstance();
@@ -33,13 +34,13 @@ export class ServiceContainer implements vscode.Disposable {
         const chatMessagesRepository = new ChatMessagesRepository(workspaceStateService);
         this.services.set('chatMessagesRepository', chatMessagesRepository);
 
-        const apiProvider = new WebviewApiProvider();
-        this.services.set('apiProvider', apiProvider);
+        const chatApiProvider = new WebviewApiProvider<ChatViewEvents>();
+        this.services.set('apiProvider', chatApiProvider);
 
         // Create ChatController with apiProvider as EventTrigger
         const chatController = new ChatController(
             customAgent,
-            apiProvider, // apiProvider implements EventTrigger interface
+            chatApiProvider, // apiProvider implements EventTrigger interface
             chatMessagesRepository,
             workspaceStateService
         );
@@ -48,13 +49,13 @@ export class ServiceContainer implements vscode.Disposable {
         // Create UI providers
         const sidebarProvider = new ChatSidebarProvider(
             this.context.extensionUri,
-            apiProvider,
+            chatApiProvider,
             chatController,
             chatMessagesRepository
         );
         this.services.set('sidebarProvider', sidebarProvider);
 
-        Logger.info('ServiceContainer initialization complete');
+        this.logger.info('ServiceContainer initialization complete');
     }
 
     // setChatController method removed - now using proper initialization method
@@ -81,20 +82,20 @@ export class ServiceContainer implements vscode.Disposable {
      * Dispose all services that implement dispose
      */
     dispose(): void {
-        Logger.info('Disposing ServiceContainer...');
+        this.logger.info('Disposing ServiceContainer...');
 
         for (const [name, service] of this.services) {
             if (service && typeof service.dispose === 'function') {
                 try {
                     service.dispose();
-                    Logger.debug(`Disposed service: ${name}`);
+                    this.logger.debug(`Disposed service: ${name}`);
                 } catch (error) {
-                    Logger.error(`Error disposing service ${name}: ${error}`);
+                    this.logger.error(`Error disposing service ${name}: ${error}`);
                 }
             }
         }
 
         this.services.clear();
-        Logger.info('ServiceContainer disposed');
+        this.logger.info('ServiceContainer disposed');
     }
 }

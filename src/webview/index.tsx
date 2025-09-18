@@ -1,10 +1,10 @@
 import { createRoot } from 'react-dom/client';
 import ChatInterface from './components/Chat/ChatInterface';
-import { WebviewProvider } from './contexts/WebviewContext';
-import type { WebviewContext } from '../types/context';
+import { WebviewProvider } from 'react-vscode-webview-ipc/client';
 
 // Import main App styles for panel layout
 import App from './App';
+import { ChatContextKey } from './context-keys';
 
 const container = document.getElementById('root');
 if (container) {
@@ -23,7 +23,7 @@ if (container) {
     } else {
         console.log('💬 Chat view detected, checking for context...');
         // Chat view - needs context
-        const context: WebviewContext = (window as any).__WEBVIEW_CONTEXT__;
+        const context = (window as any).__WEBVIEW_CONTEXT__;
         console.log('🌐 Context found:', !!context);
 
         if (!context) {
@@ -37,7 +37,7 @@ if (container) {
             console.log('🔲 Sidebar layout, rendering ChatInterface directly');
             // Use ChatInterface directly for sidebar (compact layout)
             root.render(
-                <WebviewProvider>
+                <WebviewProvider viewType={viewType ?? 'index.tsx'} contextKey={ChatContextKey}>
                     <ChatInterface layout='sidebar' />
                 </WebviewProvider>
             );

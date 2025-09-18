@@ -40,8 +40,8 @@ import {
     TreeIcon,
     LinkIcon,
 } from './Icons';
-import { useLogger } from '../hooks/useLogger';
-import { useWebviewApi } from '../contexts/WebviewContext';
+import { useLogger, useWebviewApi } from 'react-vscode-webview-ipc/client';
+import { CanvasContextKey } from '../context-keys';
 
 interface CanvasViewProps {
     nonce: string | null;
@@ -95,7 +95,7 @@ const CanvasView: React.FC<CanvasViewProps> = ({ nonce }) => {
     const [hierarchyTree, setHierarchyTree] = useState<HierarchyTree | null>(null);
     const [showConnections, setShowConnections] = useState(true);
     const transformRef = useRef<ReactZoomPanPinchRef>(null);
-    const { vscode } = useWebviewApi();
+    const { vscode } = useWebviewApi(CanvasContextKey);
     const logger = useLogger('CanvasView');
 
     // Performance optimization: Switch render modes based on zoom level

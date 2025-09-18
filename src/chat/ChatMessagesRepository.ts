@@ -1,4 +1,4 @@
-import { getLogger } from '../services/logger';
+import { getLogger } from 'react-vscode-webview-ipc/host';
 import type { WorkspaceStateService } from '../services/workspaceStateService';
 import type { ChatMessage } from '../types';
 import BaseRepository from '../types/BaseRepository';

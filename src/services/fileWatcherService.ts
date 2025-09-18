@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { Logger } from './logger';
+import { Logger } from 'react-vscode-webview-ipc/host';
 import * as path from 'path';
 
 export interface FileChangeEvent {

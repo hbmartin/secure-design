@@ -3,7 +3,7 @@ import type { AgentService } from '../types/agent';
 import type { WorkspaceStateService } from '../services/workspaceStateService';
 import type ChatMessagesRepository from './ChatMessagesRepository';
 import type { ChatMessage } from '../types/chatMessage';
-import { getLogger, Logger } from '../services/logger';
+import { getLogger } from 'react-vscode-webview-ipc/host';
 import type { ChatViewEvents, ChatViewAPI } from '../api/viewApi';
 import type { TextPart, ImagePart, FilePart } from '@ai-sdk/provider-utils';
 import { SecureStorageService } from '../services/secureStorageService';
@@ -22,8 +22,9 @@ export interface EventTrigger {
  * ChatController handles all chat-related business logic and coordinates between services.
  * This separates business logic from the API provider and makes the system more testable.
  */
-export class ChatController extends SecureStorageService implements ChatViewAPI {
-    private currentRequestController?: AbortController;
+export class ChatController {
+    private currentRequestController: AbortController | undefined = undefined;
+    private readonly storage: SecureStorageService;
     private readonly logger = getLogger('ChatController');
 
     constructor(
@@ -32,172 +33,187 @@ export class ChatController extends SecureStorageService implements ChatViewAPI 
         private readonly chatMessagesRepository: ChatMessagesRepository,
         workspaceState: WorkspaceStateService
     ) {
-        super(workspaceState.secrets());
+        this.storage = new SecureStorageService(workspaceState.secrets());
     }
 
-    selectFile = async (): Promise<string | null> => {
-        this.logger.info('API: selectFile called');
-        const files = await vscode.window.showOpenDialog({
-            canSelectFiles: true,
-            canSelectFolders: false,
-            canSelectMany: false,
-            filters: {
-                'All Files': ['*'],
-                'Code Files': [
-                    'js',
-                    'ts',
-                    'jsx',
-                    'tsx',
-                    'py',
-                    'java',
-                    'cpp',
-                    'c',
-                    'cs',
-                    'go',
-                    'rs',
-                    'php',
-                ],
-                'Text Files': ['txt', 'md', 'json', 'xml', 'yaml', 'yml', 'toml'],
-                'Config Files': ['config', 'conf', 'env', 'ini'],
-            },
-        });
-        return files?.[0]?.fsPath ?? null;
-    };
-    selectFolder = async (): Promise<string | null> => {
-        this.logger.info('API: selectFolder called');
-        const folders = await vscode.window.showOpenDialog({
-            canSelectFiles: false,
-            canSelectFolders: true,
-            canSelectMany: false,
-        });
-        return folders?.[0]?.fsPath ?? null;
-    };
+    // eslint-disable-next-line @typescript-eslint/member-ordering
+    viewApiDelegate: ChatViewAPI = {
+        selectFile: async (): Promise<string | null> => {
+            this.logger.info('API: selectFile called');
+            const files = await vscode.window.showOpenDialog({
+                canSelectFiles: true,
+                canSelectFolders: false,
+                canSelectMany: false,
+                filters: {
+                    'All Files': ['*'],
+                    'Code Files': [
+                        'js',
+                        'ts',
+                        'jsx',
+                        'tsx',
+                        'py',
+                        'java',
+                        'cpp',
+                        'c',
+                        'cs',
+                        'go',
+                        'rs',
+                        'php',
+                    ],
+                    'Text Files': ['txt', 'md', 'json', 'xml', 'yaml', 'yml', 'toml'],
+                    'Config Files': ['config', 'conf', 'env', 'ini'],
+                },
+            });
+            return files?.[0]?.fsPath ?? null;
+        },
 
-    selectImages = async (): Promise<string[] | null> => {
-        this.logger.info('API: selectImages called');
-        const images = await vscode.window.showOpenDialog({
-            canSelectFiles: true,
-            canSelectFolders: false,
-            canSelectMany: true,
-            filters: {
-                Images: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp'],
-            },
-        });
-        return images?.map(img => img.fsPath) ?? null;
-    };
+        selectFolder: async (): Promise<string | null> => {
+            this.logger.info('API: selectFolder called');
+            const folders = await vscode.window.showOpenDialog({
+                canSelectFiles: false,
+                canSelectFolders: true,
+                canSelectMany: false,
+            });
+            return folders?.[0]?.fsPath ?? null;
+        },
 
-    showInformationMessage = (message: string): void => {
-        this.logger.info(`API: showInformationMessage called: ${message}`);
-        vscode.window.showInformationMessage(message);
-    };
+        selectImages: async (): Promise<string[] | null> => {
+            this.logger.info('API: selectImages called');
+            const images = await vscode.window.showOpenDialog({
+                canSelectFiles: true,
+                canSelectFolders: false,
+                canSelectMany: true,
+                filters: {
+                    Images: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp'],
+                },
+            });
+            return images?.map(img => img.fsPath) ?? null;
+        },
 
-    showErrorMessage = (message: string): void => {
-        this.logger.info(`API: showErrorMessage called: ${message}`);
-        vscode.window.showErrorMessage(message);
-    };
+        showInformationMessage: (message: string): Promise<void> => {
+            this.logger.info(`API: showInformationMessage called: ${message}`);
+            vscode.window.showInformationMessage(message);
+            return Promise.resolve();
+        },
 
-    executeCommand = async (command: string, args?: any): Promise<void> => {
-        this.logger.info(`API: executeCommand called: ${command}`);
-        if (args) {
-            await vscode.commands.executeCommand(command, args);
-        } else {
-            await vscode.commands.executeCommand(command);
-        }
-    };
+        showErrorMessage: (message: string): Promise<void> => {
+            this.logger.info(`API: showErrorMessage called: ${message}`);
+            vscode.window.showErrorMessage(message);
+            return Promise.resolve();
+        },
 
-    getBase64Image = async (filePath: string): Promise<string> => {
-        this.logger.debug(`API: getBase64Image called for: ${filePath}`);
-        try {
-            const fileUri = vscode.Uri.file(filePath);
-            const fileData = await vscode.workspace.fs.readFile(fileUri);
-
-            // Determine MIME type from file extension
-            const extension = filePath.toLowerCase().split('.').pop();
-            let mimeType: string;
-            // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check
-            switch (extension) {
-                case 'jpg':
-                case 'jpeg':
-                    mimeType = 'image/jpeg';
-                    break;
-                case 'png':
-                    mimeType = 'image/png';
-                    break;
-                case 'gif':
-                    mimeType = 'image/gif';
-                    break;
-                case 'bmp':
-                    mimeType = 'image/bmp';
-                    break;
-                case 'webp':
-                    mimeType = 'image/webp';
-                    break;
-                case 'svg':
-                    mimeType = 'image/svg+xml';
-                    break;
-                default:
-                    mimeType = 'application/octet-stream';
+        executeCommand: async (command: string, args?: any): Promise<void> => {
+            this.logger.info(`API: executeCommand called: ${command}`);
+            if (args) {
+                await vscode.commands.executeCommand(command, args);
+            } else {
+                await vscode.commands.executeCommand(command);
             }
+        },
 
-            const base64Data = Buffer.from(fileData).toString('base64');
-            return `data:${mimeType};base64,${base64Data}`;
-        } catch (error) {
-            this.logger.error(`Failed to convert image to base64: ${error}`);
-            throw new Error(
-                `Failed to read image file: ${error instanceof Error ? error.message : String(error)}`
-            );
-        }
-    };
+        getBase64Image: async (filePath: string): Promise<string> => {
+            this.logger.debug(`API: getBase64Image called for: ${filePath}`);
+            try {
+                const fileUri = vscode.Uri.file(filePath);
+                const fileData = await vscode.workspace.fs.readFile(fileUri);
 
-    saveImageToMoodboard = async (data: {
-        fileName: string;
-        originalName: string;
-        base64Data: string;
-        mimeType: string;
-        size: number;
-    }): Promise<string | Error> => {
-        this.logger.debug('Saving image to moodboard', {
-            fileName: data.fileName,
-            originalName: data.originalName,
-            mimeType: data.mimeType,
-            size: data.size,
-        });
+                // Determine MIME type from file extension
+                const extension = filePath.toLowerCase().split('.').pop();
+                let mimeType: string;
+                // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check
+                switch (extension) {
+                    case 'jpg':
+                    case 'jpeg':
+                        mimeType = 'image/jpeg';
+                        break;
+                    case 'png':
+                        mimeType = 'image/png';
+                        break;
+                    case 'gif':
+                        mimeType = 'image/gif';
+                        break;
+                    case 'bmp':
+                        mimeType = 'image/bmp';
+                        break;
+                    case 'webp':
+                        mimeType = 'image/webp';
+                        break;
+                    case 'svg':
+                        mimeType = 'image/svg+xml';
+                        break;
+                    default:
+                        mimeType = 'application/octet-stream';
+                }
 
-        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-        if (!workspaceFolder) {
-            throw new Error('No workspace folder found');
-        }
+                const base64Data = Buffer.from(fileData).toString('base64');
+                return `data:${mimeType};base64,${base64Data}`;
+            } catch (error) {
+                this.logger.error(`Failed to convert image to base64: ${error}`);
+                throw new Error(
+                    `Failed to read image file: ${error instanceof Error ? error.message : String(error)}`
+                );
+            }
+        },
 
-        try {
-            // Create .superdesign/moodboard directory if it doesn't exist
-            const moodboardDir = vscode.Uri.joinPath(
-                workspaceFolder.uri,
-                '.superdesign',
-                'moodboard'
-            );
+        saveImageToMoodboard: async (data: {
+            fileName: string;
+            originalName: string;
+            base64Data: string;
+            mimeType: string;
+            size: number;
+        }): Promise<string | Error> => {
+            this.logger.debug('Saving image to moodboard', {
+                fileName: data.fileName,
+                originalName: data.originalName,
+                mimeType: data.mimeType,
+                size: data.size,
+            });
+
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            if (!workspaceFolder) {
+                throw new Error('No workspace folder found');
+            }
 
             try {
-                await vscode.workspace.fs.stat(moodboardDir);
-            } catch {
-                await vscode.workspace.fs.createDirectory(moodboardDir);
+                // Create .superdesign/moodboard directory if it doesn't exist
+                const moodboardDir = vscode.Uri.joinPath(
+                    workspaceFolder.uri,
+                    '.superdesign',
+                    'moodboard'
+                );
+
+                try {
+                    await vscode.workspace.fs.stat(moodboardDir);
+                } catch {
+                    await vscode.workspace.fs.createDirectory(moodboardDir);
+                }
+
+                // Convert base64 to buffer and save file
+                const base64Content = data.base64Data.split(',')[1];
+                const buffer = Buffer.from(base64Content, 'base64');
+                const filePath = vscode.Uri.joinPath(moodboardDir, data.fileName);
+
+                await vscode.workspace.fs.writeFile(filePath, buffer);
+
+                return filePath.toString();
+            } catch (error) {
+                return error instanceof Error ? error : new Error(String(error));
             }
+        },
 
-            // Convert base64 to buffer and save file
-            const base64Content = data.base64Data.split(',')[1];
-            const buffer = Buffer.from(base64Content, 'base64');
-            const filePath = vscode.Uri.joinPath(moodboardDir, data.fileName);
-
-            await vscode.workspace.fs.writeFile(filePath, buffer);
-
-            return filePath.toString();
-        } catch (error) {
-            return error instanceof Error ? error : new Error(String(error));
-        }
-    };
-
-    initializeSecuredesign = async (): Promise<void> => {
-        this.logger.debug('Initializing Securedesign project');
-        await vscode.commands.executeCommand('securedesign.initializeProject');
+        initializeSecuredesign: async (): Promise<void> => {
+            this.logger.debug('Initializing Securedesign project');
+            await vscode.commands.executeCommand('securedesign.initializeProject');
+        },
+        stopChat(): Promise<void> {
+            // TODO:
+            // this.currentRequestController?.abort();
+            // this.eventTrigger.triggerEvent('chatStopped');
+            return Promise.resolve();
+        },
+        get: (key: string) => this.storage.get(key),
+        set: (key: string, value: Record<string, string>) => this.storage.set(key, value),
+        remove: (key: string) => this.storage.remove(key),
     };
 
     async sendChatMessage(prompt: string | Array<TextPart | ImagePart | FilePart>): Promise<void> {
@@ -264,22 +280,6 @@ export class ChatController extends SecureStorageService implements ChatViewAPI 
         }
     }
 
-    /**
-     * Stop current chat request
-     */
-    stopChat(): void {
-        if (this.currentRequestController) {
-            Logger.info('Stopping current chat request');
-            this.currentRequestController.abort();
-            this.eventTrigger.triggerEvent('chatStopped');
-        } else {
-            Logger.info('No active chat request to stop');
-        }
-    }
-
-    /**
-     * Dispose of resources
-     */
     dispose(): void {
         if (this.currentRequestController) {
             this.currentRequestController.abort();

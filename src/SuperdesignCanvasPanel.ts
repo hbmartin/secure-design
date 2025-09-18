@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { Logger } from './services/logger';
+import { Logger } from 'react-vscode-webview-ipc/host';
 import type { ChatSidebarProvider } from './providers/chatSidebarProvider';
 import { FileWatcherService, type FileChangeEvent } from './services/fileWatcherService';
 import { generateCanvasHtml, getNonce } from './helpers/htmlTemplate';

@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { Logger } from '../services/logger';
+import { Logger } from 'react-vscode-webview-ipc/host';
 
 export default async function getCssFileContent(filePath: string): Promise<string> {
     // Handle relative paths - resolve them to workspace root

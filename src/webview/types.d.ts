@@ -34,15 +34,6 @@ declare module '*.svg' {
     export default value;
 }
 
-// VS Code webview API
-interface VsCodeApi {
-    postMessage(message: any): Thenable<boolean>;
-    getState(): any;
-    setState(state: any): void;
-}
-
-declare function acquireVsCodeApi(): VsCodeApi;
-
 // Add csp property to React's iframe attributes
 declare namespace React {
     interface IframeHTMLAttributes<T> {

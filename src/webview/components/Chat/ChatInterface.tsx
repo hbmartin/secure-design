@@ -1,22 +1,17 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useWebviewApi } from '../../contexts/WebviewContext';
 import type { ChatMessage, MessageAction } from '../../../types/chatMessage';
 import { useFirstTimeUser } from '../../hooks/useFirstTimeUser';
-import type { WebviewLayout } from '../../../types/context';
 import MarkdownRenderer from '../MarkdownRenderer';
 import { TaskIcon, CheckIcon, LightBulbIcon } from '../Icons';
 import Welcome from '../Welcome';
 import ThemePreviewCard from './ThemePreviewCard';
 import chatStyles from './ChatInterface.css';
 import welcomeStyles from '../Welcome/Welcome.css';
-import { useLogger } from '../../hooks/useLogger';
-import { useVscodeState } from '../../hooks/useVscodeState';
 import {
     ChatSidebarKey,
     type ChatSidebarActions,
     type ChatSidebarState,
 } from '../../../types/chatSidebarTypes';
-import type { StateReducer } from '../../../types/ipcReducer';
 import type {
     TextPart,
     ImagePart,
@@ -27,6 +22,14 @@ import type {
 import { isToolCallPart, isToolResultPart } from '../../utils/chatUtils';
 import { createDefaultRegistry, ModelSelect } from 'ai-sdk-react-model-picker';
 import mpStyles from 'ai-sdk-react-model-picker/styles.css';
+import {
+    type StateReducer,
+    useLogger,
+    useVscodeState,
+    useWebviewApi,
+    type WebviewLayout,
+} from 'react-vscode-webview-ipc/client';
+import { ChatContextKey } from '../../context-keys';
 
 interface ChatInterfaceProps {
     layout: WebviewLayout;
@@ -67,9 +70,10 @@ const postReducer: StateReducer<ChatSidebarState, ChatSidebarActions> = {
 };
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
-    const { api } = useWebviewApi();
+    const { api, vscode } = useWebviewApi(ChatContextKey);
     const logger = useLogger('ChatInterface');
     const [state, actor] = useVscodeState<ChatSidebarState, ChatSidebarActions>(
+        vscode,
         ChatSidebarKey,
         postReducer,
         {
@@ -107,6 +111,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         () => [state.messages, (state.messages?.length ?? 0) > 0, state.messages === undefined],
         [state]
     );
+    const providerRegistry = useRef(createDefaultRegistry());
 
     const handleNewConversation = useCallback(async () => {
         // Clear UI state immediately for responsive UX
@@ -128,7 +133,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             logger.debug('🗑️ actor.clearChats completed');
         } catch (error) {
             console.error('Failed to clear conversation:', error);
-            api.showErrorMessage('Failed to clear chat history');
+            void api.showErrorMessage('Failed to clear chat history');
         }
     }, [markAsReturningUser, api, logger, actor]);
 
@@ -370,7 +375,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             logger.debug('🚀 Successfully initialized Securedesign');
         } catch (error) {
             console.error('Failed to initialize Securedesign:', error);
-            api.showErrorMessage('Failed to initialize SecureDesign');
+            void api.showErrorMessage('Failed to initialize SecureDesign');
         }
     };
 
@@ -536,23 +541,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             }
 
             const files = Array.from(e.dataTransfer.files);
-            logger.debug(
-                '🎯 Global files from drop:',
-                files.map(f => `${f.name} (${f.type})`)
-            );
-
             const imageFiles = files.filter(file => file.type.startsWith('image/'));
-            logger.debug(
-                '🎯 Global image files:',
-                imageFiles.map(f => f.name)
-            );
 
             if (imageFiles.length > 0 && !isChatHistoryLoading) {
-                logger.debug(
-                    '📎 Processing images from global drop:',
-                    imageFiles.map(f => f.name)
-                );
-
                 for (const file of imageFiles) {
                     try {
                         await handleImageUpload(file);
@@ -596,7 +587,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                             await handleImageUpload(file);
                         } catch (error) {
                             console.error('Error processing pasted image:', error);
-                            api.showErrorMessage(
+                            void api.showErrorMessage(
                                 `Failed to process pasted image: ${error instanceof Error ? error.message : String(error)}`
                             );
                         }
@@ -1337,7 +1328,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                 <div className='selector-wrapper'>
                                     <ModelSelect
                                         storage={storage.current}
-                                        providerRegistry={createDefaultRegistry()}
+                                        providerRegistry={providerRegistry.current}
                                     />
                                 </div>
                             </div>
