@@ -15,6 +15,8 @@ import type { ChatMessage } from '../types';
 import getCssFileContent from '../chat/getCssFileContent';
 import type { TextPart, ImagePart, FilePart } from '@ai-sdk/provider-utils';
 import type { ChatViewAPI, ChatViewEvents } from '../api/viewApi';
+import { generateText } from 'ai';
+import { createClaudeCode } from 'ai-sdk-provider-claude-code';
 
 function createActionDelegate(
     chatMessagesRepository: ChatMessagesRepository,
@@ -62,6 +64,27 @@ export class ChatSidebarProvider extends BaseWebviewViewProvider<ChatSidebarActi
         this.repositoryUnsubscribe = this.chatMessagesRepository.subscribe(messages => {
             this.postPatch('loadChats', messages ?? []);
         });
+
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        (async () => {
+            try {
+                const claudeCode = createClaudeCode();
+                const { text } = await generateText({
+                    model: claudeCode('sonnet'),
+                    prompt: 'Say "Hello from Claude" and nothing else.',
+                    providerOptions: {
+                        cwd: '/your/working/directory',
+                        permissionMode: 'bypassPermissions',
+                        // Use cleaned environment
+                        env: cleanEnv,
+                    },
+                });
+                console.log('✅ Claude Code SDK is working properly!');
+                console.log('Response:', text);
+            } catch (err) {
+                console.warn('⚠️ Claude Code SDK check failed:', err);
+            }
+        })();
     }
 
     generateWebviewHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
@@ -134,7 +157,7 @@ export class ChatSidebarProvider extends BaseWebviewViewProvider<ChatSidebarActi
                                 value: {
                                     fileName: imageData.fileName,
                                     originalName: imageData.originalName,
-                                    error: result,
+                                    error: result.message,
                                 },
                             });
                         }

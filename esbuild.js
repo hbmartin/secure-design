@@ -36,6 +36,9 @@ async function main() {
         platform: 'node',
         outfile: 'dist/extension.js',
         external: ['vscode'],
+        // Prefer ESM builds for dependencies to avoid UMD runtime requires
+        // (e.g. jsonc-parser's UMD uses relative requires that don't bundle well).
+        mainFields: ['module', 'main'],
         logLevel: 'silent',
         plugins: [
             /* add to the end of plugins array */
@@ -69,6 +72,9 @@ async function main() {
         alias: {
             react: path.resolve(__dirname, './node_modules/react'),
             'react/jsx-runtime': path.resolve(__dirname, './node_modules/react/jsx-runtime.js'),
+            // Prevent Node-only SDK from leaking into web build
+            '@anthropic-ai/claude-code': path.resolve(__dirname, './src/webview/claude-shim.ts'),
+            'ai-sdk-provider-claude-code': path.resolve(__dirname, './src/webview/claude-shim.ts'),
         },
     });
 
