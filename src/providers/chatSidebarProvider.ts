@@ -134,7 +134,10 @@ export class ChatSidebarProvider extends BaseWebviewViewProvider<ChatSidebarActi
                                 value: {
                                     fileName: imageData.fileName,
                                     originalName: imageData.originalName,
-                                    error: result,
+                                    error:
+                                        typeof result === 'object' && 'message' in result
+                                            ? result.message
+                                            : String(result),
                                 },
                             });
                         }

@@ -12,7 +12,8 @@
       "Bash(npm test)",
       "Bash(npm run test:typesafe-api:*)",
       "Bash(npx tsc:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(npm ls:*)"
     ],
     "deny": []
   },
