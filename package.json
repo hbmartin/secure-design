@@ -2,7 +2,7 @@
   "name": "securedesign",
   "displayName": "securedesign",
   "description": "The 1st Design Agent lives inside your IDE",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "HaroldMartin",
   "icon": "icon.png",
   "repository": {
@@ -180,11 +180,12 @@
   "dependencies": {
     "@ai-sdk/amazon-bedrock": "^3.0.22",
     "@ai-sdk/anthropic": "^2.0.17",
+    "@ai-sdk/deepseek": "^1.0.18",
     "@ai-sdk/google": "^2.0.14",
     "@ai-sdk/openai": "^2.0.32",
     "@openrouter/ai-sdk-provider": "^1.2.0",
     "ai": "^5.0.46",
-    "ai-sdk-react-model-picker": "^0.1.9",
+    "ai-sdk-react-model-picker": "^0.2.0",
     "execa": "^9.6.0",
     "glob": "^11.0.3",
     "highlight.js": "^11.11.1",
