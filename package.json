@@ -181,7 +181,7 @@
     "@ai-sdk/amazon-bedrock": "^3.0.22",
     "@ai-sdk/anthropic": "^2.0.17",
     "@ai-sdk/deepseek": "^1.0.18",
-    "@ai-sdk/google": "^2.0.14",
+    "@ai-sdk/google": "^2.0.15",
     "@ai-sdk/openai": "^2.0.32",
     "@openrouter/ai-sdk-provider": "^1.2.0",
     "ai": "^5.0.46",
