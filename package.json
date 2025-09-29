@@ -157,7 +157,7 @@
     "@types/react": "^19.1.15",
     "@types/react-dom": "^19.1.9",
     "@types/sinon": "^17.0.4",
-    "@types/vscode": "1.99.1",
+    "@types/vscode": "1.104.0",
     "@typescript-eslint/eslint-plugin": "^8.44.1",
     "@typescript-eslint/parser": "^8.44.1",
     "@vscode/test-cli": "^0.0.11",
