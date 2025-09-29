@@ -32,6 +32,9 @@ const extractErrorMessage = (error: unknown): string => {
     }
     if (typeof error === 'object') {
         if ('message' in error && typeof error.message === 'string') {
+            if ('type' in error && typeof error.type === 'string') {
+                return `${error.type}: ${error.message}`;
+            }
             return error.message;
         }
         return JSON.stringify(error);
@@ -595,7 +598,7 @@ I've created the html design, please reveiw and let me know if you need any chan
                     }
                     case 'error': {
                         const errorMsg = extractErrorMessage(chunk.error);
-                        this.logger.error(`Stream error: ${errorMsg}`);
+                        this.logger.error(`Stream error: ${errorMsg}`, { chunk });
 
                         updatedMessages = [
                             ...updatedMessages,

@@ -20,7 +20,13 @@ import type {
     ToolResultPart,
 } from '@ai-sdk/provider-utils';
 import { isToolCallPart, isToolResultPart } from '../../utils/chatUtils';
-import { createDefaultRegistry, ModelSelect } from 'ai-sdk-react-model-picker';
+import {
+    createDefaultRegistry,
+    type ModelId,
+    ModelSelect,
+    type ProviderId,
+    type ModelPickerTelemetry,
+} from 'ai-sdk-react-model-picker';
 import mpStyles from 'ai-sdk-react-model-picker/styles.css';
 import {
     type StateReducer,
@@ -112,6 +118,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         [state]
     );
     const providerRegistry = useRef(createDefaultRegistry());
+    const msLogger = useLogger('ModelSelect');
+    const modelSelectTelementry = useMemo(() => {
+        return {
+            onFetchStart: (providerId: ProviderId) => msLogger.debug(`onFetchStart: ${providerId}`),
+            onFetchSuccess: (providerId: ProviderId, modelCount: number) =>
+                msLogger.debug(`onFetchSuccess: ${providerId}: ${modelCount}`),
+            onFetchError: (providerId: ProviderId | undefined, error: Error) =>
+                msLogger.error(`onFetchError: ${providerId}: ${error.message}`, { error }),
+            onStorageError: (operation: 'read' | 'write', key: string, error: Error) =>
+                msLogger.error(`onStorageError: ${key}: ${operation}: ${error.message}`, { error }),
+            onUserModelAdded: (providerId: ProviderId, modelId: ModelId) =>
+                msLogger.debug(`onUserModelAdded: ${providerId}: ${modelId}`),
+            onProviderInitError: (provider: string, error: Error) =>
+                msLogger.error(`onProviderInitError: ${provider}: ${error.message}`, { error }),
+            onProviderNotFound: (providerId: ProviderId) =>
+                msLogger.error(`onProviderNotFound: ${providerId}`),
+            onProviderInvalidConfig: (providerId: ProviderId) =>
+                msLogger.error(`onProviderInvalidConfig: ${providerId}`),
+        } satisfies ModelPickerTelemetry;
+    }, [msLogger]);
 
     const handleNewConversation = useCallback(async () => {
         // Clear UI state immediately for responsive UX
@@ -1329,6 +1355,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                     <ModelSelect
                                         storage={storage.current}
                                         providerRegistry={providerRegistry.current}
+                                        telemetry={modelSelectTelementry}
                                     />
                                 </div>
                             </div>
