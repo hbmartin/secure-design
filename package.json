@@ -184,7 +184,7 @@
     "@ai-sdk/google": "^2.0.17",
     "@ai-sdk/openai": "^2.0.38",
     "@openrouter/ai-sdk-provider": "^1.2.0",
-    "ai": "^5.0.46",
+    "ai": "^5.0.57",
     "ai-sdk-react-model-picker": "^0.2.0",
     "execa": "^9.6.0",
     "glob": "^11.0.3",
