@@ -20,7 +20,13 @@ import type {
     ToolResultPart,
 } from '@ai-sdk/provider-utils';
 import { isToolCallPart, isToolResultPart } from '../../utils/chatUtils';
-import { createDefaultRegistry, ModelSelect } from 'ai-sdk-react-model-picker';
+import {
+    createDefaultRegistry,
+    ModelId,
+    ModelSelect,
+    ProviderId,
+    type ModelPickerTelemetry,
+} from 'ai-sdk-react-model-picker';
 import mpStyles from 'ai-sdk-react-model-picker/styles.css';
 import {
     type StateReducer,
@@ -112,6 +118,27 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
         [state]
     );
     const providerRegistry = useRef(createDefaultRegistry());
+    const msLogger = useLogger('ModelSelect');
+    const modelSelectTelementry = useMemo(() => {
+        console.log(`msLogger:`, msLogger);
+        return {
+            onFetchStart: (providerId: ProviderId) => msLogger.debug(`onFetchStart: ${providerId}`),
+            onFetchSuccess: (providerId: ProviderId, modelCount: number) =>
+                msLogger.debug(`onFetchSuccess: ${providerId}: ${modelCount}`),
+            onFetchError: (providerId: ProviderId | undefined, error: Error) =>
+                msLogger.error(`onFetchError: ${providerId}: ${error.message}`, { error }),
+            onStorageError: (operation: 'read' | 'write', key: string, error: Error) =>
+                msLogger.error(`onStorageError: ${key}: ${operation}: ${error.message}`, { error }),
+            onUserModelAdded: (providerId: ProviderId, modelId: ModelId) =>
+                msLogger.debug(`onUserModelAdded: ${providerId}: ${modelId}`),
+            onProviderInitError: (provider: string, error: Error) =>
+                msLogger.error(`onProviderInitError: ${provider}: ${error.message}`, { error }),
+            onProviderNotFound: (providerId: ProviderId) =>
+                msLogger.error(`onProviderNotFound: ${providerId}`),
+            onProviderInvalidConfig: (providerId: ProviderId) =>
+                msLogger.error(`onProviderInvalidConfig: ${providerId}`),
+        } satisfies ModelPickerTelemetry;
+    }, [msLogger]);
 
     const handleNewConversation = useCallback(async () => {
         // Clear UI state immediately for responsive UX
@@ -836,7 +863,36 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
     ) => {
         try {
             const toolName = toolCallPart.toolName ?? 'Unknown Tool';
-            const toolInput = toolCallPart.input as object;
+            const rawToolInput = toolCallPart.input;
+
+            let toolInput: Record<string, unknown> | undefined;
+            let toolInputDisplay = '';
+
+            if (rawToolInput !== undefined && rawToolInput !== null) {
+                if (typeof rawToolInput === 'string') {
+                    toolInputDisplay = rawToolInput;
+                    try {
+                        const parsed = JSON.parse(rawToolInput);
+                        if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                            toolInput = parsed as Record<string, unknown>;
+                            toolInputDisplay = JSON.stringify(parsed, null, 2);
+                        }
+                    } catch (parseError) {
+                        console.warn('Failed to parse tool input string:', parseError);
+                    }
+                } else if (typeof rawToolInput === 'object') {
+                    toolInput = rawToolInput as Record<string, unknown>;
+                    try {
+                        toolInputDisplay = JSON.stringify(toolInput, null, 2);
+                    } catch (stringifyError) {
+                        console.error('Failed to stringify tool input object:', stringifyError);
+                        toolInputDisplay = '[Tool input serialization failed]';
+                    }
+                } else {
+                    toolInputDisplay = String(rawToolInput);
+                }
+            }
+
             const uniqueKey = `${messageIndex}_${subIndex}`;
             const { toolCallId } = toolCallPart;
 
@@ -865,13 +921,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
 
                 // Extract theme data from tool input
                 const themeName =
-                    ('theme_name' in toolInput ? String(toolInput.theme_name) : undefined) ??
+                    (toolInput !== undefined && 'theme_name' in toolInput
+                        ? String(toolInput.theme_name)
+                        : undefined) ??
                     'Untitled Theme';
                 const cssSheet =
-                    ('cssSheet' in toolInput ? toolInput.cssSheet : undefined) ?? undefined;
+                    toolInput !== undefined && 'cssSheet' in toolInput
+                        ? (toolInput.cssSheet as string | undefined)
+                        : undefined;
                 const cssFilePath =
-                    'cssFilePath' in toolInput
-                        ? toolInput.cssFilePath
+                    toolInput !== undefined && 'cssFilePath' in toolInput
+                        ? (toolInput.cssFilePath as string | undefined)
                         : toolResultPart?.output?.type === 'json' &&
                             'cssFilePath' in (toolResultPart?.output?.value as object)
                           ? (toolResultPart?.output?.value as any)?.cssFilePath
@@ -945,9 +1005,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             const isExpanded = expandedTools[uniqueKey] ?? false;
 
             const description: string =
-                'description' in toolInput ? (toolInput.description as string) : '';
-            const command: string = 'command' in toolInput ? (toolInput.command as string) : '';
-            const prompt: string = 'prompt' in toolInput ? (toolInput.prompt as string) : '';
+                toolInput !== undefined && 'description' in toolInput && toolInput.description !== undefined
+                    ? String(toolInput.description)
+                    : '';
+            const command: string =
+                toolInput !== undefined && 'command' in toolInput && toolInput.command !== undefined
+                    ? String(toolInput.command)
+                    : '';
+            const prompt: string =
+                toolInput !== undefined && 'prompt' in toolInput && toolInput.prompt !== undefined
+                    ? String(toolInput.prompt)
+                    : '';
 
             const toolComplete = !!toolResultPart;
 
@@ -986,18 +1054,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             };
 
             // Input truncation with safe handling
-            const inputString: string = (() => {
-                try {
-                    return JSON.stringify(toolInput, null, 2);
-                } catch (error) {
-                    console.error(
-                        '❌ Error: Failed to stringify tool input for tool:',
-                        toolCallPart.toolName,
-                        error
-                    );
-                    return '[Tool input serialization failed]';
-                }
-            })();
+            const hasToolInputDetails =
+                (toolInput !== undefined && Object.keys(toolInput).length > 0) ||
+                toolInputDisplay.trim().length > 0;
 
             return (
                 <div
@@ -1053,11 +1112,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                     <code className='tool-detail__value'>{command}</code>
                                 </div>
                             )}
-                            {Object.keys(toolInput).length > 0 && (
+                            {hasToolInputDetails && (
                                 <div className='tool-detail'>
                                     <span className='tool-detail__label'>Input:</span>
                                     <div className='tool-detail__value tool-detail__value--result'>
-                                        <pre className='tool-result-content'>{inputString}</pre>
+                                        <pre className='tool-result-content'>{toolInputDisplay}</pre>
                                     </div>
                                 </div>
                             )}
@@ -1329,6 +1388,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                     <ModelSelect
                                         storage={storage.current}
                                         providerRegistry={providerRegistry.current}
+                                        telemetry={modelSelectTelementry}
                                     />
                                 </div>
                             </div>
