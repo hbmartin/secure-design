@@ -33,7 +33,7 @@ const extractErrorMessage = (error: unknown): string => {
     if (typeof error === 'object') {
         if ('message' in error && typeof error.message === 'string') {
             if ('type' in error && typeof error.type === 'string') {
-                return `${error.type.replace('_', ' ')}: ${error.message}`;
+                return `${error.type}: ${error.message}`;
             }
             return error.message;
         }

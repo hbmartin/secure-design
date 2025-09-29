@@ -2,7 +2,7 @@
   "name": "securedesign",
   "displayName": "securedesign",
   "description": "The 1st Design Agent lives inside your IDE",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "HaroldMartin",
   "icon": "icon.png",
   "repository": {
