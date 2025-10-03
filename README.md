@@ -62,7 +62,7 @@ Make sure to select a model that supports tool calling. If you are not running L
 ## Using Ollama
 
 1. Ensure the ollama server is running with `ollama serve`
-2. Ensure that the model you wanted is loaded with `ollama run <model name>`
+2. Ensure that the model you want is loaded with `ollama run <model name>`
 3. LLMs served by ollama will appear under `Available Models`
 
 Make sure to select a model that supports tool calling. If you are not running ollama at the default URL you must configure the URL in `+ Add Model Provider` > `Ollama`.
@@ -71,7 +71,7 @@ Make sure to select a model that supports tool calling. If you are not running o
 
 Yes, after you initialise securedesign extension, some cursor/claude code rules will be added, so you can prompt the agent to do design and preview in securedesign canva (cmd + shift + p -> securedesign: open canva)
 
-If using Cursor - I will highly suggest copy the prompt in 'design.mdc' and create a custom mode in cursor with that same system prompt; This should give you much better performance
+If using Cursor I highly suggest copying the prompt in 'design.mdc' and creating a custom mode in cursor with that same system prompt; This should give you much better performance
 
 ## 📂 Where Are My Designs Stored?
 
