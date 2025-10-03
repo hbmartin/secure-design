@@ -119,7 +119,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
     );
     const providerRegistry = useRef(createDefaultRegistry());
     const msLogger = useLogger('ModelSelect');
-    const modelSelectTelementry = useMemo(() => {
+    const modelSelectTelemetry = useMemo(() => {
         return {
             onFetchStart: (providerId: ProviderId) => msLogger.debug(`onFetchStart: ${providerId}`),
             onFetchSuccess: (providerId: ProviderId, modelCount: number) =>
@@ -1355,7 +1355,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                     <ModelSelect
                                         storage={storage.current}
                                         providerRegistry={providerRegistry.current}
-                                        telemetry={modelSelectTelementry}
+                                        telemetry={modelSelectTelemetry}
                                     />
                                 </div>
                             </div>

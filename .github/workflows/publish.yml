@@ -28,7 +28,7 @@ jobs:
           npm install -g @vscode/vsce ovsx
 
       - name: Publish to Visual Studio Marketplace
-        run: vsce publish --pat ${{ secrets.VSCE_TOKEN }} --pre-release
+        run: vsce publish --pat ${{ secrets.VSCE_TOKEN }}
 
       - name: Publish to Open VSX
-        run: ovsx publish -p ${{ secrets.OPEN_VSX_TOKEN }} --pre-release
+        run: ovsx publish -p ${{ secrets.OPEN_VSX_TOKEN }}
