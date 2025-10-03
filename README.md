@@ -51,17 +51,27 @@ Works seamlessly with Cursor, Windsurf, Claude Code, and plain VS Code.
 
 ---
 
+## Using LMStudio
+
+1. In the LMStudio `Developer` pane ensure that `Enable CORS` is turned ON in `⚙️ Settings`
+2. If the server is not running turn on the toggle next to `Status: Stopped`. Alternately launch the server from the command line with `lms server start --cors`
+3. LLMs served by LMStudio will appear under `Available Models`
+
+Make sure to select a model that supports tool calling. If you are not running LMStudio at the default URL you must configure the URL in `+ Add Model Provider` > `LMStudio`.
+
+## Using Ollama
+
+1. Ensure the ollama server is running with `ollama serve`
+2. Ensure that the model you want is loaded with `ollama run <model name>`
+3. LLMs served by ollama will appear under `Available Models`
+
+Make sure to select a model that supports tool calling. If you are not running ollama at the default URL you must configure the URL in `+ Add Model Provider` > `Ollama`.
+
 ## Can I use my own Claude Code or Cursor subscription?
 
 Yes, after you initialise securedesign extension, some cursor/claude code rules will be added, so you can prompt the agent to do design and preview in securedesign canva (cmd + shift + p -> securedesign: open canva)
 
-If using Cursor - I will highly suggest copy the prompt in 'design.mdc' and create a custom mode in cursor with that same system prompt; This should give you much better performance
-
-## How to run local OpenAI compatible servers?
-
-1. Select open ai on Ai Model Provider
-2. Put anything in Openai Api Key input
-3. Add your OpenAi Url on the Openai Url input (example: http://127.0.0.1:1234/v1 for LM Studio)
+If using Cursor I highly suggest copying the prompt in 'design.mdc' and creating a custom mode in cursor with that same system prompt; This should give you much better performance
 
 ## 📂 Where Are My Designs Stored?
 

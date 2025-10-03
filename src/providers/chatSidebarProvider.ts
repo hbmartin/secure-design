@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { generateWebviewHtml as _generateWebviewHtml } from '../templates/webviewTemplate';
+import { generateWebviewHtml as _generateWebviewHtml } from '../templates/chatTemplate';
 import {
     BaseWebviewViewProvider,
     isViewApiRequest,
