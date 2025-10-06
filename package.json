@@ -196,7 +196,7 @@
     "ollama-ai-provider-v2": "^1.4.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-hook-form": "^7.63.0",
+    "react-hook-form": "^7.64.0",
     "react-markdown": "^10.1.0",
     "react-vscode-webview-ipc": "^0.1.1",
     "react-zoom-pan-pinch": "^3.7.0",
