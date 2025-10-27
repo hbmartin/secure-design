@@ -185,7 +185,7 @@
     "@ai-sdk/openai": "^2.0.42",
     "@ai-sdk/openai-compatible": "^1.0.19",
     "@openrouter/ai-sdk-provider": "^1.2.0",
-    "ai": "^5.0.60",
+    "ai": "^5.0.81",
     "ai-sdk-react-model-picker": "^0.4.0",
     "execa": "^9.6.0",
     "glob": "^11.0.3",
