@@ -183,7 +183,7 @@
     "@ai-sdk/deepseek": "^1.0.20",
     "@ai-sdk/google": "^2.0.17",
     "@ai-sdk/openai": "^2.0.42",
-    "@ai-sdk/openai-compatible": "^1.0.19",
+    "@ai-sdk/openai-compatible": "^1.0.20",
     "@openrouter/ai-sdk-provider": "^1.2.0",
     "ai": "^5.0.60",
     "ai-sdk-react-model-picker": "^0.4.0",
