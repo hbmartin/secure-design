@@ -51,6 +51,16 @@ Works seamlessly with Cursor, Windsurf, Claude Code, and plain VS Code.
 
 ---
 
+## Using Claude Code
+
+You can chat using your Claude subscription instead of an API key:
+
+1. Install the [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code/overview) and log in with `claude login`
+2. Select `Claude Code` under `+ Add Model Provider` — no API key is required
+3. Pick `Claude Sonnet`, `Claude Opus`, or `Claude Haiku` under `Available Models`
+
+If the CLI is not on the extension's PATH you can set the path to the `claude` executable in the provider settings.
+
 ## Using LMStudio
 
 1. In the LMStudio `Developer` pane ensure that `Enable CORS` is turned ON in `⚙️ Settings`
