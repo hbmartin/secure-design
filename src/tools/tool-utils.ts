@@ -67,6 +67,33 @@ export function handleToolError(
     };
 }
 
+function isWithinDirectory(resolvedPath: string, directory: string): boolean {
+    return resolvedPath === directory || resolvedPath.startsWith(directory + path.sep);
+}
+
+/**
+ * Models (especially smaller local ones) often hallucinate an absolute prefix
+ * for workspace files, e.g. "/path/to/<workspace name>/UI/theme.css". When the
+ * workspace directory name appears as a segment of an out-of-workspace
+ * absolute path, remap the remainder into the workspace. Returns null when no
+ * safe remapping exists.
+ */
+function remapAbsolutePathIntoWorkspace(filePath: string, workspaceDir: string): string | null {
+    const workspaceName = path.basename(workspaceDir);
+    if (workspaceName.length === 0) {
+        return null;
+    }
+
+    const segments = path.normalize(filePath).split(path.sep).filter(Boolean);
+    const workspaceIndex = segments.lastIndexOf(workspaceName);
+    if (workspaceIndex === -1) {
+        return null;
+    }
+
+    const remapped = path.resolve(workspaceDir, ...segments.slice(workspaceIndex + 1));
+    return isWithinDirectory(remapped, workspaceDir) ? remapped : null;
+}
+
 /**
  * Validate if a path is within the workspace directory (supports both absolute and relative paths)
  */
@@ -95,9 +122,13 @@ export function validateWorkspacePath(
         }
 
         // Check if path is within workspace boundary
-        if (!resolvedPath.startsWith(normalizedWorkspace)) {
+        if (!isWithinDirectory(resolvedPath, normalizedWorkspace)) {
+            if (remapAbsolutePathIntoWorkspace(filePath, normalizedWorkspace) !== null) {
+                return null;
+            }
             return handleToolError(
-                `Path must be within workspace directory: ${filePath}`,
+                `Path must be within the workspace directory (${normalizedWorkspace}): ${filePath}. ` +
+                    `Use a path relative to the workspace root instead, e.g. ".superdesign/design_iterations/file.html"`,
                 'Security check',
                 'security'
             );
@@ -110,11 +141,18 @@ export function validateWorkspacePath(
 }
 
 /**
- * Safely resolve a file path (supports both absolute and relative paths)
+ * Safely resolve a file path (supports both absolute and relative paths).
+ * Must stay in sync with validateWorkspacePath so a validated path resolves
+ * to the same location the validation approved.
  */
 export function resolveWorkspacePath(filePath: string, context: ExecutionContext): string {
     if (path.isAbsolute(filePath)) {
-        return path.normalize(filePath);
+        const normalized = path.normalize(filePath);
+        const normalizedWorkspace = path.normalize(context.workingDirectory);
+        if (isWithinDirectory(normalized, normalizedWorkspace)) {
+            return normalized;
+        }
+        return remapAbsolutePathIntoWorkspace(filePath, normalizedWorkspace) ?? normalized;
     } else {
         return path.resolve(context.workingDirectory, filePath);
     }
