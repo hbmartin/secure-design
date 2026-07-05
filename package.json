@@ -139,6 +139,7 @@
     "format": "prettier --write src",
     "format:check": "prettier --check .",
     "lint:fix": "npm run lint -- --fix",
+    "test:chat-utils": "tsc --project tsconfig.test.json && node dist-test/test/chat-utils.test.js",
     "test:llm": "tsc --project tsconfig.test.json && node dist-test/test/llm-service.test.js",
     "test:core": "tsc --project tsconfig.test.json && node dist-test/test/core-components.test.js",
     "test:read": "tsc --project tsconfig.test.json && node dist-test/test/read-tool.test.js",
