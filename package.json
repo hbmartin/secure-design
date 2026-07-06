@@ -193,7 +193,7 @@
     "execa": "^9.6.0",
     "glob": "^11.0.3",
     "highlight.js": "^11.11.1",
-    "lucide-react": "^0.544.0",
+    "lucide-react": "^1.23.0",
     "micromatch": "^4.0.8",
     "mime-types": "^3.0.1",
     "ollama-ai-provider-v2": "^1.4.1",
