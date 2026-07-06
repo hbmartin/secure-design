@@ -69,6 +69,13 @@ async function main() {
         alias: {
             react: path.resolve(__dirname, './node_modules/react'),
             'react/jsx-runtime': path.resolve(__dirname, './node_modules/react/jsx-runtime.js'),
+            // Prevent the Node-only Claude Code SDK from leaking into the web build
+            '@anthropic-ai/claude-agent-sdk': path.resolve(
+                __dirname,
+                './src/webview/claude-shim.ts'
+            ),
+            '@anthropic-ai/claude-code': path.resolve(__dirname, './src/webview/claude-shim.ts'),
+            'ai-sdk-provider-claude-code': path.resolve(__dirname, './src/webview/claude-shim.ts'),
         },
     });
 

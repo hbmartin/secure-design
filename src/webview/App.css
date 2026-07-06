@@ -923,6 +923,36 @@
     font-family: var(--vscode-editor-font-family);
 }
 
+.empty-state__prompts {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin: 16px 0;
+}
+
+.empty-state__prompt-btn {
+    background: var(--vscode-button-secondaryBackground, var(--vscode-button-background));
+    color: var(--vscode-button-secondaryForeground, var(--vscode-button-foreground));
+    border: 1px solid var(--vscode-button-border, transparent);
+    border-radius: 4px;
+    padding: 6px 14px;
+    font-size: 12px;
+    cursor: pointer;
+    max-width: 320px;
+}
+
+.empty-state__prompt-btn:hover {
+    background: var(--vscode-button-secondaryHoverBackground, var(--vscode-button-hoverBackground));
+}
+
+.empty-state__hint {
+    max-width: 420px;
+    margin: 12px auto 0;
+    font-size: 12px;
+    opacity: 0.85;
+}
+
 /* Design Panel Styles */
 .design-panel {
     flex: 1;

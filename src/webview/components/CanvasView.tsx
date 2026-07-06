@@ -648,15 +648,41 @@ const CanvasView: React.FC<CanvasViewProps> = ({ nonce }) => {
     }
 
     if (designFiles.length === 0) {
+        const samplePrompts = [
+            'Help me design a calculator UI',
+            'Design a modern login screen',
+            'Create a dashboard with a sidebar and stat cards',
+        ];
+        const handleSamplePrompt = (prompt: string) => {
+            const promptMessage: WebviewMessage = {
+                command: 'setChatPrompt',
+                data: { prompt },
+            };
+            vscode.postMessage(promptMessage);
+        };
         return (
             <div className='canvas-empty'>
                 <div className='empty-state'>
-                    <h3>
-                        No design files found in <code>.superdesign/design_iterations/</code>
-                    </h3>
+                    <h3>No designs yet</h3>
                     <p>
-                        Prompt SecureDesign OR Cursor/Windsurf/Claude Code to design UI like{' '}
-                        <kbd>Help me design a calculator UI</kbd> and preview the UI here
+                        Ask SecureDesign to create something in the chat panel, and it will show up
+                        here automatically. Try one of these to get started:
+                    </p>
+                    <div className='empty-state__prompts'>
+                        {samplePrompts.map(prompt => (
+                            <button
+                                key={prompt}
+                                className='empty-state__prompt-btn'
+                                onClick={() => handleSamplePrompt(prompt)}
+                                title='Send this prompt to the chat panel'
+                            >
+                                {prompt}
+                            </button>
+                        ))}
+                    </div>
+                    <p className='empty-state__hint'>
+                        You can also prompt Cursor/Windsurf/Claude Code directly — generated files
+                        in <code>.superdesign/design_iterations/</code> are previewed here.
                     </p>
                 </div>
             </div>

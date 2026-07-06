@@ -19,7 +19,7 @@ import type {
     ToolCallPart,
     ToolResultPart,
 } from '@ai-sdk/provider-utils';
-import { isToolCallPart, isToolResultPart } from '../../utils/chatUtils';
+import { isToolCallPart, isToolResultPart, normalizeToolInput } from '../../utils/chatUtils';
 import {
     createDefaultRegistry,
     type ModelId,
@@ -862,7 +862,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
     ) => {
         try {
             const toolName = toolCallPart.toolName ?? 'Unknown Tool';
-            const toolInput = toolCallPart.input as object;
+            const { input: toolInput, display: toolInputDisplay } = normalizeToolInput(
+                toolCallPart.input
+            );
             const uniqueKey = `${messageIndex}_${subIndex}`;
             const { toolCallId } = toolCallPart;
 
@@ -891,12 +893,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
 
                 // Extract theme data from tool input
                 const themeName =
-                    ('theme_name' in toolInput ? String(toolInput.theme_name) : undefined) ??
-                    'Untitled Theme';
+                    (toolInput !== undefined && 'theme_name' in toolInput
+                        ? String(toolInput.theme_name)
+                        : undefined) ?? 'Untitled Theme';
                 const cssSheet =
-                    ('cssSheet' in toolInput ? toolInput.cssSheet : undefined) ?? undefined;
+                    (toolInput !== undefined && 'cssSheet' in toolInput
+                        ? toolInput.cssSheet
+                        : undefined) ?? undefined;
                 const cssFilePath =
-                    'cssFilePath' in toolInput
+                    toolInput !== undefined && 'cssFilePath' in toolInput
                         ? toolInput.cssFilePath
                         : toolResultPart?.output?.type === 'json' &&
                             'cssFilePath' in (toolResultPart?.output?.value as object)
@@ -971,9 +976,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
             const isExpanded = expandedTools[uniqueKey] ?? false;
 
             const description: string =
-                'description' in toolInput ? (toolInput.description as string) : '';
-            const command: string = 'command' in toolInput ? (toolInput.command as string) : '';
-            const prompt: string = 'prompt' in toolInput ? (toolInput.prompt as string) : '';
+                typeof toolInput?.description === 'string' ? toolInput.description : '';
+            const command: string = typeof toolInput?.command === 'string' ? toolInput.command : '';
+            const prompt: string = typeof toolInput?.prompt === 'string' ? toolInput.prompt : '';
 
             const toolComplete = !!toolResultPart;
 
@@ -1011,19 +1016,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                 }));
             };
 
-            // Input truncation with safe handling
-            const inputString: string = (() => {
-                try {
-                    return JSON.stringify(toolInput, null, 2);
-                } catch (error) {
-                    console.error(
-                        '❌ Error: Failed to stringify tool input for tool:',
-                        toolCallPart.toolName,
-                        error
-                    );
-                    return '[Tool input serialization failed]';
-                }
-            })();
+            const hasToolInputDetails =
+                (toolInput !== undefined && Object.keys(toolInput).length > 0) ||
+                toolInputDisplay.trim().length > 0;
 
             return (
                 <div
@@ -1079,11 +1074,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ layout }) => {
                                     <code className='tool-detail__value'>{command}</code>
                                 </div>
                             )}
-                            {Object.keys(toolInput).length > 0 && (
+                            {hasToolInputDetails && (
                                 <div className='tool-detail'>
                                     <span className='tool-detail__label'>Input:</span>
                                     <div className='tool-detail__value tool-detail__value--result'>
-                                        <pre className='tool-result-content'>{inputString}</pre>
+                                        <pre className='tool-result-content'>
+                                            {toolInputDisplay}
+                                        </pre>
                                     </div>
                                 </div>
                             )}
