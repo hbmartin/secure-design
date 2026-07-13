@@ -195,7 +195,7 @@
     "highlight.js": "^11.11.1",
     "lucide-react": "^1.23.0",
     "micromatch": "^4.0.8",
-    "mime-types": "^3.0.1",
+    "mime-types": "^3.0.2",
     "ollama-ai-provider-v2": "^1.4.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.0",
