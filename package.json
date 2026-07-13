@@ -180,7 +180,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@ai-sdk/amazon-bedrock": "^3.0.30",
+    "@ai-sdk/amazon-bedrock": "^5.0.17",
     "@ai-sdk/anthropic": "^2.0.23",
     "@ai-sdk/deepseek": "^3.0.5",
     "@ai-sdk/google": "^2.0.17",
